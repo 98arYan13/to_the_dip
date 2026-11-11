@@ -1,0 +1,9 @@
+# Godot 4 cache (regenerated). Keep *.import files: they hold per-asset import settings.
+.godot/
+/android/
+/build/
+*.tmp
+
+# Local secrets / settings
+.env
+.claude/settings.local.json
