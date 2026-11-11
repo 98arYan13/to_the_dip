@@ -129,12 +129,15 @@ export class Player {
           this.swingTimer = swing * MINING.FIRST_SWING_FRAC;
           this.target = t;
         }
-        this.swingTimer += dt;
+        const flat = pick.powered && energy.value < 0.5;
+        if (flat) {
+          if (!this.flatHinted) { this.flatHinted = true; bus.emit(EV.HINT, 'Drill battery empty — recharge at the station'); }
+        } else { this.flatHinted = false; this.swingTimer += dt; }
         if (this.swingTimer >= swing) {
           this.swingTimer -= swing;
           bus.emit(EV.SWING);
           const res = mining.strike(t, this.cx, this.cy);
-          if (res === 'broken') { energy.drainBlock(mining.hit.type, mining.hit.ore); this.target = -1; }
+          if (res === 'broken') { if (pick.powered) energy.drainBlock(mining.hit.type, mining.hit.ore); this.target = -1; }
         }
         this.swingPhase = this.swingTimer / swing;
       } else {

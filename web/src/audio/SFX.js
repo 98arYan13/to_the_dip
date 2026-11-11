@@ -58,12 +58,18 @@ export class SFX {
     const v = e.voice('sfx', x, y); if (!v) return;
     const t = e.now; const p = e.jp(); const g = e.jg();
     if (type === TILE.SOIL && !ore) {
-      e.osc(v, 'sine', 108 * p, 34, t, 0.16, 0.8 * g); // soil-compaction thump
-      e.noiseBurst(v, 'pink', 'lowpass', 680 * p, 680 * p, 0.7, t, 0.09, 0.45 * g); // blade shear
-      for (let k = 0; k < 5; k++) { // shifting pebbles and dry clods
-        const f = 480 + Math.random() * 970;
-        e.noiseBurst(v, 'white', 'bandpass', f, f, 6, t + 0.015 + k * 0.018 + Math.random() * 0.012, 0.03, 0.22 * g);
+      // Blade into packed earth: a noise-only dull thud (no tonal sine), a granular crunch whose
+      // grains thin out over ~160 ms, then loose soil trickling off the blade.
+      const r = 0.9 + Math.random() * 0.2;
+      e.noiseBurst(v, 'brown', 'lowpass', 320 * p * r, 90, 0.9, t, 0.07, 0.9 * g, v.out, 0.001); // impact thud
+      e.noiseBurst(v, 'pink', 'bandpass', 900 * p * r, 500, 1.2, t, 0.05, 0.35 * g); // blade bite
+      const grains = 14 + Math.floor(Math.random() * 6);
+      for (let k = 0; k < grains; k++) { // crunch: dense at first, sparser later
+        const at = t + 0.004 + Math.pow(k / grains, 1.6) * 0.16 + Math.random() * 0.006;
+        const f = 700 + Math.random() * 2600;
+        e.noiseBurst(v, 'white', 'bandpass', f * p, f * p, 4 + Math.random() * 6, at, 0.008 + Math.random() * 0.012, (0.18 - 0.1 * k / grains) * g);
       }
+      e.noiseBurst(v, 'pink', 'lowpass', 1800 * p, 500, 0.7, t + 0.05, 0.28, 0.16 * g, v.out, 0.04); // trickle
     } else {
       e.noiseBurst(v, 'white', 'bandpass', 2100 * p, 2100 * p, 1.4, t, 0.022, 0.7 * g); // stone-crack transient
       e.osc(v, 'triangle', 195 * p, 52, t, 0.11, 0.6 * g); // rock body thwack
@@ -138,23 +144,42 @@ export class SFX {
     e.commit(v);
   }
 
-  /** Rubble collapse: structural fracture thump, lowpass crumble roar, 6-8 tumbling impacts over 240 ms. */
+  /**
+   * Block gives way. Soil: heavy slump of earth + clods thudding + long dry trickle (~0.6 s).
+   * Rock: sharp fracture crack, sub boom, then 8-12 stone chunks clacking with short resonant knocks.
+   */
   blockBreak(type, x, y) {
     const e = this.e; if (!e.ready) return;
     const v = e.voice('sfx', x, y); if (!v) return;
     const t = e.now; const p = e.jp(); const g = e.jg();
-    const soft = type === TILE.SOIL;
-    e.osc(v, 'sine', (95 + Math.random() * 30) * p, 28, t, 0.3, 0.8 * g);
-    e.noiseBurst(v, 'brown', 'lowpass', (soft ? 500 : 900) * p, 120, 0.8, t, 0.32, 0.8 * g);
-    const n = 6 + Math.floor(Math.random() * 3);
-    for (let k = 0; k < n; k++) {
-      const at = t + 0.03 + (k / n) * 0.24 + Math.random() * 0.02;
-      const f = soft ? 300 + Math.random() * 500 : 900 + Math.random() * 1800;
-      e.noiseBurst(v, 'white', 'bandpass', f, f * 0.8, 3, at, 0.04, 0.3 * (1 - k / n) + 0.08);
-      if (!soft) e.osc(v, 'triangle', 140 + Math.random() * 120, 60, at, 0.05, 0.15 * (1 - k / n));
+    if (type === TILE.SOIL) {
+      e.noiseBurst(v, 'brown', 'lowpass', 600 * p, 110, 0.8, t, 0.35, 1.0 * g, v.out, 0.01); // earth slump
+      for (let k = 0; k < 5; k++) { // clods landing
+        const at = t + 0.06 + k * 0.06 + Math.random() * 0.04;
+        e.noiseBurst(v, 'brown', 'lowpass', (260 + Math.random() * 200) * p, 80, 1, at, 0.06, (0.5 - k * 0.07) * g);
+      }
+      for (let k = 0; k < 22; k++) { // dry grains pouring
+        const at = t + 0.05 + Math.pow(k / 22, 1.3) * 0.5 + Math.random() * 0.01;
+        const f = 1200 + Math.random() * 3200;
+        e.noiseBurst(v, 'white', 'bandpass', f, f, 6, at, 0.01, 0.1 * (1 - k / 26) * g);
+      }
+      e.noiseBurst(v, 'pink', 'lowpass', 2200 * p, 400, 0.6, t + 0.08, 0.55, 0.22 * g, v.out, 0.08); // sliding soil hiss
+    } else {
+      e.noiseBurst(v, 'white', 'highpass', 2500 * p, 1500, 0.8, t, 0.03, 0.9 * g); // fracture crack
+      e.noiseBurst(v, 'white', 'bandpass', 1400 * p, 700, 2, t + 0.008, 0.05, 0.5 * g); // split
+      e.osc(v, 'sine', 70 * p, 32, t, 0.4, 0.9 * g); // sub boom
+      e.noiseBurst(v, 'brown', 'lowpass', 1100 * p, 150, 0.7, t + 0.02, 0.45, 0.7 * g, v.out, 0.01); // crumble roar
+      const n = 8 + Math.floor(Math.random() * 5);
+      for (let k = 0; k < n; k++) { // stone chunks clacking
+        const at = t + 0.05 + (k / n) * 0.42 + Math.random() * 0.03;
+        const f = 500 + Math.random() * 1400; const a = (0.35 * (1 - k / n) + 0.08) * g;
+        e.noiseBurst(v, 'white', 'bandpass', f * 2, f * 1.6, 5, at, 0.02, a);
+        e.osc(v, 'triangle', f * p, f * 0.7 * p, at, 0.04, a * 0.5, v.out, 0.001); // knock resonance
+      }
     }
     e.commit(v);
   }
+
 
   // ---------- Equipment ----------
 

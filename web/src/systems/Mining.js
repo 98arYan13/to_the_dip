@@ -5,6 +5,12 @@
 import { TILE, ORE, MATERIALS, ORES, PICKAXES, MINING, WORLD } from '../config.js';
 import { EV } from '../core/EventBus.js';
 
+/** Ground under the base camp buildings stays solid so the camp and spawn point never float. */
+export function isCampGround(x, y) {
+  const b = WORLD.BASE_CAMP;
+  return x >= b.PAD_X0 && x <= b.PAD_X1 && y >= WORLD.SURFACE_ROWS && y < WORLD.SURFACE_ROWS + b.PAD_DEPTH;
+}
+
 /** Required pickaxe tier for a tile: max(hostRock.tier, ore.tier). */
 export function requiredTier(type, ore) {
   const m = MATERIALS[type];
@@ -43,9 +49,11 @@ export function crackStage(hp, maxHp) {
 export function requirementHint(type, ore) {
   if (type === TILE.BEDROCK) return 'Bedrock is indestructible';
   const t = requiredTier(type, ore);
-  if (ore === ORE.DIAMOND) return 'Only diamond cuts diamond: requires Diamond-Tipped Pickaxe';
+  if (ore === ORE.DIAMOND) return 'Only diamond cuts diamond: requires Diamond-Tipped Drill';
   return `Requires ${PICKAXES[Math.min(PICKAXES.length, t) - 1].name}`;
 }
+
+export const CAMP_HINT = 'Base camp foundation — dig outside the camp';
 
 export const DYN_KEEP = 0;
 export const DYN_DESTROY = 1;
@@ -136,11 +144,12 @@ export class Mining {
     if (Math.abs(nx) > Math.abs(ny)) { nx = Math.sign(nx); ny = 0; } else { ny = Math.sign(ny); nx = 0; }
     h.i = i; h.x = x; h.y = y; h.type = type; h.ore = ore; h.nx = nx; h.ny = ny; h.hint = '';
     const tier = this.economy.pickTier;
-    const dmg = hitDamage(type, ore, tier);
+    const camp = isCampGround(x, y);
+    const dmg = camp ? 0 : hitDamage(type, ore, tier);
     if (dmg <= 0) {
       h.stage = crackStage(w.tileHP[i], w.maxHP(i));
       if (this.hintCooldown <= 0) {
-        h.hint = requirementHint(type, ore);
+        h.hint = camp ? CAMP_HINT : requirementHint(type, ore);
         this.hintCooldown = MINING.HINT_COOLDOWN;
         this.bus.emit(EV.HINT, h.hint);
       }
@@ -203,7 +212,7 @@ export class Mining {
       const x = tx + dx; const y = ty + dy;
       if (!w.inBounds(x, y)) continue;
       const i = y * w.W + x;
-      const out = dynamiteOutcome(w.tileType[i], w.oreType[i], tier);
+      const out = isCampGround(x, y) ? DYN_KEEP : dynamiteOutcome(w.tileType[i], w.oreType[i], tier);
       if (out === DYN_KEEP) { if (w.oreType[i]) this.vis.revealAround(x, y); continue; }
       this.breakTile(i, out === DYN_COLLECT);
       n++;

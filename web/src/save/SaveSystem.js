@@ -163,6 +163,8 @@ export class SaveSystem {
   save(state) {
     try {
       this.storage.setItem(this.key, serialize(state));
+      // Small summary for the slot picker, so it never has to decode a whole world.
+      this.storage.setItem(`${this.key}.meta`, JSON.stringify({ t: Date.now(), credits: state.economy?.credits ?? 0, depthTiles: (state.player?.y ?? 0) / WORLD.TILE_PX - WORLD.SURFACE_ROWS }));
       this.timer = 0;
       return true;
     } catch {
@@ -182,7 +184,7 @@ export class SaveSystem {
     catch (e) { return { ok: false, error: /** @type {Error} */ (e).message }; }
   }
 
-  clear() { try { this.storage.removeItem(this.key); } catch { /* ignore */ } }
+  clear() { try { this.storage.removeItem(this.key); this.storage.removeItem(`${this.key}.meta`); } catch { /* ignore */ } }
 
   /**
    * Throttled autosave tick.

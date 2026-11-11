@@ -146,8 +146,10 @@ export class Economy {
     return { credits: this.credits, cargo: Array.from(this.cargo), levels: { ...this.levels }, consumables: { ...this.consumables } };
   }
 
-  get pickTier() { return this.levels.pickaxe + 1; }
-  get pickaxe() { return PICKAXES[this.levels.pickaxe]; }
+  /** Dev override: tier 1..6, or 0 for the owned tool. Not saved. */
+  devPick = 0;
+  get pickTier() { return this.devPick || this.levels.pickaxe + 1; }
+  get pickaxe() { return PICKAXES[this.pickTier - 1]; }
   get jetpack() { return UPGRADES.jetpack.levels[this.levels.jetpack]; }
   get rig() { return UPGRADES.rig.levels[this.levels.rig]; }
   get radar() { return UPGRADES.radar.levels[this.levels.radar]; }

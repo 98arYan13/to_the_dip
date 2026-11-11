@@ -13,3 +13,15 @@ describe('Hard landing', () => {
     expect(hardLandingDamage(5, 3, 2)).toBe(Math.round(36 * Math.SQRT2));
   });
 });
+
+import { isCampGround } from '../src/systems/Mining.js';
+import { WORLD } from '../src/config.js';
+
+describe('Camp foundation', () => {
+  it('protects ground under the camp only', () => {
+    const b = WORLD.BASE_CAMP; const SR = WORLD.SURFACE_ROWS;
+    expect(isCampGround(b.SPAWN_X, SR)).toBe(true);
+    expect(isCampGround(b.SPAWN_X, SR + b.PAD_DEPTH)).toBe(false);
+    expect(isCampGround(b.PAD_X1 + 1, SR)).toBe(false);
+  });
+});

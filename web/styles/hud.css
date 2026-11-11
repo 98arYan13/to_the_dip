@@ -30,6 +30,8 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #000; color:
 .layer-val { color: var(--warm); font-size: 12px; }
 .bar { flex: 1; height: 10px; background: #111a22; border: 1px solid #234; border-radius: 2px; overflow: hidden; }
 .fill { height: 100%; width: 100%; background: linear-gradient(90deg, #1aa6b7, var(--accent)); transition: width .15s linear; }
+.hp-fill { height: 100%; width: 100%; background: linear-gradient(90deg, #2f9e44, var(--good)); transition: width .15s linear; }
+.health.low .hp-fill { background: linear-gradient(90deg, #a01d14, var(--bad)); }
 .energy.low .fill { background: linear-gradient(90deg, #a01d14, var(--bad)); animation: pulse .7s ease-in-out infinite alternate; }
 .energy.low .e-val { color: var(--bad); }
 body.reduced-flashing .energy.low .fill { animation: none; }
@@ -122,3 +124,7 @@ kbd { font: inherit; font-size: 11px; background: #1b2630; border: 1px solid #39
   .stats { min-width: 0; font-size: 11px; }
   .slots { flex-wrap: wrap; width: 94vw; justify-content: center; }
 }
+
+.dev { position: absolute; right: 12px; top: 300px; padding: 8px 12px; min-width: 240px; font-size: 12px; z-index: 7; }
+.dev b { color: var(--warn); letter-spacing: 2px; }
+.dev .srow span { width: auto; }

@@ -7,6 +7,7 @@
 import { WORLD, CAMERA, RENDER, ORES, FLAG, TILE, DYNAMITE, ENERGY, PICKUPS, MINING } from '../config.js';
 import { hash2 } from '../core/RNG.js';
 import { requiredTier } from '../systems/Mining.js';
+import { hexToRgb } from './canvas.js';
 
 const T = WORLD.TILE_PX;
 const MAX_SHOCKWAVES = 8;
@@ -128,7 +129,7 @@ export class Renderer {
       for (let x = Math.max(0, tx0); x <= Math.min(world.W - 1, tx1); x++) {
         const i = y * world.W + x;
         const o = world.oreType[i];
-        if (!o || !(world.flags[i] & FLAG.DISCOVERED)) continue;
+        if (!o || !(this.devReveal || world.flags[i] & FLAG.DISCOVERED)) continue;
         const g = /** @type {any} */ (ORES[o]).glint;
         if (g <= 0) continue;
         const cx = x * T + T / 2; const cy = y * T + T / 2;
@@ -158,32 +159,34 @@ export class Renderer {
     fs.playerX = px; fs.playerY = py; fs.aimAngle = Math.atan2(st.aimY - py, st.aimX - px);
     fs.headlamp = st.headlamp; fs.time = this.time;
     fs.canvasW = this.canvas.width; fs.canvasH = this.canvas.height;
-    lighting.render(ctx, fs);
-    calls += lighting.drawCalls;
+    // Dev reveal: full-bright, no fog.
+    if (!this.devReveal) { lighting.render(ctx, fs); calls += lighting.drawCalls; }
 
     // Fog of war
     ctx.setTransform(s, 0, 0, s, -camL * s, -camT * s);
-    ctx.fillStyle = RENDER.FOG_COLOR;
-    ctx.beginPath();
-    let partial = false;
-    for (let y = Math.max(0, ty0); y <= Math.min(world.H - 1, ty1); y++) {
-      for (let x = Math.max(0, tx0); x <= Math.min(world.W - 1, tx1); x++) {
-        const a = vis.alpha[y * world.W + x];
-        if (a <= 0) ctx.rect(x * T, y * T, T, T);
-        else if (a < 1) partial = true;
+    // One fog texel per tile, upscaled with bilinear smoothing so darkness fades across tile edges.
+    // Tiles outside the world count as fogged; a 1-tile margin keeps the screen edges correct.
+    const fx0 = tx0 - 1; const fy0 = ty0 - 1; const fw = tx1 - tx0 + 3; const fh = ty1 - ty0 + 3;
+    const fc = this.fogCanvas || (this.fogCanvas = document.createElement('canvas'));
+    if (fc.width !== fw || fc.height !== fh) { fc.width = fw; fc.height = fh; this.fogImg = null; }
+    const fctx = /** @type {CanvasRenderingContext2D} */ (fc.getContext('2d'));
+    const img = this.fogImg || (this.fogImg = fctx.createImageData(fw, fh));
+    const [fr, fg, fb] = hexToRgb(RENDER.FOG_COLOR);
+    const px8 = img.data;
+    for (let y = 0; y < fh; y++) {
+      const wy = fy0 + y;
+      for (let x = 0; x < fw; x++) {
+        const wx = fx0 + x;
+        const a = wx < 0 || wy < 0 || wx >= world.W || wy >= world.H ? 1 : this.devReveal ? 0 : 1 - vis.alpha[wy * world.W + wx];
+        const o = (y * fw + x) * 4;
+        px8[o] = fr; px8[o + 1] = fg; px8[o + 2] = fb; px8[o + 3] = a * 255;
       }
     }
-    ctx.fill();
+    fctx.putImageData(img, 0, 0);
+    ctx.imageSmoothingEnabled = true;
+    ctx.drawImage(fc, (fx0 + 0.5) * T, (fy0 + 0.5) * T, (fw - 1) * T, (fh - 1) * T);
+    ctx.imageSmoothingEnabled = false;
     calls++;
-    if (partial) {
-      for (let y = Math.max(0, ty0); y <= Math.min(world.H - 1, ty1); y++) {
-        for (let x = Math.max(0, tx0); x <= Math.min(world.W - 1, tx1); x++) {
-          const a = vis.alpha[y * world.W + x];
-          if (a > 0 && a < 1) { ctx.globalAlpha = 1 - a; ctx.fillRect(x * T, y * T, T, T); calls++; }
-        }
-      }
-      ctx.globalAlpha = 1;
-    }
 
     calls += this._drawRadarMarkers(ctx, tx0, ty0, tx1, ty1);
     calls += this._drawRings(ctx);

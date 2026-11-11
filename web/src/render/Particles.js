@@ -159,16 +159,33 @@ export class Particles {
   /** Directional sparks or dust at an impact. */
   impact(x, y, nx, ny, type, gated) {
     const r = this.rng;
-    const n = gated ? 5 : 7;
-    for (let k = 0; k < n; k++) {
-      const a = Math.atan2(ny, nx) + (r() - 0.5) * 1.6;
-      const sp = 60 + r() * 140;
-      if (gated || type === TILE.GRANITE || type === TILE.BASALT || type === TILE.MANTLE) {
-        this.emit(x, y, Math.cos(a) * sp * 1.4, Math.sin(a) * sp * 1.4, 0.18 + r() * 0.2, 1.5, r() < 0.5 ? this.cSpark : this.cSparkHot, P_GLOW | P_FADE, 500);
-      } else {
-        const cols = this.matColor[type];
-        this.emit(x, y, Math.cos(a) * sp * 0.6, Math.sin(a) * sp * 0.6, 0.3 + r() * 0.3, 2 + r() * 2, cols[(r() * 3) | 0], P_FADE, 400, 2);
+    const base = Math.atan2(ny, nx);
+    const cols = this.matColor[type];
+    const rock = gated || type !== TILE.SOIL;
+    // Dust cloud: slow, drifting puff in the material's colours (soil gets a thick one, rock a thin one).
+    const puffs = rock ? 4 : 12;
+    for (let k = 0; k < puffs; k++) {
+      const a = base + (r() - 0.5) * 2.2; const sp = 15 + r() * 45;
+      this.emit(x + (r() - 0.5) * 8, y + (r() - 0.5) * 8, Math.cos(a) * sp, Math.sin(a) * sp - 10, 0.6 + r() * 0.6, 3 + r() * 4, r() < 0.5 ? this.cDust : cols[2], P_FADE, -20, 3);
+    }
+    if (!rock) {
+      // Clods flung out and falling.
+      for (let k = 0; k < 6; k++) {
+        const a = base + (r() - 0.5) * 1.4; const sp = 50 + r() * 90;
+        this.emit(x, y, Math.cos(a) * sp, Math.sin(a) * sp - 40, 0.4 + r() * 0.3, 2 + r() * 2, cols[(r() * 2) | 0], P_FADE, 600, 1);
       }
+      return;
+    }
+    // Rock: bright glowing sparks shooting off the strike point, hot ones fastest.
+    const sparks = gated ? 14 : 10;
+    for (let k = 0; k < sparks; k++) {
+      const a = base + (r() - 0.5) * 1.8; const sp = 120 + r() * 220; const hot = r() < 0.4;
+      this.emit(x, y, Math.cos(a) * sp, Math.sin(a) * sp, 0.15 + r() * 0.25, hot ? 1.5 : 1, hot ? this.cSparkHot : this.cSpark, P_GLOW | P_FADE, 700);
+    }
+    // Rock chips.
+    for (let k = 0; k < 3; k++) {
+      const a = base + (r() - 0.5) * 1.2; const sp = 60 + r() * 80;
+      this.emit(x, y, Math.cos(a) * sp, Math.sin(a) * sp - 30, 0.5, 2, cols[(r() * 3) | 0], P_BOUNCE | P_ROT | P_FADE, 700);
     }
   }
 

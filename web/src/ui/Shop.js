@@ -145,7 +145,7 @@ export class Shop {
       const cost = nextUpgradeCost(kind, lvl);
       const max = cost < 0;
       const check = ec.canBuyUpgrade(kind);
-      const name = kind === 'pickaxe' ? 'Pickaxe' : /** @type {any} */ (UPGRADES)[kind].name;
+      const name = kind === 'pickaxe' ? 'Pickaxe / Drill' : /** @type {any} */ (UPGRADES)[kind].name;
       const cur = describe(kind, levels[lvl]);
       const next = max ? '' : describe(kind, levels[lvl + 1]);
       let extra = '';
@@ -179,7 +179,7 @@ export class Shop {
 /** @param {string} kind @param {any} l */
 function describe(kind, l) {
   switch (kind) {
-    case 'pickaxe': return `DMG ${l.damage} · ${(1 / l.swing).toFixed(1)} swings/s`;
+    case 'pickaxe': return `DMG ${l.damage} · ${(1 / l.swing).toFixed(1)} swings/s${l.powered ? ' · uses battery' : ''}`;
     case 'jetpack': return `Thrust ${l.thrust} · Climb ${l.maxUp} · Drain ${l.drain}/s`;
     case 'rig': return `${l.name} · ${l.capacity} kg · ${l.maxEnergy} energy · Drill ${l.eff}x (${l.zone})`;
     case 'radar': return `Radius ${l.radius} · ${l.duration}s · Lamp ${l.headlamp}`;

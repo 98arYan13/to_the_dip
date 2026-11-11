@@ -3,7 +3,7 @@
  * Pure, deterministic world generation: depth bands with noise-perturbed boundaries,
  * fBm caves, water pockets, decorative magma channels, fungi/moss, and ore veins via random walks.
  */
-import { WORLD, TILE, ORE, FLAG, MATERIALS, ORES, ORE_HP_MUL } from '../config.js';
+import { WORLD, TILE, ORE, FLAG, MATERIALS, ORES, ORE_HP_MUL, MINING } from '../config.js';
 import { RNG } from '../core/RNG.js';
 import { createNoise2D, fbm } from '../core/Noise.js';
 
@@ -23,7 +23,7 @@ export function maxHPFor(type, ore) {
   const m = MATERIALS[type];
   if (!m || !m.solid) return 0;
   if (type === TILE.BEDROCK) return m.hp;
-  return Math.round(m.hp * (ore ? ORE_HP_MUL : 1));
+  return Math.round(m.hp * MINING.HP_MULT * (ore ? ORE_HP_MUL : 1));
 }
 
 /** Number of underground rows (excludes surface air rows and the bedrock floor). */

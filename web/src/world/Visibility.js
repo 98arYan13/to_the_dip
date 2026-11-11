@@ -2,7 +2,7 @@
  * @module world/Visibility
  * Fog of war (permanent discovery with alpha fade-in) and radar reveal timers.
  */
-import { FLAG, RENDER, WORLD } from '../config.js';
+import { FLAG, RENDER, WORLD, LIGHTING } from '../config.js';
 import { EV } from '../core/EventBus.js';
 
 export class Visibility {
@@ -56,8 +56,9 @@ export class Visibility {
    * @param {number} dt
    * @param {number} px player centre x (px) @param {number} py player centre y (px)
    * @param {number} rangePx light/headlamp range in px
+   * @param {number} [aimAngle] headlamp direction (radians); its beam reveals one dark tile past each wall it hits
    */
-  update(dt, px, py, rangePx) {
+  update(dt, px, py, rangePx, aimAngle) {
     const w = this.world;
     // Line-of-sight reveal, throttled.
     if ((this.frame++ % RENDER.REVEAL_INTERVAL) === 0) {
@@ -85,6 +86,7 @@ export class Visibility {
           if (w.lastHit === -1 || w.lastHit === i) this.reveal(i);
         }
       }
+      if (aimAngle !== undefined) this._beam(px, py, rangePx, aimAngle);
     }
 
     // Fade-in
@@ -113,6 +115,22 @@ export class Visibility {
         this.radarList[k] = this.radarList[--this.radarCount];
         this.bus.emit(EV.RADAR_TILE, i);
       }
+    }
+  }
+
+  /** Headlamp beam: light soaks one tile into each wall it strikes. */
+  _beam(px, py, rangePx, aimAngle) {
+    const w = this.world; const T = w.T;
+    const half = LIGHTING.CONE_HALF_ANGLE;
+    const n = Math.ceil(half * 2 / 0.04);
+    for (let k = 0; k <= n; k++) {
+      const a = aimAngle - half + (half * 2 * k) / n;
+      const dx = Math.cos(a); const dy = Math.sin(a);
+      const d = w.raycast(px, py, dx, dy, rangePx);
+      if (w.lastHit < 0) continue;
+      this.reveal(w.lastHit);
+      const x = Math.floor((px + dx * (d + T)) / T); const y = Math.floor((py + dy * (d + T)) / T);
+      if (w.inBounds(x, y)) this.reveal(y * w.W + x);
     }
   }
 

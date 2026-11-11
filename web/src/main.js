@@ -4,7 +4,7 @@
  * references injected here; nothing is global.
  */
 import {
-  WORLD, TILE, MATERIALS, PHYSICS, CAMERA, MINING, ENERGY, RADAR, TELEPORT, CONSUMABLES, GAMEPAD,
+  WORLD, TILE, FLAG, MATERIALS, PHYSICS, CAMERA, MINING, ENERGY, RADAR, TELEPORT, CONSUMABLES, GAMEPAD,
   PARTICLES, QUALITY, SAVE, SETTINGS_DEFAULT,
 } from './config.js';
 import { EventBus, EV } from './core/EventBus.js';
@@ -19,7 +19,7 @@ import { Player } from './entities/Player.js';
 import { DynamiteSystem } from './entities/Dynamite.js';
 import { PickupSystem } from './entities/Pickup.js';
 import { Physics } from './systems/Physics.js';
-import { Mining, canMine } from './systems/Mining.js';
+import { Mining, canMine, isCampGround } from './systems/Mining.js';
 import { Energy } from './systems/Energy.js';
 import { Economy, createEconomyState } from './systems/Economy.js';
 import { Renderer } from './render/Renderer.js';
@@ -31,6 +31,8 @@ import { Background } from './render/Background.js';
 import { PostFX } from './render/PostFX.js';
 import { AudioEngine } from './audio/AudioEngine.js';
 import { Music } from './audio/Music.js';
+import { SaveMenu, slotKey } from './ui/SaveMenu.js';
+import { DevPanel } from './ui/DevPanel.js';
 import { SFX, Ambience } from './audio/SFX.js';
 import { HUD } from './ui/HUD.js';
 import { Minimap } from './ui/Minimap.js';
@@ -69,7 +71,8 @@ function boot() {
   const splash = /** @type {HTMLElement} */ (document.getElementById('splash'));
   const bus = new EventBus();
   const storage = safeStorage();
-  const saves = new SaveSystem(storage);
+  let slot = Number(storage.getItem(SAVE.SLOT_KEY)) || 1;
+  const saves = new SaveSystem(storage, slotKey(slot));
   let settingsValues = loadSettings(storage);
 
   // ---------- World & simulation ----------
@@ -118,7 +121,9 @@ function boot() {
   const hud = new HUD(hudRoot, bus, {
     economy, energy, getWorld: () => world,
     onSave: () => saveGame(true),
-    onReset: () => newGame(),
+    onSlots: () => openSlots(),
+    onDev: () => devPanel.toggle(),
+    onMusic: () => { settingsValues = { ...settingsValues, musicOn: settingsValues.musicOn === false }; applySettings(settingsValues); return settingsValues.musicOn; },
     onMute: () => { settingsValues.muted = !settingsValues.muted; applySettings(settingsValues); return settingsValues.muted; },
     onSettings: () => openSettings(),
   });
@@ -131,7 +136,22 @@ function boot() {
   const settings = new Settings(hudRoot, settingsValues, {
     onChange: (s) => { settingsValues = s; applySettings(s); },
     onClose: () => { input.clear(); },
-    onNewGame: () => newGame(),
+    onNewGame: () => { settings.close(); openSlots(); },
+  });
+  const saveMenu = new SaveMenu(hudRoot, storage, {
+    active: () => slot,
+    onSave: (n) => { switchSlot(n); saveGame(true); },
+    onLoad: (n) => { saveGame(true); switchSlot(n); restart(); },
+    onNew: (n) => { saveGame(true); switchSlot(n); saves.clear(); restart(); },
+    onClose: () => { input.clear(); canvas.focus(); },
+  });
+  const devPanel = new DevPanel(hudRoot, {
+    onChange: (s) => {
+      economy.devPick = s.on ? s.pick : 0;
+      renderer.devReveal = s.on && s.reveal;
+      hud.refreshAll();
+      canvas.focus();
+    },
   });
   const debug = new DebugOverlay(hudRoot);
 
@@ -159,9 +179,10 @@ function boot() {
   }
 
   function applySettings(s) {
-    audio.setVolumes({ master: s.master, music: s.music, sfx: s.sfx, ambience: s.ambience });
+    audio.setVolumes({ master: s.master, music: s.musicOn === false ? 0 : s.music, sfx: s.sfx, ambience: s.ambience });
     audio.setMuted(s.muted);
     hud.setMuted(s.muted);
+    hud.setMusic(s.musicOn !== false);
     camera.shakeEnabled = s.shake;
     lighting.reducedFlashing = s.reducedFlashing;
     postfx.reducedFlashing = s.reducedFlashing;
@@ -184,29 +205,23 @@ function boot() {
 
   function setWorld(w) {
     world = w;
+    // Saves from before MINING.HP_MULT store untouched tiles at the old max HP: scale them up.
+    for (let i = 0; i < w.tileHP.length; i++) {
+      const max = w.maxHP(i);
+      if (max && max < 65535 && w.tileHP[i] * MINING.HP_MULT === max) w.tileHP[i] = max;
+    }
+    // Saves from before the camp foundation existed may have holes under the buildings: refill them.
+    const bc = WORLD.BASE_CAMP;
+    for (let y = WORLD.SURFACE_ROWS; y < WORLD.SURFACE_ROWS + bc.PAD_DEPTH; y++) {
+      for (let x = bc.PAD_X0; x <= bc.PAD_X1; x++) {
+        const i = y * w.W + x;
+        if (MATERIALS[w.tileType[i]].solid) continue;
+        w.tileType[i] = TILE.SOIL; w.oreType[i] = 0; w.tileHP[i] = w.maxHP(i);
+        w.flags[i] |= FLAG.SOLID | FLAG.DIRTY | FLAG.DISCOVERED;
+      }
+    }
     vis.setWorld(w); physics.world = w; mining.setWorld(w); chunks.setWorld(w);
     particles.world = w; renderer.setWorld(w); minimap.setWorld(w);
-  }
-
-  function newGame() {
-    if (!window.confirm('Start a new expedition? Your current save and world will be erased.')) return;
-    saves.clear();
-    seed = randomSeed();
-    setWorld(World.generate(seed));
-    economy.load(createEconomyState());
-    dynamites.clear(); pickups.clear();
-    player.spawn();
-    energy.rescuePending = false;
-    energy.refill(); energy.report();
-    camera.snap(player.cx, player.cy);
-    g.radarCd = 0; g.warpTimer = -1; g.lastMeters = -1;
-    hud.refreshAll();
-    bus.emit(EV.CONSUMABLES_CHANGED);
-    player.setHP(PHYSICS.SUIT_HP);
-    settings.close(); shop.close();
-    saveGame(false);
-    toast.show('New expedition started. Good luck down there!', 'good');
-    log('new world seed', seed);
   }
 
   function warpHome(msg, kind) {
@@ -216,7 +231,17 @@ function boot() {
     if (msg) toast.show(msg, kind);
   }
 
-  function openSettings() { if (!shop.open) { settings.show(); input.clear(); } }
+  function switchSlot(n) {
+    slot = n; saves.key = slotKey(n);
+    try { storage.setItem(SAVE.SLOT_KEY, String(n)); } catch { /* ignore */ }
+  }
+
+  /** Reload into the active slot; the unload autosave is skipped so it can't overwrite that slot. */
+  function restart() { g.started = false; location.reload(); }
+
+  function openSlots() { if (!shop.open && !settings.open) { saveMenu.show(); input.clear(); } }
+
+  function openSettings() { if (!shop.open && !saveMenu.open) { settings.show(); input.clear(); } }
 
   // ---------- Event wiring ----------
   bus.on(EV.TILE_CHANGED, (i) => chunks.markTileDirty(i));
@@ -277,12 +302,14 @@ function boot() {
   input.onPress((a) => {
     if (!g.started) return;
     if (a === 'debug') debug.toggle();
+    else if (a === 'dev') devPanel.toggle();
     else if (a === 'pause') {
       if (shop.open) shop.close();
+      else if (saveMenu.open) saveMenu.close();
       else if (settings.open) settings.close();
       else openSettings();
     } else if (a === 'interact') {
-      if (settings.open) return;
+      if (settings.open || saveMenu.open) return;
       if (shop.open) shop.close();
       else if (g.prompt === 'shop') { shop.show(); input.clear(); }
     }
@@ -364,7 +391,7 @@ function boot() {
   }
 
   function update(dt) {
-    if (!g.started || g.tabHidden || shop.open || settings.open) { input.endStep(); return; }
+    if (!g.started || g.tabHidden || shop.open || settings.open || saveMenu.open) { input.endStep(); return; }
     if (g.hitStop > 0) { g.hitStop--; return; }
     input.pollGamepad();
     g.time += dt;
@@ -396,7 +423,7 @@ function boot() {
     particles.update(dt);
     mining.update(dt);
     lighting.update(dt, RADAR.RING_SPEED);
-    vis.update(dt, player.cx, player.cy, economy.radar.headlamp);
+    vis.update(dt, player.cx, player.cy, economy.radar.headlamp, Math.atan2(g.aimY - player.cy, g.aimX - player.cx));
 
     // Depth / layer
     const ptx = Math.max(0, Math.min(world.W - 1, Math.floor(player.cx / T)));
@@ -424,6 +451,9 @@ function boot() {
     }
     energy.depthM = meters;
     energy.update(dt, { jetting: player.jetting, atStation, onSurface });
+    const dev = devPanel.state;
+    if (dev.on && dev.lockEnergy && energy.value < energy.max) energy.refill();
+    if (dev.on && dev.lockHp && player.hp < PHYSICS.SUIT_HP) player.setHP(PHYSICS.SUIT_HP);
     if (atStation && player.hp < PHYSICS.SUIT_HP) player.setHP(PHYSICS.SUIT_HP); // station also repairs the suit
 
     camera.update(dt, player.cx + player.vx * CAMERA.LOOK_AHEAD, player.cy);
@@ -458,7 +488,7 @@ function boot() {
     if (hover !== g.hover) {
       g.hover = hover;
       renderer.hoverTile = hover;
-      renderer.hoverMineable = hover >= 0 && canMine(world.tileType[hover], world.oreType[hover], economy.pickTier);
+      renderer.hoverMineable = hover >= 0 && !isCampGround(hover % world.W, (hover / world.W) | 0) && canMine(world.tileType[hover], world.oreType[hover], economy.pickTier);
       bus.emit(EV.HOVER_TILE, hover);
     }
     st.aimX = g.aimX; st.aimY = g.aimY; st.depth = g.depth01; st.headlamp = economy.radar.headlamp;

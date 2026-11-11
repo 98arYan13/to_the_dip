@@ -46,7 +46,9 @@ export const WORLD = Object.freeze({
   BAND_ORE_FRACTION: Object.freeze({ 1: 0.06, 2: 0.07, 3: 0.07, 4: 0.08, 5: 0.09 }),
   ORE_DEPTH_BIAS: 0.35,
   ORE_ATTEMPT_MULT: 20,
-  BASE_CAMP: Object.freeze({ SPAWN_X: 29, SHOP_X: 24, STATION_X: 36, SHAFT_X: 31, INTERACT_RANGE: 2.2 }),
+  BASE_CAMP: Object.freeze({ SPAWN_X: 29, SHOP_X: 24, STATION_X: 36, SHAFT_X: 31, INTERACT_RANGE: 2.2,
+    /** Unbreakable foundation under the camp buildings: columns PAD_X0..PAD_X1, PAD_DEPTH rows deep. */
+    PAD_X0: 20, PAD_X1: 40, PAD_DEPTH: 3 }),
   TOP_LIMIT_PX: -200,
 });
 
@@ -131,12 +133,13 @@ export const ORE_HP_MUL = 1.5;
 
 /** Pickaxes: index = tier - 1. */
 export const PICKAXES = Object.freeze([
+  // Tiers 1-3 are hand tools (free to swing); tiers 4-6 are powered drills that draw battery per block.
   { tier: 1, name: 'Bronze Pickaxe', short: 'Bronze', cost: 0, damage: 1, swing: 0.30, color: '#c58a45' },
   { tier: 2, name: 'Iron Pickaxe', short: 'Iron', cost: 50, damage: 2, swing: 0.27, color: '#8d9096' },
   { tier: 3, name: 'Steel Pickaxe', short: 'Steel', cost: 700, damage: 3, swing: 0.24, color: '#b9c3cf' },
-  { tier: 4, name: 'Titanium Pickaxe', short: 'Titanium', cost: 8000, damage: 5, swing: 0.21, color: '#d7dde8' },
-  { tier: 5, name: 'Tungsten Carbide Pickaxe', short: 'Tungsten Carbide', cost: 75000, damage: 8, swing: 0.19, color: '#646a7a' },
-  { tier: 6, name: 'Diamond-Tipped Pickaxe', short: 'Diamond-Tipped', cost: 560000, damage: 12, swing: 0.17, color: '#9ff4ff' },
+  { tier: 4, name: 'Titanium Drill', short: 'Titanium', cost: 8000, damage: 5, swing: 0.21, color: '#d7dde8', powered: true },
+  { tier: 5, name: 'Tungsten Carbide Drill', short: 'Tungsten Carbide', cost: 75000, damage: 8, swing: 0.19, color: '#646a7a', powered: true },
+  { tier: 6, name: 'Diamond-Tipped Drill', short: 'Diamond-Tipped', cost: 560000, damage: 12, swing: 0.17, color: '#9ff4ff', powered: true },
 ]);
 
 /** Non-pickaxe upgrades. Level 0 is starting gear. */
@@ -218,7 +221,9 @@ export const DYNAMITE = Object.freeze({
 });
 
 export const MINING = Object.freeze({
-  REACH: 76,
+  REACH: 44,
+  /** Multiplies every block's HP: topsoil with the starting pickaxe takes ~3 s (10 hits x 0.3 s). */
+  HP_MULT: 5,
   HINT_COOLDOWN: 1.5,
   CRACK_STAGES: [0.25, 0.5, 0.75, 0.9],
   RECOIL_PX: 2,
@@ -244,6 +249,8 @@ export const ENERGY = Object.freeze({
   /** Speed_mult = 1 - LOAD_SLOW * (W/C)^2. */
   LOAD_SLOW: 0.4,
   LOW_THRESHOLD: 0.2,
+  /** Toast warnings fire when the battery drops through these fractions (descending). */
+  WARN_AT: [0.3, 0.15, 0.05],
   LOW_BEEP_INTERVAL: 2.2,
   RESCUE_ENERGY_FRAC: 0.3,
   RESCUE_CARGO_LOSS: 0.5,
@@ -303,7 +310,7 @@ export const LIGHTING = Object.freeze({
   CONE_INNER_FRAC: 0.55,
   CONE_COLOR: '#fff1d6',
   CONE_OUTER_ALPHA: 0.55,
-  CONE_WALL_BLEED: 10,
+  CONE_WALL_BLEED: 34, // px past the wall face: the beam lights one full tile into rock
   FLICKER: 0.06,
   FLICKER_FREQ: 13,
   AMBIENT_SURFACE: [226, 206, 188],
@@ -416,6 +423,9 @@ export const AUDIO = Object.freeze({
 
 export const SAVE = Object.freeze({
   KEY: 'jttdote.save',
+  SLOTS: 3,
+  /** localStorage key holding the active slot number. */
+  SLOT_KEY: 'jttdote.slot',
   SETTINGS_KEY: 'jttdote.settings',
   VERSION: 3,
   AUTOSAVE_SEC: 15,
@@ -423,6 +433,7 @@ export const SAVE = Object.freeze({
 });
 
 export const SETTINGS_DEFAULT = Object.freeze({
+  musicOn: true,
   master: 0.8, music: 0.45, sfx: 0.85, ambience: 0.5,
   quality: 'auto', shake: true, reducedFlashing: false, muted: false,
   /** Scales gravity (x) and terminal fall speed (sqrt x). */
@@ -444,6 +455,7 @@ export const KEYBINDS = Object.freeze({
   interact: ['KeyE'],
   pause: ['Escape'],
   debug: ['F3'],
+  dev: ['F4'],
 });
 
 export const GAMEPAD = Object.freeze({

@@ -33,6 +33,8 @@ export class Energy {
     /** Current depth in meters (set by the game loop). */
     this.depthM = 0;
     this.lowTimer = 0;
+    /** Index into ENERGY.WARN_AT of the next warning still to fire. */
+    this.warnIdx = 0;
     this.lastReported = -1;
     this.rescuePending = false;
     this.payload = { value: 0, max: 0 };
@@ -53,22 +55,35 @@ export class Energy {
       }
     } else {
       // Depth heat/pressure only drains underground; the surface is free.
-      let drain = s.onSurface ? 0 : idleDrain(this.depthM, this.economy.loadFrac);
-      if (s.jetting) drain += this.economy.jetpack.drain;
-      this.value -= drain * dt;
+      // Only the jetpack drains over time; hand tools are free, drills pay per block (drainBlock).
+      if (s.jetting) this.value -= this.economy.jetpack.drain * dt;
     }
     this._clampAndReport();
     if (this.frac < ENERGY.LOW_THRESHOLD && this.value > 0) {
       this.lowTimer -= dt;
       if (this.lowTimer <= 0) { this.lowTimer = ENERGY.LOW_BEEP_INTERVAL; this.bus.emit(EV.LOW_ENERGY); }
     } else this.lowTimer = 0;
+    this._warn();
+  }
+
+  /** Toast once per threshold on the way down; re-arms when energy climbs back above it. */
+  _warn() {
+    const W = ENERGY.WARN_AT;
+    while (this.warnIdx > 0 && this.frac > W[this.warnIdx - 1]) this.warnIdx--;
+    if (this.warnIdx < W.length && this.frac <= W[this.warnIdx] && this.value > 0) {
+      this.bus.emit(EV.HINT, `Battery ${Math.round(W[this.warnIdx] * 100)}% — head back to the surface!`);
+      while (this.warnIdx < W.length && this.frac <= W[this.warnIdx]) this.warnIdx++;
+    }
   }
 
   /** Energy for breaking one block at the current depth. */
-  drainBlock(type, ore) { this.drain(blockEnergy(tileHardness(type, ore), this.depthM, this.economy.rig.eff)); }
+  /** A drill can run the battery flat but never triggers the rescue warp — only the jetpack can strand you. */
+  drainBlock(type, ore) { this._drainWarn(Math.min(this.value - 0.001, blockEnergy(tileHardness(type, ore), this.depthM, this.economy.rig.eff))); }
 
   /** One-off drain (mining hit, radar). @param {number} amount */
-  drain(amount) { this.value -= amount; this._clampAndReport(); }
+  drain(amount) { this._drainWarn(amount); }
+
+  _drainWarn(amount) { this.value -= amount; this._clampAndReport(); this._warn(); }
 
   /** @param {number} amount */
   add(amount) { this.value = Math.min(this.max, this.value + amount); this._clampAndReport(); }
