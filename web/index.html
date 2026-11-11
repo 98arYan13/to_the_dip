@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Journey to the Depths of the Earth</title>
+    <meta name="description" content="An atmospheric procedural mining and excavation game." />
+    <link rel="stylesheet" href="./styles/hud.css" />
+  </head>
+  <body>
+    <canvas id="game" tabindex="0" aria-label="Game view"></canvas>
+    <div id="hud"></div>
+    <div id="splash" role="dialog" aria-label="Start">
+      <div class="splash-box">
+        <p class="kicker">DEEP-EARTH EXPEDITION</p>
+        <h1>Journey to the Depths of the Earth</h1>
+        <p class="lead">Descend from base camp through soil, limestone, granite and basalt to the molten mantle.
+          Mine ore, manage your suit energy, sell your haul and upgrade your gear.</p>
+        <button class="btn primary big">Click to Start</button>
+        <p class="controls">A/D walk · W/Space jetpack · Mouse aim + hold to mine · R radar · 1/2/3 items · E terminal · Esc menu · F3 debug</p>
+      </div>
+    </div>
+    <script type="module" src="./src/main.js"></script>
+  </body>
+</html>

@@ -1,0 +1,83 @@
+import { describe, it, expect } from 'vitest';
+import {
+  canMine, hitDamage, requiredTier, dynamiteOutcome, DYN_KEEP, DYN_DESTROY, DYN_COLLECT, requirementHint, crackStage,
+} from '../src/systems/Mining.js';
+import { TILE, ORE, MATERIALS, ORES, PICKAXES } from '../src/config.js';
+
+const ROCKS = [TILE.SOIL, TILE.LIMESTONE, TILE.GRANITE, TILE.BASALT, TILE.MANTLE];
+
+describe('Mining tier gating', () => {
+  it('every host rock refuses damage below its tier and accepts at/above', () => {
+    for (const t of ROCKS) {
+      const req = MATERIALS[t].tier;
+      for (let tier = 1; tier <= PICKAXES.length; tier++) {
+        expect(canMine(t, 0, tier)).toBe(tier >= req);
+        expect(hitDamage(t, 0, tier) > 0).toBe(tier >= req);
+      }
+    }
+  });
+
+  it('every ore uses max(host tier, ore tier)', () => {
+    for (let o = 1; o < ORES.length; o++) {
+      for (const host of ORES[o].hosts) {
+        const req = Math.max(MATERIALS[host].tier, ORES[o].tier);
+        expect(requiredTier(host, o)).toBe(req);
+        for (let tier = 1; tier <= PICKAXES.length; tier++) {
+          expect(canMine(host, o, tier)).toBe(tier >= req);
+          expect(hitDamage(host, o, tier)).toBe(tier >= req ? PICKAXES[tier - 1].damage : 0);
+        }
+      }
+    }
+  });
+
+  it('bedrock and open air are never mineable', () => {
+    for (let tier = 1; tier <= PICKAXES.length; tier++) expect(canMine(TILE.BEDROCK, 0, tier)).toBe(false);
+    expect(canMine(TILE.AIR, 0, 6)).toBe(false);
+  });
+
+  it('only diamond cuts diamond', () => {
+    for (let tier = 1; tier <= 5; tier++) expect(canMine(TILE.MANTLE, ORE.DIAMOND, tier)).toBe(false);
+    expect(canMine(TILE.MANTLE, ORE.DIAMOND, 6)).toBe(true);
+    expect(requirementHint(TILE.MANTLE, ORE.DIAMOND)).toMatch(/Diamond-Tipped/);
+  });
+
+  it('hint names the required pickaxe', () => {
+    expect(requirementHint(TILE.GRANITE, 0)).toBe('Requires Steel Pickaxe');
+    expect(requirementHint(TILE.LIMESTONE, ORE.SILVER)).toBe('Requires Steel Pickaxe');
+  });
+
+  it('crack stages follow 25/50/75/90%', () => {
+    expect(crackStage(100, 100)).toBe(0);
+    expect(crackStage(74, 100)).toBe(1);
+    expect(crackStage(49, 100)).toBe(2);
+    expect(crackStage(24, 100)).toBe(3);
+    expect(crackStage(9, 100)).toBe(4);
+  });
+});
+
+describe('Dynamite gating', () => {
+  it('destroys host rock only up to pickTier + 1', () => {
+    for (const t of ROCKS) {
+      for (let tier = 1; tier <= 6; tier++) {
+        expect(dynamiteOutcome(t, 0, tier)).toBe(MATERIALS[t].tier <= tier + 1 ? DYN_DESTROY : DYN_KEEP);
+      }
+    }
+  });
+
+  it('collects ore only when the pickaxe meets the ore tier, otherwise leaves it exposed', () => {
+    for (let o = 1; o < ORES.length; o++) {
+      for (const host of ORES[o].hosts) {
+        for (let tier = 1; tier <= 6; tier++) {
+          const out = dynamiteOutcome(host, o, tier);
+          if (MATERIALS[host].tier > tier + 1 || tier < ORES[o].tier) expect(out).toBe(DYN_KEEP);
+          else expect(out).toBe(DYN_COLLECT);
+        }
+      }
+    }
+  });
+
+  it('never bypasses the diamond gate or bedrock', () => {
+    for (let tier = 1; tier <= 5; tier++) expect(dynamiteOutcome(TILE.MANTLE, ORE.DIAMOND, tier)).toBe(DYN_KEEP);
+    for (let tier = 1; tier <= 6; tier++) expect(dynamiteOutcome(TILE.BEDROCK, 0, tier)).toBe(DYN_KEEP);
+  });
+});

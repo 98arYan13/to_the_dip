@@ -1,0 +1,5 @@
+export default {
+  base: './',
+  build: { target: 'es2022', outDir: 'dist', assetsInlineLimit: 0 },
+  test: { environment: 'node', include: ['tests/**/*.test.js'] },
+};

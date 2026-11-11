@@ -1,0 +1,507 @@
+/**
+ * @module main
+ * Bootstrap and dependency wiring. Systems communicate through the EventBus or explicit
+ * references injected here; nothing is global.
+ */
+import {
+  WORLD, TILE, MATERIALS, PHYSICS, CAMERA, MINING, ENERGY, RADAR, TELEPORT, CONSUMABLES, GAMEPAD,
+  PARTICLES, QUALITY, SAVE, SETTINGS_DEFAULT,
+} from './config.js';
+import { EventBus, EV } from './core/EventBus.js';
+import { GameLoop } from './core/GameLoop.js';
+import { Input } from './core/Input.js';
+import { randomSeed } from './core/RNG.js';
+import { log } from './core/log.js';
+import { World } from './world/World.js';
+import { Visibility } from './world/Visibility.js';
+import { ChunkCache } from './world/ChunkCache.js';
+import { Player } from './entities/Player.js';
+import { DynamiteSystem } from './entities/Dynamite.js';
+import { PickupSystem } from './entities/Pickup.js';
+import { Physics } from './systems/Physics.js';
+import { Mining, canMine } from './systems/Mining.js';
+import { Energy } from './systems/Energy.js';
+import { Economy, createEconomyState } from './systems/Economy.js';
+import { Renderer } from './render/Renderer.js';
+import { Camera } from './render/Camera.js';
+import { TileArt } from './render/TileArt.js';
+import { Lighting } from './render/Lighting.js';
+import { Particles } from './render/Particles.js';
+import { Background } from './render/Background.js';
+import { PostFX } from './render/PostFX.js';
+import { AudioEngine } from './audio/AudioEngine.js';
+import { Music } from './audio/Music.js';
+import { SFX, Ambience } from './audio/SFX.js';
+import { HUD } from './ui/HUD.js';
+import { Minimap } from './ui/Minimap.js';
+import { Shop } from './ui/Shop.js';
+import { Settings } from './ui/Settings.js';
+import { Toast } from './ui/Toast.js';
+import { SaveSystem } from './save/SaveSystem.js';
+import { DebugOverlay } from './debug/DebugOverlay.js';
+
+const T = WORLD.TILE_PX;
+const SURFACE_PX = WORLD.SURFACE_ROWS * T;
+const UNDERGROUND_PX = (WORLD.H - 1 - WORLD.SURFACE_ROWS) * T;
+
+/** localStorage with a graceful in-memory fallback. */
+function safeStorage() {
+  try {
+    const k = '__depths_probe__';
+    localStorage.setItem(k, '1'); localStorage.removeItem(k);
+    return localStorage;
+  } catch {
+    const m = new Map();
+    return { getItem: (k) => (m.has(k) ? m.get(k) : null), setItem: (k, v) => m.set(k, String(v)), removeItem: (k) => m.delete(k) };
+  }
+}
+
+function loadSettings(storage) {
+  try {
+    const raw = storage.getItem(SAVE.SETTINGS_KEY);
+    return raw ? { ...SETTINGS_DEFAULT, ...JSON.parse(raw) } : { ...SETTINGS_DEFAULT };
+  } catch { return { ...SETTINGS_DEFAULT }; }
+}
+
+function boot() {
+  const canvas = /** @type {HTMLCanvasElement} */ (document.getElementById('game'));
+  const hudRoot = /** @type {HTMLElement} */ (document.getElementById('hud'));
+  const splash = /** @type {HTMLElement} */ (document.getElementById('splash'));
+  const bus = new EventBus();
+  const storage = safeStorage();
+  const saves = new SaveSystem(storage);
+  let settingsValues = loadSettings(storage);
+
+  // ---------- World & simulation ----------
+  const loaded = saves.load();
+  let seed = loaded.ok ? loaded.data.seed : randomSeed();
+  let world = loaded.ok ? new World(loaded.data.world) : World.generate(seed);
+  const economy = new Economy(bus, loaded.ok ? loaded.data.economy : createEconomyState());
+  const vis = new Visibility(world, bus);
+  const physics = new Physics(world);
+  const pickups = new PickupSystem(physics, bus);
+  pickups.economy = economy;
+  const mining = new Mining(world, bus, economy, vis, pickups);
+  const energy = new Energy(bus, economy);
+  const player = new Player({ physics, mining, energy, economy, bus });
+  const dynamites = new DynamiteSystem(physics, mining, bus);
+  if (loaded.ok && loaded.data.player) {
+    const p = loaded.data.player;
+    player.placeAt(p.x, p.y);
+    energy.value = Math.min(energy.max, p.energy);
+  }
+
+  // ---------- Rendering ----------
+  const particles = new Particles();
+  particles.init();
+  particles.world = world;
+  const art = new TileArt(1);
+  const chunks = new ChunkCache(world, art);
+  const camera = new Camera();
+  const background = new Background();
+  const lighting = new Lighting();
+  const postfx = new PostFX();
+  const renderer = new Renderer(canvas, { world, art, chunks, vis, mining, particles, background, lighting, postfx, camera, player, dynamites, pickups, economy, energy });
+  camera.snap(player.cx, player.cy);
+
+  // ---------- Audio ----------
+  const audio = new AudioEngine();
+  const sfx = new SFX(audio);
+  const music = new Music(audio);
+  const ambience = new Ambience(audio);
+  sfx.bind(bus, () => world);
+
+  // ---------- UI ----------
+  const input = new Input(window, canvas);
+  const hud = new HUD(hudRoot, bus, {
+    economy, energy, getWorld: () => world,
+    onSave: () => saveGame(true),
+    onReset: () => newGame(),
+    onMute: () => { settingsValues.muted = !settingsValues.muted; applySettings(settingsValues); return settingsValues.muted; },
+    onSettings: () => openSettings(),
+  });
+  hud.setMuted(settingsValues.muted);
+  const toast = new Toast(hudRoot);
+  const minimap = new Minimap(hud.minimapParent, bus);
+  minimap.setWorld(world);
+  const shop = new Shop(hudRoot, bus, economy, { onClose: () => { input.clear(); canvas.focus(); }, click: () => sfx.uiClick() });
+  const settings = new Settings(hudRoot, settingsValues, {
+    onChange: (s) => { settingsValues = s; applySettings(s); },
+    onClose: () => { input.clear(); },
+    onNewGame: () => newGame(),
+  });
+  const debug = new DebugOverlay(hudRoot);
+
+  if (!loaded.ok && loaded.error) toast.show('Save data was corrupted — starting a new expedition.', 'bad');
+
+  // ---------- State ----------
+  const g = {
+    started: false, tabHidden: false, hitStop: 0, time: 0, radarCd: 0, warpTimer: -1,
+    lastMeters: -1, lastLayer: '', prompt: '', hover: -2, aimX: 0, aimY: 0,
+    jetAcc: 0, dustAcc: 0, dripAcc: 0, emberAcc: 0, vortexAcc: 0,
+    quality: 'high', autoSamples: 0, autoAccum: 0, autoDone: false,
+    depth01: 0,
+  };
+  const st = { aimX: 0, aimY: 0, depth: 0, headlamp: 200 };
+  const depthPayload = { meters: 0, layer: '' };
+  const dbg = { fps: 0, frameMs: 0, updateMs: 0, renderMs: 0, drawCalls: 0, particles: 0, particleCap: 0, voices: 0, chunkRebuilds: 0, totalRebuilds: 0, quality: '', seed: 0, tile: '' };
+
+  function applyQuality(name) {
+    g.quality = name;
+    const q = /** @type {any} */ (QUALITY.PRESETS)[name];
+    lighting.setQuality(q);
+    particles.setCap(q.particleCap);
+    postfx.shimmerEnabled = q.shimmer;
+    postfx.grainEnabled = q.grain;
+  }
+
+  function applySettings(s) {
+    audio.setVolumes({ master: s.master, music: s.music, sfx: s.sfx, ambience: s.ambience });
+    audio.setMuted(s.muted);
+    hud.setMuted(s.muted);
+    camera.shakeEnabled = s.shake;
+    lighting.reducedFlashing = s.reducedFlashing;
+    postfx.reducedFlashing = s.reducedFlashing;
+    document.body.classList.toggle('reduced-flashing', !!s.reducedFlashing);
+    if (s.quality === 'auto') { if (g.autoDone) applyQuality(g.quality); else applyQuality('high'); }
+    else applyQuality(s.quality);
+    try { storage.setItem(SAVE.SETTINGS_KEY, JSON.stringify(s)); } catch { /* ignore */ }
+  }
+  applySettings(settingsValues);
+
+  const getState = () => ({ seed, player: { x: player.x, y: player.y, energy: energy.value }, economy: economy.toJSON(), world });
+
+  function saveGame(manual) {
+    if (dynamites.active.length > 0 && !manual) return;
+    if (saves.save(getState())) { if (manual) bus.emit(EV.SAVED); }
+    else if (manual) toast.show('Saving failed (storage unavailable)', 'bad');
+  }
+
+  function setWorld(w) {
+    world = w;
+    vis.setWorld(w); physics.world = w; mining.setWorld(w); chunks.setWorld(w);
+    particles.world = w; renderer.setWorld(w); minimap.setWorld(w);
+  }
+
+  function newGame() {
+    if (!window.confirm('Start a new expedition? Your current save and world will be erased.')) return;
+    saves.clear();
+    seed = randomSeed();
+    setWorld(World.generate(seed));
+    economy.load(createEconomyState());
+    dynamites.clear(); pickups.clear();
+    player.spawn();
+    energy.rescuePending = false;
+    energy.refill(); energy.report();
+    camera.snap(player.cx, player.cy);
+    g.radarCd = 0; g.warpTimer = -1; g.lastMeters = -1;
+    hud.refreshAll();
+    bus.emit(EV.CONSUMABLES_CHANGED);
+    settings.close(); shop.close();
+    saveGame(false);
+    toast.show('New expedition started. Good luck down there!', 'good');
+    log('new world seed', seed);
+  }
+
+  function warpHome(msg, kind) {
+    player.spawn();
+    camera.snap(player.cx, player.cy);
+    for (let k = 0; k < 40; k++) particles.vortex(player.cx, player.cy);
+    if (msg) toast.show(msg, kind);
+  }
+
+  function openSettings() { if (!shop.open) { settings.show(); input.clear(); } }
+
+  // ---------- Event wiring ----------
+  bus.on(EV.TILE_CHANGED, (i) => chunks.markTileDirty(i));
+  bus.on(EV.MINE_HIT, (h) => {
+    particles.impact(h.x * T + T / 2 + h.nx * T / 2, h.y * T + T / 2 + h.ny * T / 2, h.nx, h.ny, h.type, false);
+    camera.addTrauma(CAMERA.TRAUMA_HIT);
+  });
+  bus.on(EV.MINE_BLOCKED, (h) => {
+    particles.impact(h.x * T + T / 2 + h.nx * T / 2, h.y * T + T / 2 + h.ny * T / 2, h.nx, h.ny, h.type, true);
+    camera.addTrauma(CAMERA.TRAUMA_CLINK);
+  });
+  bus.on(EV.BLOCK_BROKEN, (h) => {
+    const n = MINING.DEBRIS_MIN + Math.floor(Math.random() * (MINING.DEBRIS_MAX - MINING.DEBRIS_MIN + 1));
+    particles.debris(h.x * T + T / 2, h.y * T + T / 2, h.type, h.ore, n);
+    camera.addTrauma(CAMERA.TRAUMA_BREAK);
+    g.hitStop = MINING.HIT_STOP_FRAMES;
+  });
+  bus.on(EV.HINT, (text) => toast.show(text, 'warn'));
+  bus.on(EV.CARGO_FULL, () => toast.show('Cargo hold full! Ore dropped on the ground.', 'warn'));
+  bus.on(EV.EXPLOSION, (p) => {
+    particles.explosion(p.x, p.y);
+    lighting.flash(p.x, p.y);
+    renderer.shockwave(p.x, p.y);
+    camera.addTrauma(CAMERA.TRAUMA_EXPLOSION);
+  });
+  bus.on(EV.TOAST, (t) => toast.show(t.text, t.kind));
+  bus.on(EV.STATION_FULL, () => toast.show('Suit energy fully recharged', 'good'));
+  bus.on(EV.SAVED, () => toast.show('Game Saved', 'good'));
+  bus.on(EV.ORE_COLLECTED, (ore) => particles.pickupSparkle(player.cx, player.cy, ore));
+  bus.on(EV.SHOP_OPEN, () => saveGame(false));
+  bus.on(EV.PURCHASE_FAILED, (reason) => toast.show(reason, 'warn'));
+  bus.on(EV.UPGRADE_BOUGHT, (u) => {
+    if (u.kind === 'suit') energy.refill();
+    energy.report();
+    if (u.kind === 'pickaxe') toast.show(`${economy.pickaxe.name} acquired!`, 'good');
+  });
+  bus.on(EV.RESCUE, () => {
+    const lost = economy.applyRescueLoss();
+    dynamites.clear();
+    g.warpTimer = -1;
+    bus.emit(EV.TELEPORT_START);
+    energy.setFrac(ENERGY.RESCUE_ENERGY_FRAC);
+    energy.rescuePending = false;
+    warpHome(`Emergency Rescue Teleport! Suit depleted — lost ${lost} ore unit${lost === 1 ? '' : 's'}.`, 'bad');
+  });
+
+  input.onPress((a) => {
+    if (!g.started) return;
+    if (a === 'debug') debug.toggle();
+    else if (a === 'pause') {
+      if (shop.open) shop.close();
+      else if (settings.open) settings.close();
+      else openSettings();
+    } else if (a === 'interact') {
+      if (settings.open) return;
+      if (shop.open) shop.close();
+      else if (g.prompt === 'shop') { shop.show(); input.clear(); }
+    }
+  });
+
+  // ---------- Update ----------
+  function useSlots() {
+    const c = economy.consumables;
+    if (input.wasPressed('radar')) {
+      if (g.radarCd > 0) toast.show('Radar recharging…', 'info');
+      else if (energy.value <= ENERGY.RADAR_COST) toast.show('Not enough energy for radar', 'warn');
+      else {
+        const r = economy.radar;
+        energy.drain(ENERGY.RADAR_COST);
+        g.radarCd = RADAR.COOLDOWN;
+        vis.radarPulse(player.cx, player.cy, r.radius, r.duration, RADAR.RING_SPEED);
+        lighting.radarStart(player.cx, player.cy, r.radius * T);
+        bus.emit(EV.RADAR_PULSE);
+      }
+    }
+    if (input.wasPressed('slot1')) {
+      if (c.dynamite <= 0) toast.show('No dynamite — buy some at the Trading Post', 'warn');
+      else if (dynamites.throw(player.cx, player.cy, g.aimX, g.aimY)) { economy.useConsumable('dynamite'); bus.emit(EV.CONSUMABLE_USED, 'dynamite'); }
+    }
+    if (input.wasPressed('slot2')) {
+      if (c.teleporter <= 0) toast.show('No teleporters — buy one at the Trading Post', 'warn');
+      else if (player.feetY <= SURFACE_PX + 2) toast.show('Already at the surface', 'info');
+      else if (g.warpTimer < 0) {
+        economy.useConsumable('teleporter');
+        g.warpTimer = TELEPORT.CHANNEL_TIME;
+        bus.emit(EV.TELEPORT_START);
+        bus.emit(EV.CONSUMABLE_USED, 'teleporter');
+      }
+    }
+    if (input.wasPressed('slot3')) {
+      if (c.cell <= 0) toast.show('No energy cells left', 'warn');
+      else if (energy.value >= energy.max - 0.5) toast.show('Energy already full', 'info');
+      else {
+        economy.useConsumable('cell');
+        energy.add(CONSUMABLES.cell.energy);
+        particles.electric(player.cx, player.cy);
+        bus.emit(EV.CONSUMABLE_USED, 'cell');
+      }
+    }
+  }
+
+  function ambientParticles(dt, underground, inMantle) {
+    if (player.jetting) {
+      g.jetAcc += dt * PARTICLES.JET_RATE;
+      while (g.jetAcc >= 1) { g.jetAcc--; particles.jet(player.x + (player.facing > 0 ? 0 : player.w), player.y + player.h - 4); }
+    }
+    if (!underground) return;
+    const range = economy.radar.headlamp;
+    g.dustAcc += dt * PARTICLES.BEAM_DUST_RATE;
+    while (g.dustAcc >= 1) {
+      g.dustAcc--;
+      const a = Math.atan2(g.aimY - player.cy, g.aimX - player.cx) + (Math.random() - 0.5) * 0.7;
+      const d = Math.random() * range * 0.8;
+      particles.beamDust(player.cx + Math.cos(a) * d, player.cy + Math.sin(a) * d);
+    }
+    g.dripAcc += dt * PARTICLES.DRIP_RATE;
+    if (g.dripAcc >= 1) {
+      g.dripAcc = 0;
+      const tx = Math.floor(player.cx / T) + Math.floor((Math.random() - 0.5) * 20);
+      const ty = Math.floor(player.cy / T) + Math.floor((Math.random() - 0.5) * 12);
+      if (world.isSolid(tx, ty) && world.inBounds(tx, ty + 1) && !world.isSolid(tx, ty + 1) && world.band[ty * world.W + tx] >= TILE.LIMESTONE) {
+        particles.drip(tx * T + 4 + Math.random() * (T - 8), (ty + 1) * T);
+      }
+    }
+    if (inMantle) {
+      g.emberAcc += dt * PARTICLES.EMBER_RATE;
+      while (g.emberAcc >= 1) {
+        g.emberAcc--;
+        const tx = Math.floor(player.cx / T) + Math.floor((Math.random() - 0.5) * 24);
+        const ty = Math.floor(player.cy / T) + Math.floor((Math.random() - 0.5) * 14);
+        if (world.inBounds(tx, ty) && world.tileType[ty * world.W + tx] === TILE.MAGMA) particles.embers(tx * T + T / 2, ty * T + T / 2, 1);
+      }
+    }
+  }
+
+  function update(dt) {
+    if (!g.started || g.tabHidden || shop.open || settings.open) { input.endStep(); return; }
+    if (g.hitStop > 0) { g.hitStop--; return; }
+    input.pollGamepad();
+    g.time += dt;
+
+    // Aim
+    if (input.usingPad) {
+      const len = Math.hypot(input.padAimX, input.padAimY) || 1;
+      g.aimX = player.cx + (input.padAimX / len) * GAMEPAD.AIM_DIST;
+      g.aimY = player.cy + (input.padAimY / len) * GAMEPAD.AIM_DIST;
+    } else {
+      g.aimX = renderer.screenToWorldX(input.mouseX);
+      g.aimY = renderer.screenToWorldY(input.mouseY);
+    }
+
+    if (g.warpTimer >= 0) {
+      g.warpTimer -= dt;
+      g.vortexAcc += dt * TELEPORT.VORTEX_RATE;
+      while (g.vortexAcc >= 1) { g.vortexAcc--; particles.vortex(player.cx, player.cy); }
+      player.prevX = player.x; player.prevY = player.y;
+      if (g.warpTimer < 0) warpHome('Warped to base camp. Cargo intact.', 'good');
+    } else {
+      player.update(dt, input, g.aimX, g.aimY);
+      useSlots();
+    }
+    if (g.radarCd > 0) g.radarCd = Math.max(0, g.radarCd - dt);
+
+    pickups.update(dt, player);
+    dynamites.update(dt, PHYSICS.GRAVITY);
+    particles.update(dt);
+    mining.update(dt);
+    lighting.update(dt, RADAR.RING_SPEED);
+    vis.update(dt, player.cx, player.cy, economy.radar.headlamp);
+
+    // Depth / layer
+    const ptx = Math.max(0, Math.min(world.W - 1, Math.floor(player.cx / T)));
+    const pty = Math.max(0, Math.min(world.H - 1, Math.floor(player.cy / T)));
+    const band = world.band[pty * world.W + ptx];
+    const onSurface = player.feetY <= SURFACE_PX + 2;
+    const inMantle = band === TILE.MANTLE && !onSurface;
+    g.depth01 = Math.max(0, Math.min(1, (player.feetY - SURFACE_PX) / UNDERGROUND_PX));
+    const meters = Math.max(0, Math.floor((player.feetY - SURFACE_PX) / T)) * WORLD.METERS_PER_TILE;
+    const layer = onSurface || band === TILE.AIR ? 'Surface · Expedition Base Camp' : `${MATERIALS[band].layer}`;
+    if (meters !== g.lastMeters || layer !== g.lastLayer) {
+      g.lastMeters = meters; g.lastLayer = layer;
+      depthPayload.meters = meters; depthPayload.layer = layer;
+      bus.emit(EV.DEPTH_CHANGED, depthPayload);
+    }
+
+    // Base camp interactions
+    const bc = WORLD.BASE_CAMP;
+    const nearShop = onSurface && Math.abs(player.cx / T - (bc.SHOP_X + 0.5)) < bc.INTERACT_RANGE;
+    const atStation = onSurface && Math.abs(player.cx / T - (bc.STATION_X + 0.5)) < bc.INTERACT_RANGE;
+    const prompt = nearShop ? 'shop' : atStation ? 'station' : '';
+    if (prompt !== g.prompt) {
+      g.prompt = prompt;
+      bus.emit(EV.PROMPT, prompt === 'shop' ? '[E] Open Trading Post terminal' : prompt === 'station' ? 'Recharging suit energy…' : null);
+    }
+    energy.update(dt, { jetting: player.jetting, inMantle, atStation });
+
+    camera.update(dt, player.cx + player.vx * CAMERA.LOOK_AHEAD, player.cy);
+    background.update(dt, camera.x - camera.viewW / 2, camera.y - camera.viewH / 2, camera.viewW, particles);
+    ambientParticles(dt, !onSurface, inMantle);
+
+    // Audio
+    if (audio.ready) {
+      audio.listenerX = player.cx; audio.listenerY = player.cy;
+      sfx.setJet(player.jetting ? 1 : 0);
+      audio.setDepth(onSurface ? 0 : g.depth01 + 0.02);
+      music.setDepth(g.depth01);
+      ambience.update(dt, g.depth01, onSurface);
+    }
+
+    // Autosave (never during explosions)
+    const calm = dynamites.active.length === 0 && dynamites.lastExplosionAge > SAVE.EXPLOSION_BLOCK_SEC;
+    saves.tick(dt, calm, getState);
+
+    input.endStep();
+  }
+
+  // ---------- Render ----------
+  function render(alpha, frameDt) {
+    // Hover tooltip (emits only on change)
+    let hover = -1;
+    if (input.mouseInside && !input.usingPad) {
+      const tx = Math.floor(renderer.screenToWorldX(input.mouseX) / T);
+      const ty = Math.floor(renderer.screenToWorldY(input.mouseY) / T);
+      if (world.inBounds(tx, ty)) hover = ty * world.W + tx;
+    }
+    if (hover !== g.hover) {
+      g.hover = hover;
+      renderer.hoverTile = hover;
+      renderer.hoverMineable = hover >= 0 && canMine(world.tileType[hover], world.oreType[hover], economy.pickTier);
+      bus.emit(EV.HOVER_TILE, hover);
+    }
+    st.aimX = g.aimX; st.aimY = g.aimY; st.depth = g.depth01; st.headlamp = economy.radar.headlamp;
+    renderer.render(alpha, frameDt, st);
+    minimap.draw(frameDt, Math.floor(player.cx / T), Math.floor(player.cy / T), vis, economy.pickTier);
+    hud.setRadarCooldown(g.radarCd);
+
+    // Auto quality
+    if (settingsValues.quality === 'auto' && !g.autoDone && g.started && !document.hidden) {
+      g.autoAccum += loop.updateMs + loop.renderMs;
+      g.autoSamples++;
+      if (g.autoSamples * frameDt >= QUALITY.AUTO_SAMPLE_SEC && g.autoSamples > 60) {
+        const avg = g.autoAccum / g.autoSamples;
+        g.autoDone = true;
+        applyQuality(avg <= QUALITY.AUTO_HIGH_MS ? 'high' : avg <= QUALITY.AUTO_MED_MS ? 'medium' : 'low');
+        settings.setAutoPreset(g.quality);
+        log('auto quality', g.quality, avg.toFixed(2));
+      }
+    }
+
+    dbg.fps = loop.fps; dbg.frameMs = loop.frameMs; dbg.updateMs = loop.updateMs; dbg.renderMs = loop.renderMs;
+    dbg.drawCalls = renderer.drawCalls; dbg.particles = particles.count; dbg.particleCap = particles.cap;
+    dbg.voices = audio.voiceCount; dbg.chunkRebuilds = chunks.rebuildsThisFrame; dbg.totalRebuilds = chunks.totalRebuilds;
+    dbg.quality = g.quality; dbg.seed = seed;
+    dbg.tile = debug.visible ? `player tile ${Math.floor(player.cx / T)},${Math.floor(player.cy / T)}` : '';
+    debug.update(frameDt, dbg);
+  }
+
+  const loop = new GameLoop({ update, render });
+
+  // ---------- Platform events ----------
+  const onResize = () => renderer.resize();
+  window.addEventListener('resize', onResize);
+  const watchDpr = () => {
+    const mq = window.matchMedia(`(resolution: ${window.devicePixelRatio}dppx)`);
+    mq.addEventListener('change', () => { onResize(); watchDpr(); }, { once: true });
+  };
+  watchDpr();
+  document.addEventListener('visibilitychange', () => {
+    g.tabHidden = document.hidden;
+    if (document.hidden) input.clear();
+    else audio.resume();
+  });
+  window.addEventListener('beforeunload', () => { if (g.started) saveGame(false); });
+
+  // ---------- Splash / start ----------
+  const start = () => {
+    if (g.started) return;
+    audio.init();
+    applySettings(settingsValues);
+    music.start();
+    ambience.start();
+    g.started = true;
+    splash.classList.add('hidden');
+    canvas.focus();
+    bus.emit(EV.DEPTH_CHANGED, { meters: 0, layer: 'Surface · Expedition Base Camp' });
+    toast.show(loaded.ok ? 'Expedition resumed. Welcome back!' : 'Welcome to base camp. Dig deep, return to sell.', 'info');
+  };
+  splash.addEventListener('click', start);
+  splash.addEventListener('keydown', (e) => { if (e.code === 'Enter' || e.code === 'Space') start(); });
+  /** @type {HTMLElement|null} */ (splash.querySelector('button'))?.focus();
+  loop.start();
+}
+
+boot();
