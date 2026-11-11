@@ -18,7 +18,8 @@ export class HUD {
     root.innerHTML = `
       <div class="panel stats">
         <div class="row energy"><span class="lbl">ENERGY</span><div class="bar"><div class="fill"></div></div><span class="val e-val">100</span></div>
-        <div class="row"><span class="lbl">CARGO</span><span class="val cargo-val">0/10</span></div>
+        <div class="row"><span class="lbl">SUIT</span><span class="val hp-val">100%</span></div>
+        <div class="row"><span class="lbl">CARGO</span><span class="val cargo-val">0 kg</span></div>
         <div class="row"><span class="lbl">CREDITS</span><span class="val credits-val">$0</span></div>
         <div class="row"><span class="lbl">DEPTH</span><span class="val depth-val">0 m</span></div>
         <div class="row layer-val">Surface · Base Camp</div>
@@ -43,7 +44,7 @@ export class HUD {
       <div class="tooltip hidden"></div>`;
     const q = (s) => /** @type {HTMLElement} */ (root.querySelector(s));
     this.el = {
-      energyRow: q('.energy'), fill: q('.fill'), eVal: q('.e-val'), cargo: q('.cargo-val'), credits: q('.credits-val'),
+      energyRow: q('.energy'), fill: q('.fill'), eVal: q('.e-val'), cargo: q('.cargo-val'), hp: q('.hp-val'), credits: q('.credits-val'),
       depth: q('.depth-val'), layer: q('.layer-val'), pickIcon: q('.pick-icon'), pickName: q('.pick-name'),
       prompt: q('.prompt'), tooltip: q('.tooltip'), radarCd: q('.r-cd'), minimapWrap: q('.minimap-wrap'),
       mute: q('[data-act="mute"]'),
@@ -61,6 +62,7 @@ export class HUD {
 
     bus.on(EV.ENERGY_CHANGED, () => this.refreshEnergy());
     bus.on(EV.CARGO_CHANGED, () => this.refreshCargo());
+    bus.on(EV.HP_CHANGED, (hp) => { this.el.hp.textContent = `${Math.round(hp)}%`; this.el.hp.classList.toggle('full', hp < 35); });
     bus.on(EV.UPGRADE_BOUGHT, () => { this.refreshPick(); this.refreshCargo(); this.refreshEnergy(); });
     bus.on(EV.CREDITS_CHANGED, () => this.refreshCredits());
     bus.on(EV.CONSUMABLES_CHANGED, () => this.refreshSlots());
@@ -91,8 +93,8 @@ export class HUD {
 
   refreshCargo() {
     const ec = this.d.economy;
-    this.el.cargo.textContent = `${ec.slotsUsed}/${ec.cargoSlots} slots · ${ec.cargoUnits} ore`;
-    this.el.cargo.classList.toggle('full', ec.slotsUsed >= ec.cargoSlots);
+    this.el.cargo.textContent = `${ec.cargoWeight.toFixed(1)}/${ec.capacity} kg · speed ${Math.round(ec.speedMult * 100)}%`;
+    this.el.cargo.classList.toggle('full', ec.loadFrac >= 0.95);
   }
 
   refreshCredits() { this.el.credits.textContent = `$${this.d.economy.credits.toLocaleString('en-US')}`; }

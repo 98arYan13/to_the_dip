@@ -4,27 +4,34 @@
  * the Economy class wraps them with state and events.
  */
 import { ORES, PICKAXES, UPGRADES, CONSUMABLES, ECONOMY, BALANCE, ENERGY } from '../config.js';
+
+const cents = (v) => Math.round(v * 100) / 100;
 import { EV } from '../core/EventBus.js';
 
 /** Upgrade kinds in shop order. */
-export const UPGRADE_KINDS = Object.freeze(['pickaxe', 'jetpack', 'suit', 'radar', 'cargo']);
+export const UPGRADE_KINDS = Object.freeze(['pickaxe', 'rig', 'jetpack', 'radar']);
 
 /** @param {string} kind @returns {any[]} */
 export function upgradeLevels(kind) {
   return kind === 'pickaxe' ? /** @type {any[]} */ (PICKAXES) : /** @type {any} */ (UPGRADES)[kind].levels;
 }
 
-/** Slots occupied by a cargo array (each slot stacks STACK_SIZE units of one ore). */
-export function slotsUsed(cargo, stack = ECONOMY.STACK_SIZE) {
-  let s = 0;
-  for (let o = 1; o < cargo.length; o++) if (cargo[o] > 0) s += Math.ceil(cargo[o] / stack);
-  return s;
+/** W_total: cargo weight in kg. */
+export function cargoWeight(cargo) {
+  let w = 0;
+  for (let o = 1; o < cargo.length; o++) w += cargo[o] * /** @type {any} */ (ORES[o]).kg;
+  return w;
 }
 
-/** Can one more unit of `ore` fit? */
-export function canAddOre(cargo, ore, slots, stack = ECONOMY.STACK_SIZE) {
-  if (cargo[ore] % stack !== 0) return true; // fits in an existing partial stack
-  return slotsUsed(cargo, stack) + 1 <= slots;
+/** Can one more block of `ore` fit under `capacity` kg? */
+export function canAddOre(cargo, ore, capacity) {
+  return cargoWeight(cargo) + /** @type {any} */ (ORES[ore]).kg <= capacity + 1e-9;
+}
+
+/** Speed_mult = 1 - 0.4 * (W/C)^2 — applied to walking, climbing and swing speed. */
+export function loadSpeedMult(weight, capacity) {
+  const f = Math.min(1, weight / capacity);
+  return 1 - ENERGY.LOAD_SLOW * f * f;
 }
 
 /** Total units in cargo. */
@@ -38,7 +45,7 @@ export function cargoUnits(cargo) {
 export function cargoValue(cargo) {
   let v = 0;
   for (let o = 1; o < cargo.length; o++) v += cargo[o] * /** @type {any} */ (ORES[o]).price;
-  return v;
+  return cents(v);
 }
 
 /**
@@ -50,7 +57,7 @@ export function saleLines(cargo) {
   for (let o = 1; o < cargo.length; o++) {
     if (!cargo[o]) continue;
     const ore = /** @type {any} */ (ORES[o]);
-    lines.push({ ore: o, name: ore.name, count: cargo[o], price: ore.price, total: cargo[o] * ore.price });
+    lines.push({ ore: o, name: ore.name, count: cargo[o], price: ore.price, total: cents(cargo[o] * ore.price) });
   }
   lines.sort((a, b) => b.total - a.total);
   return lines;
@@ -77,25 +84,24 @@ export function nextUpgradeCost(kind, level) {
 export function pickaxeForTier(tier) { return PICKAXES[Math.max(1, Math.min(PICKAXES.length, tier)) - 1]; }
 
 /**
- * Average sell price of ores mineable at `tier` in a given host band, weighted by abundance.
+ * Value per kg of a cargo filled with ores mineable at `tier` in a host band, mixed by abundance.
  * @param {number} tier @param {number} band material id
  */
-export function weightedOrePrice(tier, band) {
-  let w = 0; let v = 0;
+export function weightedValuePerKg(tier, band) {
+  let kg = 0; let v = 0;
   for (let o = 1; o < ORES.length; o++) {
     const ore = /** @type {any} */ (ORES[o]);
     if (!ore.hosts.includes(band) || ore.tier > tier) continue;
-    w += ore.weight; v += ore.weight * ore.price;
+    kg += ore.weight * ore.kg; v += ore.weight * ore.price;
   }
-  return w > 0 ? v / w : 0;
+  return kg > 0 ? v / kg : 0;
 }
 
-/** Expected income of one full trip while owning pickaxe `tier`. */
+/** Expected income of one full trip while owning pickaxe `tier` (and rig level tier-1). */
 export function expectedTripIncome(tier) {
-  const slots = BALANCE.ASSUMED_CARGO_SLOTS_BY_TIER[tier - 1];
+  const capacity = UPGRADES.rig.levels[tier - 1].capacity;
   const band = BALANCE.FOCUS_BAND_BY_TIER[tier - 1];
-  const units = slots * ECONOMY.STACK_SIZE * BALANCE.PACKING_EFFICIENCY;
-  return units * weightedOrePrice(tier, band);
+  return capacity * BALANCE.PACKING_EFFICIENCY * weightedValuePerKg(tier, band);
 }
 
 /** Full trips at tier N needed to afford the tier N+1 pickaxe (Infinity at max tier). */
@@ -112,7 +118,7 @@ export function createEconomyState() {
   return {
     credits: ECONOMY.START_CREDITS,
     cargo: new Array(ORES.length).fill(0),
-    levels: { pickaxe: 0, jetpack: 0, suit: 0, radar: 0, cargo: 0 },
+    levels: { pickaxe: 0, rig: 0, jetpack: 0, radar: 0 },
     consumables,
   };
 }
@@ -143,15 +149,18 @@ export class Economy {
   get pickTier() { return this.levels.pickaxe + 1; }
   get pickaxe() { return PICKAXES[this.levels.pickaxe]; }
   get jetpack() { return UPGRADES.jetpack.levels[this.levels.jetpack]; }
-  get suit() { return UPGRADES.suit.levels[this.levels.suit]; }
+  get rig() { return UPGRADES.rig.levels[this.levels.rig]; }
   get radar() { return UPGRADES.radar.levels[this.levels.radar]; }
-  get cargoSlots() { return UPGRADES.cargo.levels[this.levels.cargo].slots; }
-  get slotsUsed() { return slotsUsed(this.cargo); }
+  get capacity() { return this.rig.capacity; }
+  get cargoWeight() { return cargoWeight(this.cargo); }
+  /** W_total / C_max, 0..1. */
+  get loadFrac() { return Math.min(1, this.cargoWeight / this.capacity); }
+  get speedMult() { return loadSpeedMult(this.cargoWeight, this.capacity); }
   get cargoUnits() { return cargoUnits(this.cargo); }
 
   /** Try to store one ore unit. @returns {boolean} */
   addOre(ore) {
-    if (!canAddOre(this.cargo, ore, this.cargoSlots)) {
+    if (!canAddOre(this.cargo, ore, this.capacity)) {
       this.bus.emit(EV.CARGO_FULL);
       return false;
     }
@@ -167,7 +176,7 @@ export class Economy {
     const total = cargoValue(this.cargo);
     if (total <= 0) return { total: 0, lines };
     this.cargo.fill(0);
-    this.credits += total;
+    this.credits = cents(this.credits + total);
     this.bus.emit(EV.CARGO_CHANGED);
     this.bus.emit(EV.CREDITS_CHANGED, this.credits);
     this.bus.emit(EV.SOLD, { total });
@@ -186,11 +195,11 @@ export class Economy {
   buyUpgrade(kind) {
     const check = this.canBuyUpgrade(kind);
     if (!check.ok) { this.bus.emit(EV.PURCHASE_FAILED, check.reason); return check; }
-    this.credits -= nextUpgradeCost(kind, this.levels[kind]);
+    this.credits = cents(this.credits - nextUpgradeCost(kind, this.levels[kind]));
     this.levels[kind]++;
     this.bus.emit(EV.CREDITS_CHANGED, this.credits);
     this.bus.emit(EV.UPGRADE_BOUGHT, { kind, level: this.levels[kind] });
-    if (kind === 'cargo') this.bus.emit(EV.CARGO_CHANGED);
+    if (kind === 'rig') this.bus.emit(EV.CARGO_CHANGED);
     return check;
   }
 
@@ -205,7 +214,7 @@ export class Economy {
   buyConsumable(kind) {
     const check = this.canBuyConsumable(kind);
     if (!check.ok) { this.bus.emit(EV.PURCHASE_FAILED, check.reason); return check; }
-    this.credits -= /** @type {any} */ (CONSUMABLES)[kind].price;
+    this.credits = cents(this.credits - /** @type {any} */ (CONSUMABLES)[kind].price);
     this.consumables[kind]++;
     this.bus.emit(EV.CREDITS_CHANGED, this.credits);
     this.bus.emit(EV.CONSUMABLES_CHANGED);

@@ -1,9 +1,24 @@
 /**
  * @module systems/Energy
- * Suit energy: passive life-support drain, mining/jetpack drain, mantle heat,
+ * Rig battery: depth/load-scaled idle drain, per-block mining drain, jetpack drain,
  * station recharge, low-energy warning and emergency rescue trigger.
  */
-import { ENERGY } from '../config.js';
+import { ENERGY, MATERIALS, ORES } from '../config.js';
+
+/** E_block = E_base * H_mat * (1 + D/500) / eta_rig */
+export function blockEnergy(hard, depthM, eff) {
+  return ENERGY.BLOCK_BASE * hard * (1 + depthM / ENERGY.BLOCK_DEPTH) / eff;
+}
+
+/** E_idle/sec = 0.2 * (1 + D/300) * (1 + 0.5 * W/C) */
+export function idleDrain(depthM, loadFrac) {
+  return ENERGY.IDLE_BASE * (1 + depthM / ENERGY.IDLE_DEPTH) * (1 + ENERGY.IDLE_LOAD * loadFrac);
+}
+
+/** H_mat of a tile: the ore's hardness if it holds one, else the host rock's. */
+export function tileHardness(type, ore) {
+  return ore ? /** @type {any} */ (ORES[ore]).hard : MATERIALS[type].hard || 1;
+}
 import { EV } from '../core/EventBus.js';
 
 export class Energy {
@@ -14,30 +29,31 @@ export class Energy {
   constructor(bus, economy) {
     this.bus = bus;
     this.economy = economy;
-    this.value = economy.suit.maxEnergy;
+    this.value = economy.rig.maxEnergy;
+    /** Current depth in meters (set by the game loop). */
+    this.depthM = 0;
     this.lowTimer = 0;
     this.lastReported = -1;
     this.rescuePending = false;
     this.payload = { value: 0, max: 0 };
   }
 
-  get max() { return this.economy.suit.maxEnergy; }
+  get max() { return this.economy.rig.maxEnergy; }
   get frac() { return this.value / this.max; }
 
   /**
    * @param {number} dt
-   * @param {{jetting:boolean, inMantle:boolean, atStation:boolean}} s
+   * @param {{jetting:boolean, atStation:boolean, onSurface?:boolean}} s
    */
   update(dt, s) {
     if (s.atStation) {
       if (this.value < this.max) {
-        this.value = Math.min(this.max, this.value + ENERGY.STATION_RATE * dt);
+        this.value = Math.min(this.max, this.value + ENERGY.STATION_RATE * this.max * dt);
         if (this.value >= this.max) this.bus.emit(EV.STATION_FULL);
       }
     } else {
-      const suit = this.economy.suit;
-      let drain = suit.passive;
-      if (s.inMantle) drain *= 1 + (ENERGY.MANTLE_HEAT_MULT - 1) * (1 - suit.heatResist);
+      // Depth heat/pressure only drains underground; the surface is free.
+      let drain = s.onSurface ? 0 : idleDrain(this.depthM, this.economy.loadFrac);
       if (s.jetting) drain += this.economy.jetpack.drain;
       this.value -= drain * dt;
     }
@@ -47,6 +63,9 @@ export class Energy {
       if (this.lowTimer <= 0) { this.lowTimer = ENERGY.LOW_BEEP_INTERVAL; this.bus.emit(EV.LOW_ENERGY); }
     } else this.lowTimer = 0;
   }
+
+  /** Energy for breaking one block at the current depth. */
+  drainBlock(type, ore) { this.drain(blockEnergy(tileHardness(type, ore), this.depthM, this.economy.rig.eff)); }
 
   /** One-off drain (mining hit, radar). @param {number} amount */
   drain(amount) { this.value -= amount; this._clampAndReport(); }

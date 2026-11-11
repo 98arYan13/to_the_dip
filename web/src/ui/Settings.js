@@ -41,6 +41,10 @@ export class Settings {
             ${slider('master', 'Master')}${slider('music', 'Music')}${slider('sfx', 'SFX')}${slider('ambience', 'Ambience')}
             <h3>Video</h3>
             <label class="srow"><span>Quality</span><select data-k="quality"><option value="auto">Auto</option><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select><output data-o="quality"></output></label>
+            <h3>Gameplay</h3>
+            <label class="srow"><span>Fall speed</span><input type="range" min="0.4" max="2" step="0.05" data-k="fallSpeedMult"><output data-o="fallSpeedMult"></output></label>
+            <label class="srow"><span>Hard landing</span><input type="range" min="1.5" max="10" step="0.5" data-k="hardLandingTiles"><output data-o="hardLandingTiles"></output></label>
+            <h3>Display</h3>
             <label class="srow check"><input type="checkbox" data-k="shake"><span>Screen shake</span></label>
             <label class="srow check"><input type="checkbox" data-k="reducedFlashing"><span>Reduced flashing</span></label>
           </div>
@@ -91,6 +95,8 @@ export class Settings {
     this.el.querySelectorAll('output[data-o]').forEach((o) => {
       const k = /** @type {HTMLElement} */ (o).dataset.o || '';
       if (k === 'quality') o.textContent = this.s.quality === 'auto' && this.autoPreset ? `(${this.autoPreset})` : '';
+      else if (k === 'fallSpeedMult') o.textContent = `${this.s.fallSpeedMult.toFixed(2)}x`;
+      else if (k === 'hardLandingTiles') o.textContent = `${this.s.hardLandingTiles.toFixed(1)} tiles`;
       else o.textContent = `${Math.round(/** @type {any} */ (this.s)[k] * 100)}%`;
     });
   }

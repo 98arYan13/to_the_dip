@@ -89,6 +89,7 @@ function boot() {
     const p = loaded.data.player;
     player.placeAt(p.x, p.y);
     energy.value = Math.min(energy.max, p.energy);
+    if (typeof p.hp === 'number') player.hp = p.hp;
   }
 
   // ---------- Rendering ----------
@@ -97,6 +98,7 @@ function boot() {
   particles.world = world;
   const art = new TileArt(1);
   const chunks = new ChunkCache(world, art);
+  art.loadImages(() => chunks.markAllDirty());
   const camera = new Camera();
   const background = new Background();
   const lighting = new Lighting();
@@ -121,6 +123,7 @@ function boot() {
     onSettings: () => openSettings(),
   });
   hud.setMuted(settingsValues.muted);
+  bus.emit(EV.HP_CHANGED, player.hp);
   const toast = new Toast(hudRoot);
   const minimap = new Minimap(hud.minimapParent, bus);
   minimap.setWorld(world);
@@ -163,13 +166,15 @@ function boot() {
     lighting.reducedFlashing = s.reducedFlashing;
     postfx.reducedFlashing = s.reducedFlashing;
     document.body.classList.toggle('reduced-flashing', !!s.reducedFlashing);
+    player.fallMult = s.fallSpeedMult;
+    player.hardLandingTiles = s.hardLandingTiles;
     if (s.quality === 'auto') { if (g.autoDone) applyQuality(g.quality); else applyQuality('high'); }
     else applyQuality(s.quality);
     try { storage.setItem(SAVE.SETTINGS_KEY, JSON.stringify(s)); } catch { /* ignore */ }
   }
   applySettings(settingsValues);
 
-  const getState = () => ({ seed, player: { x: player.x, y: player.y, energy: energy.value }, economy: economy.toJSON(), world });
+  const getState = () => ({ seed, player: { x: player.x, y: player.y, energy: energy.value, hp: player.hp }, economy: economy.toJSON(), world });
 
   function saveGame(manual) {
     if (dynamites.active.length > 0 && !manual) return;
@@ -197,6 +202,7 @@ function boot() {
     g.radarCd = 0; g.warpTimer = -1; g.lastMeters = -1;
     hud.refreshAll();
     bus.emit(EV.CONSUMABLES_CHANGED);
+    player.setHP(PHYSICS.SUIT_HP);
     settings.close(); shop.close();
     saveGame(false);
     toast.show('New expedition started. Good luck down there!', 'good');
@@ -243,9 +249,20 @@ function boot() {
   bus.on(EV.SHOP_OPEN, () => saveGame(false));
   bus.on(EV.PURCHASE_FAILED, (reason) => toast.show(reason, 'warn'));
   bus.on(EV.UPGRADE_BOUGHT, (u) => {
-    if (u.kind === 'suit') energy.refill();
+    if (u.kind === 'rig') energy.refill();
     energy.report();
     if (u.kind === 'pickaxe') toast.show(`${economy.pickaxe.name} acquired!`, 'good');
+  });
+  bus.on(EV.HARD_LANDING, (h) => {
+    camera.addTrauma(Math.min(1, 0.3 + h.damage / 60));
+    toast.show(`Hard landing! Suit -${h.damage}%`, 'warn');
+  });
+  bus.on(EV.SUIT_BROKEN, () => {
+    dynamites.clear();
+    g.warpTimer = -1;
+    bus.emit(EV.TELEPORT_START);
+    player.setHP(PHYSICS.SUIT_HP);
+    warpHome('Suit integrity lost! Emergency recovery to base camp.', 'bad');
   });
   bus.on(EV.RESCUE, () => {
     const lost = economy.applyRescueLoss();
@@ -305,7 +322,7 @@ function boot() {
       else if (energy.value >= energy.max - 0.5) toast.show('Energy already full', 'info');
       else {
         economy.useConsumable('cell');
-        energy.add(CONSUMABLES.cell.energy);
+        energy.add(CONSUMABLES.cell.frac * energy.max);
         particles.electric(player.cx, player.cy);
         bus.emit(EV.CONSUMABLE_USED, 'cell');
       }
@@ -405,7 +422,9 @@ function boot() {
       g.prompt = prompt;
       bus.emit(EV.PROMPT, prompt === 'shop' ? '[E] Open Trading Post terminal' : prompt === 'station' ? 'Recharging suit energy…' : null);
     }
-    energy.update(dt, { jetting: player.jetting, inMantle, atStation });
+    energy.depthM = meters;
+    energy.update(dt, { jetting: player.jetting, atStation, onSurface });
+    if (atStation && player.hp < PHYSICS.SUIT_HP) player.setHP(PHYSICS.SUIT_HP); // station also repairs the suit
 
     camera.update(dt, player.cx + player.vx * CAMERA.LOOK_AHEAD, player.cy);
     background.update(dt, camera.x - camera.viewW / 2, camera.y - camera.viewH / 2, camera.viewW, particles);

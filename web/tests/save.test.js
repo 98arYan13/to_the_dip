@@ -64,10 +64,7 @@ describe('Save codec', () => {
     expect(new SaveSystem(memStorage()).load()).toEqual({ ok: false, error: null });
   });
 
-  it('migrates v1 saves', () => {
-    const m = migrate({ version: 1, seed: 1, settings: { x: 1 }, economy: { levels: { pickaxe: 1 } } });
-    expect(m.version).toBe(SAVE.VERSION);
-    expect(m.settings).toBeUndefined();
-    expect(m.economy.levels).toEqual({ radar: 0, cargo: 0, pickaxe: 1 });
+  it('rejects pre-v3 saves (ore ids were remapped)', () => {
+    expect(() => migrate({ version: 1, seed: 1, settings: { x: 1 }, economy: { levels: { pickaxe: 1 } } })).toThrow(/not compatible/);
   });
 });

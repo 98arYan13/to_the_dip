@@ -73,6 +73,24 @@ export class TileArt {
     this._bake();
   }
 
+  /**
+   * Overlay hand-drawn tiles (web/public/tiles, cut by tools/crop_tiles.py) onto the procedural
+   * material/ore cells once they load. Missing images keep the procedural art.
+   * @param {() => void} onChange called after each image is drawn into the atlas
+   */
+  loadImages(onChange) {
+    const put = (name, cells) => {
+      const img = new Image();
+      img.onload = () => { for (const c of cells) this.ctx.drawImage(img, this.sx(c), this.sy(c), T, T); onChange(); };
+      img.src = `tiles/${name}.png`;
+    };
+    for (const t of SOLID_TYPES) {
+      const tiles = MATERIALS[t].tiles;
+      if (tiles) tiles.forEach((name, k) => put(name, this.mat[t].filter((_, v) => v % tiles.length === k)));
+    }
+    for (let o = 1; o < ORES.length; o++) put(/** @type {any} */ (ORES[o]).tile, this.ore[o]);
+  }
+
   _alloc() { return this.cellCount++; }
   sx(c) { return (c % this.cols) * T; }
   sy(c) { return Math.floor(c / this.cols) * T; }

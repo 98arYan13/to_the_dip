@@ -103,6 +103,7 @@ export function decodeWorld(e, seed) {
 /**
  * Migration pipeline: each step upgrades a save object by one version.
  * v1 → v2: settings moved out of the save; economy.levels gained `radar` and `cargo`.
+ * v2 → v3: ore ids were remapped (20 ores) and suit/cargo became the rig; old worlds can't be converted.
  * @param {any} save
  */
 export function migrate(save) {
@@ -113,6 +114,8 @@ export function migrate(save) {
       s = { ...s, version: 2 };
       delete s.settings;
       s.economy = { ...s.economy, levels: { radar: 0, cargo: 0, ...(s.economy?.levels || {}) } };
+    } else if (from === 2) {
+      throw new Error('Save from the old 7-ore version is not compatible; starting a new game');
     } else throw new Error(`No migration from v${from}`);
   }
   return s;

@@ -131,7 +131,7 @@ export class Shop {
     this.body.innerHTML = `
       <table class="sell-table">
         <thead><tr><th>Ore</th><th>Qty</th><th>Price</th><th>Value</th></tr></thead>
-        <tbody>${lines.map((l) => `<tr><td><span class="swatch" style="background:${/** @type {any} */ (ORES[l.ore]).colors.light}"></span>${l.name}</td><td>${l.count}</td><td>$${l.price}</td><td>$${l.total.toLocaleString('en-US')}</td></tr>`).join('')}</tbody>
+        <tbody>${lines.map((l) => `<tr><td><span class="swatch" style="background:${/** @type {any} */ (ORES[l.ore]).colors.light}"></span>${l.name}</td><td>${l.count}</td><td>$${l.price.toLocaleString('en-US')}</td><td>$${l.total.toLocaleString('en-US')}</td></tr>`).join('')}</tbody>
         <tfoot><tr><td colspan="3">Total</td><td>$${total.toLocaleString('en-US')}</td></tr></tfoot>
       </table>
       <button class="btn primary" data-key="sell:all">Sell All Cargo · $${total.toLocaleString('en-US')}</button>`;
@@ -164,7 +164,7 @@ export class Shop {
     const desc = {
       dynamite: 'Thrown explosive, 2.5 s fuse, 3×3 blast. Breaks rock up to your pickaxe tier + 1.',
       teleporter: 'Warps you safely to base camp, keeping all cargo.',
-      cell: `Instantly restores ${CONSUMABLES.cell.energy} suit energy.`,
+      cell: `Instantly restores ${CONSUMABLES.cell.frac * 100}% of battery energy.`,
     };
     this.body.innerHTML = Object.entries(CONSUMABLES).map(([k, c]) => {
       const check = ec.canBuyConsumable(k);
@@ -181,9 +181,8 @@ function describe(kind, l) {
   switch (kind) {
     case 'pickaxe': return `DMG ${l.damage} · ${(1 / l.swing).toFixed(1)} swings/s`;
     case 'jetpack': return `Thrust ${l.thrust} · Climb ${l.maxUp} · Drain ${l.drain}/s`;
-    case 'suit': return `Energy ${l.maxEnergy} · Drain ${l.passive}/s · Heat -${Math.round(l.heatResist * 100)}%`;
+    case 'rig': return `${l.name} · ${l.capacity} kg · ${l.maxEnergy} energy · Drill ${l.eff}x (${l.zone})`;
     case 'radar': return `Radius ${l.radius} · ${l.duration}s · Lamp ${l.headlamp}`;
-    case 'cargo': return `${l.slots} slots`;
     default: return '';
   }
 }

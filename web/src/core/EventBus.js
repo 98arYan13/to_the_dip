@@ -17,6 +17,10 @@ export const EV = Object.freeze({
   CREDITS_CHANGED: 'credits:changed',    // payload: credits
   ENERGY_CHANGED: 'energy:changed',      // payload: {value,max}
   LOW_ENERGY: 'energy:low',
+  HARD_LANDING: 'player:hardLanding',    // payload: {damage, tiles, vy}
+  HP_CHANGED: 'player:hp',               // payload: hp
+  SUIT_BROKEN: 'player:suitBroken',
+  SWING: 'player:swing',
   RESCUE: 'energy:rescue',
   DEPTH_CHANGED: 'depth:changed',        // payload: {meters, layer}
   UPGRADE_BOUGHT: 'upgrade:bought',      // payload: {kind, level}

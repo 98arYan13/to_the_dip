@@ -3,9 +3,14 @@
  * Material-aware synthesized sound effects (transient + body + tail per hit), equipment and UI
  * sounds, the jetpack loop and the depth-adaptive ambience bed.
  */
-import { AUDIO, ORE, MATERIALS, ORES, DYNAMITE } from '../config.js';
+import { AUDIO, TILE, ORES, DYNAMITE } from '../config.js';
 import { EV } from '../core/EventBus.js';
 import { distortionCurve } from './DSP.js';
+
+/** Ores that snap like glass rather than ring like metal. */
+const CRYSTAL = new Set(['LITHIUM', 'LAPIS', 'BLACK_OPAL', 'RUBY', 'DIAMOND']);
+/** Ores with no resonant mode (porous / organic). */
+const DULL = new Set(['COAL', 'FOSSIL']);
 
 export class SFX {
   /** @param {import('./AudioEngine.js').AudioEngine} engine */
@@ -34,6 +39,8 @@ export class SFX {
     bus.on(EV.TELEPORT_START, () => this.teleport());
     bus.on(EV.LOW_ENERGY, () => this.lowEnergy());
     bus.on(EV.FOOTSTEP, (m) => this.footstep(m));
+    bus.on(EV.SWING, () => this.swing());
+    bus.on(EV.HARD_LANDING, (h) => this.impact(h.damage));
     bus.on(EV.SOLD, () => this.shopChime());
     bus.on(EV.PURCHASE_FAILED, () => this.shopError());
     bus.on(EV.UPGRADE_BOUGHT, (u) => (u.kind === 'pickaxe' ? this.fanfare() : this.shopChime()));
@@ -45,59 +52,66 @@ export class SFX {
 
   // ---------- Mining ----------
 
-  /** Material-aware hit: brightness/resonance rise with hardness. */
+  /** Pickaxe hit: soil gets a compaction thump + clods, everything else a rock crack + steel ring. */
   mineHit(type, ore, x, y) {
     const e = this.e; if (!e.ready) return;
     const v = e.voice('sfx', x, y); if (!v) return;
     const t = e.now; const p = e.jp(); const g = e.jg();
-    const key = MATERIALS[type] ? MATERIALS[type].sfx : 'soil';
-    const M = AUDIO.MATERIAL;
-    switch (key) {
-      case 'soil': {
-        const m = M.soil;
-        e.noiseBurst(v, 'pink', 'bandpass', m.noiseLo * p, m.noiseHi * p, 1.2, t, m.dur, 0.6 * m.gain * g);
-        e.osc(v, 'sine', m.thump * p, m.thumpEnd, t, m.dur * 0.9, 0.8 * m.gain * g);
-        break;
+    if (type === TILE.SOIL && !ore) {
+      e.osc(v, 'sine', 108 * p, 34, t, 0.16, 0.8 * g); // soil-compaction thump
+      e.noiseBurst(v, 'pink', 'lowpass', 680 * p, 680 * p, 0.7, t, 0.09, 0.45 * g); // blade shear
+      for (let k = 0; k < 5; k++) { // shifting pebbles and dry clods
+        const f = 480 + Math.random() * 970;
+        e.noiseBurst(v, 'white', 'bandpass', f, f, 6, t + 0.015 + k * 0.018 + Math.random() * 0.012, 0.03, 0.22 * g);
       }
-      case 'limestone': {
-        const m = M.limestone;
-        e.osc(v, 'triangle', m.tri * p, m.triEnd, t, 0.05, 0.5 * m.gain * g);
-        e.noiseBurst(v, 'white', 'bandpass', m.noiseLo * p, m.noiseHi * p, 3, t, m.dur, 0.5 * m.gain * g);
-        for (let k = 0; k < m.pebbles; k++) e.noiseBurst(v, 'white', 'highpass', m.pebbleHz, m.pebbleHz, 1, t + 0.02 + Math.random() * 0.12, 0.02, 0.25 * m.gain);
-        break;
-      }
-      case 'granite':
-      case 'basalt': {
-        const m = key === 'granite' ? M.granite : M.basalt;
-        this._fm(v, m.carrier * p, m.ratio, m.index, t, m.dur, 0.45 * m.gain * g);
-        e.noiseBurst(v, 'white', 'bandpass', m.bp * p, m.bp * 0.7, m.q, t, m.dur * 0.7, 0.5 * m.gain * g);
-        e.osc(v, 'sine', m.carrier * 0.5 * p, m.carrier * 0.3, t, 0.08, 0.4 * m.gain);
-        break;
-      }
-      case 'mantle': {
-        const m = M.mantle;
-        for (const f of m.glass) e.osc(v, 'sine', f * p, f * p * 0.97, t, 0.12 + Math.random() * 0.1, 0.18 * m.gain * g);
-        e.noiseBurst(v, 'white', 'highpass', 3000, 3000, 0.7, t, 0.05, 0.4 * m.gain);
-        e.noiseBurst(v, 'white', 'highpass', m.hiss, m.hiss * 1.3, 0.5, t + 0.03, m.dur, 0.18 * m.gain, v.out, 0.05);
-        break;
-      }
-      default: break;
+    } else {
+      e.noiseBurst(v, 'white', 'bandpass', 2100 * p, 2100 * p, 1.4, t, 0.022, 0.7 * g); // stone-crack transient
+      e.osc(v, 'triangle', 195 * p, 52, t, 0.11, 0.6 * g); // rock body thwack
+      [[2480, 0.058], [3920, 0.042], [5640, 0.028]].forEach(([f, d], k) => e.osc(v, 'sine', f * p, f * p, t, d, 0.12 / (k + 1), v.out, 0.001)); // steel head
+      for (let k = 0; k < 3; k++) { const f = 3000 + Math.random() * 3000; e.noiseBurst(v, 'white', 'bandpass', f, f, 8, t + 0.03 + Math.random() * 0.07, 0.012, 0.15 * g); } // grit
+      if (ore) this._mineralMode(v, ore, t, p);
     }
-    if (ore) this._orePing(v, ore, t, p);
     e.commit(v);
   }
 
-  /** Metallic ping pitched by ore; diamond adds a crystalline chime. */
-  _orePing(v, ore, t, p) {
+  /** Short damped mineral density modes: metallic for ores, vitreous snap for crystals. */
+  _mineralMode(v, ore, t, p) {
     const e = this.e;
-    const o = /** @type {any} */ (ORES[ore]);
-    if (!o.pitch) return;
-    if (ore === ORE.DIAMOND) {
-      for (let h = 1; h <= 4; h++) e.osc(v, 'sine', o.pitch * h * p, o.pitch * h * p, t + 0.01, 0.9 / h + 0.3, 0.12 / h);
-    } else {
-      e.osc(v, 'sine', o.pitch * p, o.pitch * p, t, 0.25, 0.14);
-      e.osc(v, 'sine', o.pitch * 2.76 * p, o.pitch * 2.76 * p, t, 0.12, 0.06);
+    const key = /** @type {any} */ (ORES[ore]).key;
+    if (CRYSTAL.has(key)) {
+      for (let k = 0; k < 3; k++) { const f = 3350 + Math.random() * 1470; e.osc(v, 'sine', f * p, f * p * 0.98, t + 0.004 * k, 0.05 + 0.02 * k, 0.09, v.out, 0.001); }
+    } else if (!DULL.has(key)) {
+      for (let k = 0; k < 2; k++) { const f = 1420 + Math.random() * 260; e.osc(v, 'sine', f * p, f * p, t, 0.07, 0.1, v.out, 0.001); }
     }
+  }
+
+  /** Air swing: low-mid displacement whoosh, 140 -> 420 -> 110 Hz bandpass over 125 ms. */
+  swing() {
+    const e = this.e; if (!e.ready) return;
+    const v = e.voice('sfx'); if (!v) return;
+    const t = e.now; const p = e.jp();
+    e.noiseBurst(v, 'pink', 'bandpass', 140 * p, 140 * p, 1.1, t, 0.125, 0.16 * e.jg(), v.out, 0.04);
+    const f = /** @type {BiquadFilterNode} */ (v.nodes[v.nodes.length - 2]).frequency;
+    f.linearRampToValueAtTime(420 * p, t + 0.05);
+    f.exponentialRampToValueAtTime(110 * p, t + 0.125);
+    e.commit(v);
+  }
+
+  /** Hard landing: sawtooth chassis slam + crunch + two-tone suit warning. @param {number} damage */
+  impact(damage) {
+    const e = this.e; if (!e.ready) return;
+    const v = e.voice('sfx'); if (!v) return;
+    const ctx = this.ctx; const t = e.now;
+    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 700;
+    lp.connect(v.out); v.nodes.push(lp);
+    const loud = Math.min(1, 0.5 + damage / 40);
+    e.osc(v, 'sawtooth', 135, 28, t, 0.35, 0.7 * loud, lp);
+    e.noiseBurst(v, 'brown', 'lowpass', 1200, 200, 0.7, t, 0.18, 0.8 * loud);
+    for (let k = 0; k < 2; k++) {
+      e.osc(v, 'square', 880, 880, t + 0.25 + k * 0.3, 0.12, 0.06);
+      e.osc(v, 'square', 620, 620, t + 0.4 + k * 0.3, 0.12, 0.06);
+    }
+    e.commit(v);
   }
 
   /** Simple 2-op FM strike. */
@@ -124,16 +138,21 @@ export class SFX {
     e.commit(v);
   }
 
-  /** Crumble + sub thud + debris clicks. */
+  /** Rubble collapse: structural fracture thump, lowpass crumble roar, 6-8 tumbling impacts over 240 ms. */
   blockBreak(type, x, y) {
     const e = this.e; if (!e.ready) return;
     const v = e.voice('sfx', x, y); if (!v) return;
-    const t = e.now; const p = e.jp();
-    const hard = MATERIALS[type] ? Math.min(5, MATERIALS[type].tier) : 1;
-    e.noiseBurst(v, 'brown', 'lowpass', 900 * p + hard * 150, 150, 0.8, t, 0.45, 0.9 * e.jg());
-    e.osc(v, 'sine', 60 * p, 35, t, 0.3, 0.7);
-    const clicks = 4 + hard;
-    for (let k = 0; k < clicks; k++) e.noiseBurst(v, 'white', 'bandpass', 2000 + hard * 500 + Math.random() * 1500, 2000, 4, t + 0.05 + Math.random() * 0.4, 0.025, 0.25);
+    const t = e.now; const p = e.jp(); const g = e.jg();
+    const soft = type === TILE.SOIL;
+    e.osc(v, 'sine', (95 + Math.random() * 30) * p, 28, t, 0.3, 0.8 * g);
+    e.noiseBurst(v, 'brown', 'lowpass', (soft ? 500 : 900) * p, 120, 0.8, t, 0.32, 0.8 * g);
+    const n = 6 + Math.floor(Math.random() * 3);
+    for (let k = 0; k < n; k++) {
+      const at = t + 0.03 + (k / n) * 0.24 + Math.random() * 0.02;
+      const f = soft ? 300 + Math.random() * 500 : 900 + Math.random() * 1800;
+      e.noiseBurst(v, 'white', 'bandpass', f, f * 0.8, 3, at, 0.04, 0.3 * (1 - k / n) + 0.08);
+      if (!soft) e.osc(v, 'triangle', 140 + Math.random() * 120, 60, at, 0.05, 0.15 * (1 - k / n));
+    }
     e.commit(v);
   }
 
@@ -219,11 +238,17 @@ export class SFX {
     e.commit(v);
   }
 
+  /** Dirt: crunchy 520 Hz bandpass burst. Rock: 900 Hz highpass tick + 140 Hz triangle thud. */
   footstep(material) {
     const e = this.e; if (!e.ready) return;
     const v = e.voice('sfx'); if (!v) return;
-    const hz = /** @type {any} */ (AUDIO.FOOTSTEP_HZ)[material] || AUDIO.FOOTSTEP_HZ[0];
-    e.noiseBurst(v, 'pink', 'bandpass', hz * e.jp(), hz * 0.7, 2, e.now, 0.07, 0.18 * e.jg());
+    const t = e.now; const p = e.jp(); const g = e.jg();
+    if (material === TILE.SOIL || material === TILE.AIR) {
+      e.noiseBurst(v, 'pink', 'bandpass', 520 * p, 520 * p, 1.6, t, 0.08, 0.2 * g);
+    } else {
+      e.noiseBurst(v, 'white', 'highpass', 900 * p, 900 * p, 0.7, t, 0.03, 0.12 * g);
+      e.osc(v, 'triangle', 140 * p, 90, t, 0.06, 0.18 * g);
+    }
     e.commit(v);
   }
 
@@ -267,23 +292,29 @@ export class SFX {
     e.commit(v);
   }
 
-  /** Jetpack thrust loop (persistent). @param {number} thrust 0..1 */
+  /** Jetpack loop: pink noise through a modulated 320-600 Hz bandpass + 62-94 Hz sawtooth turbine. @param {number} thrust 0..1 */
   setJet(thrust) {
     const e = this.e; if (!e.ready) return;
     const ctx = this.ctx;
     if (!this.jet) {
-      const src = ctx.createBufferSource(); src.buffer = e.noise.brown; src.loop = true;
-      const hp = ctx.createBufferSource(); hp.buffer = e.noise.white; hp.loop = true;
-      const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = AUDIO.JET_BP; bp.Q.value = 0.8;
+      const src = ctx.createBufferSource(); src.buffer = e.noise.pink; src.loop = true;
+      const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 460; bp.Q.value = 1.2;
+      const lfo = ctx.createOscillator(); lfo.frequency.value = 5.5;
+      const lfoAmt = ctx.createGain(); lfoAmt.gain.value = 140; // 460 +/- 140 -> 320-600 Hz
+      lfo.connect(lfoAmt); lfoAmt.connect(bp.frequency);
+      const turbine = ctx.createOscillator(); turbine.type = 'sawtooth'; turbine.frequency.value = 62;
+      const tlp = ctx.createBiquadFilter(); tlp.type = 'lowpass'; tlp.frequency.value = 400;
+      const tg = ctx.createGain(); tg.gain.value = 0.35;
       const g = ctx.createGain(); g.gain.value = 0;
-      const hg = ctx.createGain(); hg.gain.value = 0.15;
-      src.connect(bp); hp.connect(hg); hg.connect(bp); bp.connect(g); g.connect(e.buses.sfx);
-      src.start(); hp.start();
-      this.jet = { g, bp };
+      src.connect(bp); bp.connect(g);
+      turbine.connect(tlp); tlp.connect(tg); tg.connect(g);
+      g.connect(e.buses.sfx);
+      src.start(); lfo.start(); turbine.start();
+      this.jet = { g, turbine };
     }
     const t = ctx.currentTime;
     this.jet.g.gain.setTargetAtTime(thrust * AUDIO.JET_GAIN, t, 0.05);
-    this.jet.bp.frequency.setTargetAtTime(AUDIO.JET_BP * (0.7 + thrust * 0.6), t, 0.1);
+    this.jet.turbine.frequency.setTargetAtTime(62 + thrust * 32, t, 0.25);
   }
 }
 
