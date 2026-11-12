@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rig editor (dev)</title>
+<style>
+  body { margin: 0; background: #14161c; color: #d8dce6; font: 13px/1.4 ui-monospace, Consolas, monospace; display: flex; gap: 12px; padding: 12px; }
+  #left { display: flex; flex-direction: column; gap: 8px; }
+  canvas { background: #2a2f3a; image-rendering: pixelated; cursor: crosshair; }
+  #side { flex: 1; min-width: 360px; display: flex; flex-direction: column; gap: 8px; }
+  select, input, button { background: #232734; color: inherit; border: 1px solid #3a4052; padding: 3px 6px; font: inherit; }
+  input[type=number] { width: 64px; }
+  input[type=color] { padding: 0; width: 32px; height: 22px; }
+  .row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  #tl { position: relative; border: 1px solid #3a4052; overflow-y: auto; max-height: 340px; }
+  .trk { position: relative; height: 16px; border-bottom: 1px solid #23283a; cursor: pointer; }
+  .trk.sel { background: #26304a; }
+  .trk span { position: absolute; left: 4px; top: 0; font-size: 11px; opacity: .55; pointer-events: none; }
+  .key { position: absolute; top: 3px; width: 9px; height: 9px; margin-left: -4px; background: #f2c14e; transform: rotate(45deg); cursor: ew-resize; }
+  .key.sel { background: #fff; }
+  #ph { position: absolute; top: 0; bottom: 0; width: 1px; background: #e55; pointer-events: none; }
+  #msg { color: #f88; min-height: 1.4em; }
+</style>
+</head>
+<body>
+<div id="left">
+  <canvas id="view" width="576" height="576"></canvas>
+  <div class="row">
+    <label>zoom <input id="zoom" type="range" min="4" max="8" value="6"></label>
+    <label><input id="onion" type="checkbox" checked> onion</label>
+    <label><input id="aim" type="checkbox"> aim at mouse</label>
+    <label><input id="mining" type="checkbox"> mining IK</label>
+  </div>
+  <div id="outfit" class="row"></div>
+</div>
+<div id="side">
+  <div class="row">
+    <select id="clip"></select>
+    <label><input id="loop" type="checkbox"> loop</label>
+    <label>duration <input id="dur" type="number" step="0.05"></label>
+    <button id="save">Save anims.json</button>
+  </div>
+  <div id="msg"></div>
+  <div class="row">
+    <button id="play">Pause</button>
+    <select id="speed"><option>0.25</option><option>0.5</option><option selected>1</option><option>2</option></select>
+    <input id="scrub" type="range" min="0" max="1000" value="0" style="flex:1">
+    <span id="tt"></span>
+  </div>
+  <div class="row">
+    <select id="bone"></select>
+    <label>angle° <input id="fa" type="number" step="1"></label>
+    <label>dx <input id="fx" type="number" step="1"></label>
+    <label>dy <input id="fy" type="number" step="1"></label>
+    <button id="addk">Add key</button><button id="delk">Delete key</button>
+  </div>
+  <div id="tl"><div id="ph"></div></div>
+</div>
+<script type="module">
+import { loadRigAssets } from './src/anim/loadRigAssets.js';
+import { createPose, solveWorld } from './src/anim/Rig.js';
+import { sampleClip } from './src/anim/Clip.js';
+import { applyOverlays } from './src/anim/Overlays.js';
+import { RigRenderer } from './src/anim/RigRenderer.js';
+import { defaultOutfit, WEAR_KINDS } from './src/anim/Outfit.js';
+
+const $ = (id) => document.getElementById(id);
+const A = await loadRigAssets();
+if (!A) { $('msg').textContent = 'rig assets failed to load'; throw new Error('no assets'); }
+const { rig, clips, items } = A;
+const rr = new RigRenderer(rig, items, A.images);
+const outfit = defaultOutfit();
+const pickImg = new Image(); pickImg.src = 'player/pickaxe.png';
+const view = $('view'); const vg = view.getContext('2d');
+const pose = createPose(rig); const onionPose = createPose(rig);
+let clipName = 'idle', bone = 'torso', t = 0, playing = true, last = performance.now();
+let mouse = [70, 30]; let drag = null;
+const clip = () => clips[clipName];
+const zoom = () => Number($('zoom').value);
+const dirty = (m = '') => { $('msg').textContent = m; };
+
+for (const n of Object.keys(clips)) $('clip').add(new Option(n));
+for (const b of rig.bones) $('bone').add(new Option(b.name));
+$('bone').value = bone;
+for (const k of WEAR_KINDS) {
+  const s = document.createElement('select'); s.add(new Option('none', ''));
+  for (const it of items.filter((i) => i.kind === k)) s.add(new Option(it.name, it.id));
+  s.value = outfit[k] || '';
+  s.onchange = () => { outfit[k] = s.value || null; };
+  const c = document.createElement('input'); c.type = 'color'; c.value = outfit.colors[k];
+  c.oninput = () => { outfit.colors[k] = c.value; };
+  $('outfit').append(k + ' ', s, c);
+}
+
+function keyAt(b, time) { return (clip().keys[b] || []).find((k) => Math.abs(k[0] - time) < 1e-3); }
+function setKey(b, time, vals) {
+  const arr = (clip().keys[b] ||= []);
+  let k = keyAt(b, time);
+  if (!k) {
+    k = [time, 0, 0, 0];
+    const i = pose.angle; const bi = rig.index.get(b); // seed with current sampled values
+    k[1] = i[bi] * 180 / Math.PI; k[2] = pose.dx[bi]; k[3] = pose.dy[bi];
+    arr.push(k); arr.sort((x, y) => x[0] - y[0]);
+  }
+  Object.assign(k, vals);
+  buildTimeline(); fields();
+}
+
+function buildTimeline() {
+  const tl = $('tl'); [...tl.querySelectorAll('.trk')].forEach((n) => n.remove());
+  for (const b of rig.bones) {
+    const trk = document.createElement('div'); trk.className = 'trk' + (b.name === bone ? ' sel' : '');
+    trk.innerHTML = `<span>${b.name}</span>`;
+    trk.onmousedown = (e) => { if (e.target === trk || e.target.tagName === 'SPAN') { bone = b.name; $('bone').value = bone; t = ((e.offsetX) / trk.clientWidth) * clip().duration; playing = false; $('play').textContent = 'Play'; buildTimeline(); fields(); } };
+    for (const k of clip().keys[b.name] || []) {
+      const d = document.createElement('div'); d.className = 'key' + (b.name === bone && Math.abs(k[0] - t) < 1e-3 ? ' sel' : '');
+      d.style.left = (k[0] / clip().duration) * 100 + '%';
+      d.onmousedown = (e) => { e.stopPropagation(); bone = b.name; $('bone').value = bone; t = k[0]; playing = false; drag = { k, trk }; buildTimeline(); fields(); };
+      trk.append(d);
+    }
+    tl.append(trk);
+  }
+}
+addEventListener('mousemove', (e) => {
+  if (!drag || !drag.k) return;
+  const r = drag.trk.getBoundingClientRect();
+  drag.k[0] = Math.min(clip().duration, Math.max(0, ((e.clientX - r.left) / r.width) * clip().duration));
+  t = drag.k[0]; drag.moved = true;
+  clip().keys[bone].sort((a, b) => a[0] - b[0]); buildTimeline();
+});
+addEventListener('mouseup', () => { drag = null; });
+$('zoom').oninput = () => { view.width = view.height = 96 * zoom(); };
+
+function fields() {
+  const k = keyAt(bone, t); const bi = rig.index.get(bone);
+  const ang = k ? k[1] : pose.angle[bi] * 180 / Math.PI;
+  $('fa').value = +(+ang).toFixed(1); $('fx').value = k ? k[2] || 0 : +pose.dx[bi].toFixed(1); $('fy').value = k ? k[3] || 0 : +pose.dy[bi].toFixed(1);
+  $('loop').checked = clip().loop; $('dur').value = clip().duration;
+}
+const edit = () => setKey(bone, t, { 1: Number($('fa').value), 2: Number($('fx').value), 3: Number($('fy').value) });
+for (const id of ['fa', 'fx', 'fy']) $(id).onchange = edit;
+$('addk').onclick = () => setKey(bone, t, {});
+$('delk').onclick = () => { const k = keyAt(bone, t); if (k) { clip().keys[bone].splice(clip().keys[bone].indexOf(k), 1); buildTimeline(); fields(); } };
+$('clip').onchange = () => { clipName = $('clip').value; t = 0; buildTimeline(); fields(); };
+$('bone').onchange = () => { bone = $('bone').value; buildTimeline(); fields(); };
+$('loop').onchange = () => { clip().loop = $('loop').checked; };
+$('dur').onchange = () => { clip().duration = Number($('dur').value); buildTimeline(); };
+$('play').onclick = () => { playing = !playing; $('play').textContent = playing ? 'Pause' : 'Play'; };
+$('scrub').oninput = () => { playing = false; $('play').textContent = 'Play'; t = ($('scrub').value / 1000) * clip().duration; fields(); };
+$('save').onclick = async () => {
+  const r = await fetch('/__rig/save?file=anims.json', { method: 'POST', body: JSON.stringify(clips) });
+  const j = await r.json().catch(() => ({}));
+  dirty(r.ok ? 'saved' : 'save failed: ' + (j.error || r.status));
+  if (r.ok) $('msg').style.color = '#8f8'; else $('msg').style.color = '#f88';
+};
+
+view.onmousemove = (e) => { const r = view.getBoundingClientRect(); mouse = [(e.clientX - r.left) / zoom(), (e.clientY - r.top) / zoom()]; if (drag === 'bone') rotate(); };
+view.onmousedown = () => {
+  const w = solveWorld(rig, pose); let best = 0; let bd = 1e9;
+  rig.bones.forEach((_, i) => { const d = Math.hypot(w.x[i] - mouse[0], w.y[i] - mouse[1]); if (d < bd) { bd = d; best = i; } });
+  bone = rig.bones[best].name; $('bone').value = bone; playing = false; $('play').textContent = 'Play'; drag = 'bone'; buildTimeline(); fields();
+};
+function rotate() {
+  const bi = rig.index.get(bone); const w = solveWorld(rig, pose);
+  const restWorld = w.a[bi] - pose.angle[bi];
+  let d = Math.atan2(mouse[1] - w.y[bi], mouse[0] - w.x[bi]) - restWorld;
+  d = Math.atan2(Math.sin(d), Math.cos(d));
+  setKey(bone, t, { 1: d * 180 / Math.PI });
+}
+
+function draw() {
+  const D = clip().duration;
+  vg.imageSmoothingEnabled = false; vg.clearRect(0, 0, view.width, view.height);
+  const sc = zoom();
+  const render = (p, alpha) => {
+    const w = applyOverlays(rig, p, { look: $('aim').checked ? mouse : [200, 40], mining: $('mining').checked, pickAngle: $('aim').checked ? Math.atan2(mouse[1] - 40, mouse[0] - 60) : 0.4, landVY: 0, squashT: 1 });
+    const c = rr.render(w, outfit, { sprite: pickImg.complete && pickImg.naturalWidth ? pickImg : null, angle: 0.9, color: '#fff' });
+    vg.globalAlpha = alpha; vg.drawImage(c, 0, 0, 96 * sc, 96 * sc);
+  };
+  vg.fillStyle = '#3a4052'; vg.fillRect(0, 94 * sc, 96 * sc, 1);
+  if ($('onion').checked) {
+    const prev = Object.values(clip().keys).flat().map((k) => k[0]).filter((x) => x < t - 1e-3).sort((a, b) => b - a)[0];
+    if (prev !== undefined) { sampleClip(clip(), prev, rig, onionPose); render(onionPose, 0.3); }
+  }
+  sampleClip(clip(), t, rig, pose);
+  const sampled = createPose(rig); sampled.angle.set(pose.angle); sampled.dx.set(pose.dx); sampled.dy.set(pose.dy);
+  render(pose, 1);
+  pose.angle.set(sampled.angle); pose.dx.set(sampled.dx); pose.dy.set(sampled.dy); // overlays mutate; keep the clip values for editing
+  vg.globalAlpha = 1;
+  const w = solveWorld(rig, pose);
+  rig.bones.forEach((b, i) => { vg.fillStyle = b.name === bone ? '#fff' : '#f2c14e'; vg.fillRect(w.x[i] * sc - 2, w.y[i] * sc - 2, 4, 4); });
+  $('tt').textContent = t.toFixed(2) + ' / ' + D;
+  $('scrub').value = (t / D) * 1000;
+  $('ph').style.left = (t / D) * 100 + '%';
+}
+function frame(now) {
+  const dt = (now - last) / 1000; last = now;
+  if (playing && !drag) { t += dt * Number($('speed').value); const D = clip().duration; if (clip().loop) t %= D; else if (t > D) t = 0; }
+  draw(); requestAnimationFrame(frame);
+}
+buildTimeline(); fields(); requestAnimationFrame(frame);
+</script>
+</body>
+</html>
