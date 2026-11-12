@@ -122,7 +122,7 @@ Each building has a fixed slot (`BUILDING_SLOTS` in `WORLD.BASE_CAMP`) on the ca
 - Battery charging at camp and at field charging stations costs 1 power per 10 energy. With an empty pool and no burnable fuel, nothing charges.
 - Every recipe has a `power` cost (e.g. Steel 5, Aluminium 30).
 - New game starts with 100 power and 20 coal in the stash.
-- **Emergency rescue keeps working** so the player can never be soft-locked: it behaves as today and, after a rescue, the battery gets `POWER.RESCUE_CHARGE` (25% of max) for free, without drawing from the pool.
+- **Emergency rescue keeps working** so the player can never be soft-locked: it behaves as today and, after a rescue, the battery gets the existing `ENERGY.RESCUE_ENERGY_FRAC` (30% of max) for free, without drawing from the pool.
 - Exact rates are tuned in sub-project 2; this spec only builds the pool, the generator and the coal path.
 
 ## 6. Tech graph
@@ -242,7 +242,7 @@ Gear that is a feature flag (Gas Mask, Heat Suit, Magma Boots) stays a tech unlo
 
 ## 10. New Game carry-over
 
-Settings → New Game opens a choice:
+Settings → New Game opens the save-slot menu (as today); the active slot gets a second button next to "New game":
 
 - **New Map (keep progress):** new seed; keeps cash, stash, tech, buildings, equipment levels, power, achievements, consumables. Resets world, cargo, field charging stations, field camps, active contracts and `completed`.
 - **Start Over:** current behaviour (fresh economy).
