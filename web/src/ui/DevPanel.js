@@ -4,11 +4,12 @@
  * reveal the whole map. Nothing here is saved; turning dev mode off restores the real state.
  */
 import { PICKAXES } from '../config.js';
+import { WEAR_KINDS } from '../anim/Outfit.js';
 
 export class DevPanel {
   /**
    * @param {HTMLElement} root
-   * @param {{onAction?:(a:string)=>void, onChange:(s:{on:boolean, pick:number, lockHp:boolean, lockEnergy:boolean, reveal:boolean})=>void}} hooks
+   * @param {{onAction?:(a:string)=>void, onChange:(s:{on:boolean, pick:number, lockHp:boolean, lockEnergy:boolean, reveal:boolean})=>void, onOutfit?:(o:any)=>void}} hooks
    */
   constructor(root, hooks) {
     this.hooks = hooks;
@@ -25,6 +26,8 @@ export class DevPanel {
       <label class="srow check"><input type="checkbox" data-k="lockEnergy"><span>Lock energy full</span></label>
       <label class="srow check"><input type="checkbox" data-k="reveal"><span>Reveal all tiles</span></label>
       <div class="srow"><button class="btn" data-do="gas">Spawn gas</button><button class="btn" data-do="quake">Quake</button><button class="btn" data-do="core">To core</button><button class="btn" data-do="cash">+$100k</button></div>`;
+    this.outfitEl = document.createElement('div');
+    this.el.appendChild(this.outfitEl);
     root.appendChild(this.el);
     this.el.addEventListener('click', (ev) => { const a = /** @type {HTMLElement} */ (ev.target).dataset?.do; if (a) this.hooks.onAction?.(a); });
     this.el.addEventListener('change', (ev) => {
@@ -33,6 +36,26 @@ export class DevPanel {
       /** @type {any} */ (this.state)[k] = k === 'pick' ? Number(t.value) : t.checked;
       this.hooks.onChange(this.state);
     });
+  }
+
+  /**
+   * Outfit controls (real, saved — unlike the other dev overrides). Called once the wearable list has loaded.
+   * @param {{id:string, kind:string, name:string}[]} items @param {any} outfit current player outfit
+   */
+  setOutfitItems(items, outfit) {
+    this.outfit = JSON.parse(JSON.stringify(outfit));
+    this.outfitEl.innerHTML = WEAR_KINDS.map((k) => {
+      const opts = items.filter((it) => it.kind === k).map((it) => `<option value="${it.id}"${this.outfit[k] === it.id ? ' selected' : ''}>${it.name}</option>`).join('');
+      return `<label class="srow"><span>${k}</span><select data-w="${k}"><option value=""${this.outfit[k] ? '' : ' selected'}>none</option>${opts}</select><input type="color" data-c="${k}" value="${this.outfit.colors[k]}"></label>`;
+    }).join('');
+    const upd = (/** @type {Event} */ ev) => {
+      const t = /** @type {HTMLInputElement} */ (ev.target);
+      if (t.dataset.w) this.outfit[t.dataset.w] = t.value || null;
+      else if (t.dataset.c) this.outfit.colors[t.dataset.c] = t.value;
+      else return;
+      this.hooks.onOutfit?.(this.outfit);
+    };
+    this.outfitEl.oninput = upd; this.outfitEl.onchange = upd;
   }
 
   /** Effective overrides: all off unless the master switch is on. */

@@ -8,6 +8,12 @@ import { MATERIALS, WORLD, CAMERA, RENDER, ORES, FLAG, TILE, DYNAMITE, ENERGY, P
 import { hash2 } from '../core/RNG.js';
 import { requiredTier } from '../systems/Mining.js';
 import { hexToRgb } from './canvas.js';
+import { loadRigAssets } from '../anim/loadRigAssets.js';
+import { Animator } from '../anim/Animator.js';
+import { RigRenderer } from '../anim/RigRenderer.js';
+import { sanitizeOutfit } from '../anim/Outfit.js';
+import { applyOverlays, toRigSpace } from '../anim/Overlays.js';
+import { solveWorld } from '../anim/Rig.js';
 
 const T = WORLD.TILE_PX;
 const MAX_SHOCKWAVES = 8;
@@ -40,6 +46,16 @@ export class Renderer {
     };
     this.ps = { depth: 0, time: 0, scale: 2, energyFrac: 1, lowThreshold: ENERGY.LOW_THRESHOLD };
     this.resize();
+    /** Skeleton assets; null until loaded (or forever if they fail → old sheet is drawn). */
+    this.rigA = null; this.animator = null; this.rigR = null; this.onRigReady = null;
+    loadRigAssets().then((a) => {
+      if (!a) return;
+      this.rigA = a;
+      this.animator = new Animator(a.rig, a.clips);
+      this.rigR = new RigRenderer(a.rig, a.items, a.images);
+      d.player.outfit = sanitizeOutfit(d.player.outfit, a.items);
+      this.onRigReady?.(a.items, d.player.outfit);
+    });
   }
 
   /** Recompute backing store size for CSS size and devicePixelRatio. */
@@ -183,7 +199,7 @@ export class Renderer {
     // Entities
     calls += this._drawPickups(ctx, alpha);
     calls += this._drawDynamites(ctx, alpha);
-    calls += this._drawPlayer(ctx, alpha, st);
+    calls += this._drawPlayer(ctx, alpha, st, dt);
     calls += particles.draw(ctx, camL - 8, camT - 8, camL + vw + 8, camT + vh + 8, s, camL, camT);
 
     // Lighting
@@ -285,7 +301,7 @@ export class Renderer {
     return calls;
   }
 
-  _drawPlayer(ctx, alpha, st) {
+  _drawPlayer(ctx, alpha, st, dt) {
     const p = this.d.player;
     const x = Math.round(p.prevX + (p.x - p.prevX) * alpha);
     const y = Math.round(p.prevY + (p.y - p.prevY) * alpha);
@@ -293,6 +309,7 @@ export class Renderer {
     const W = p.w;
     const r = (dx, dy, w, h, c) => { ctx.fillStyle = c; ctx.fillRect(f > 0 ? x + dx : x + W - dx - w, y + dy, w, h); };
     const step = p.onGround && Math.abs(p.vx) > 10 ? Math.sin(p.walkPhase) : 0;
+    if (this.rigR) return this._drawPlayerRig(ctx, p, x, y, W, st, dt, r);
     // jetpack
     r(-3, 9, 5, 11, '#6b7280'); r(-3, 9, 5, 2, '#9aa3b0'); r(-2, 20, 3, 3, '#3a3f48');
     const art = this._playerArt();
@@ -320,6 +337,30 @@ export class Renderer {
       ctx.restore();
     } else this._drawPlayerBody(r, step);
     return this._drawPlayerTool(ctx, p, x, y, f, W, st, r) + 1;
+  }
+
+  /** Skeleton path: pose → overlays → offscreen 96px canvas → 32x32 world box. */
+  _drawPlayerRig(ctx, p, x, y, W, st, dt, r) {
+    const rig = this.rigA.rig; const f = p.facing;
+    const cx = Math.round(x + W / 2); const top = y + p.h - 31;
+    const aimDown = st.aimY - (p.y + p.h / 2) > Math.abs(st.aimX - (p.x + p.w / 2));
+    const pose = this.animator.update(p, dt, { time: this.time, aimDown });
+    const [mx, my] = toRigSpace(st.aimX, st.aimY, cx - 16, top, f);
+    const w0 = solveWorld(rig, pose);
+    const sh = rig.index.get('armF_upper');
+    const mining = p.mineState === 1;
+    const swing = mining ? -1.5 + Math.pow(p.swingPhase, 2.2) * 2.1 : 0;
+    const angle = mining ? Math.atan2(my - w0.y[sh], mx - w0.x[sh]) + swing : 0.9;
+    const world = applyOverlays(rig, pose, { look: [mx, my], mining, pickAngle: angle, landVY: this.animator.landVY, squashT: this.animator.squashT });
+    const color = this.d.economy.pickaxe.color;
+    const canvas = this.rigR.render(world, p.outfit, { sprite: this._playerArt().pickReady() ? this._pickSprite(color) : null, angle, color });
+    ctx.save();
+    ctx.translate(cx, top);
+    if (f < 0) ctx.scale(-1, 1);
+    ctx.drawImage(canvas, -16, 0, 32, 32);
+    ctx.restore();
+    if (p.jetting) r(-2, 23, 3, 2 + ((this.time * 40) | 0) % 3, '#ffb340');
+    return 2;
   }
 
   /** Lazy-loaded player images (web/public/player, made by tools/split_head.py + tools/make_pickaxe.py). */

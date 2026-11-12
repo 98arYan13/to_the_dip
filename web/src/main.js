@@ -121,6 +121,7 @@ function boot() {
     player.placeAt(p.x, p.y);
     energy.value = Math.min(energy.max, p.energy);
     if (typeof p.hp === 'number') player.hp = p.hp;
+    if (p.outfit) player.outfit = p.outfit; // sanitized once the wearable list loads (Renderer)
   }
 
   // ---------- Rendering ----------
@@ -193,6 +194,9 @@ function boot() {
     },
   });
   const debug = new DebugOverlay(hudRoot);
+  devPanel.hooks.onOutfit = (o) => { player.outfit = JSON.parse(JSON.stringify(o)); };
+  renderer.onRigReady = (items, o) => devPanel.setOutfitItems(items, o);
+  if (renderer.rigA) devPanel.setOutfitItems(renderer.rigA.items, player.outfit);
 
   if (!loaded.ok && loaded.error) toast.show('Save data was corrupted — starting a new expedition.', 'bad');
 
@@ -234,7 +238,7 @@ function boot() {
   }
   applySettings(settingsValues);
 
-  const getState = () => ({ seed, player: { x: player.x, y: player.y, energy: energy.value, hp: player.hp }, economy: economy.toJSON(), world });
+  const getState = () => ({ seed, player: { x: player.x, y: player.y, energy: energy.value, hp: player.hp, outfit: player.outfit }, economy: economy.toJSON(), world });
 
   function saveGame(manual) {
     if (dynamites.active.length > 0 && !manual) return;
