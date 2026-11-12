@@ -120,6 +120,16 @@ export class SFX {
     e.commit(v);
   }
 
+  /** Low earth rumble for tremors and cracking ceilings. @param {number} strength 0..1 */
+  rumble(strength = 0.5) {
+    const e = this.e; if (!e.ready) return;
+    const v = e.voice('sfx'); if (!v) return;
+    const t = e.now; const dur = 0.5 + strength;
+    e.osc(v, 'sine', 55, 32, t, dur, 0.5 * (0.4 + strength));
+    e.noiseBurst(v, 'brown', 'lowpass', 400, 120, dur, t, 0.1, 0.7 * (0.4 + strength));
+    e.commit(v);
+  }
+
   /** Simple 2-op FM strike. */
   _fm(v, carrier, ratio, index, t, dur, peak) {
     const ctx = this.ctx; const e = this.e;

@@ -4,17 +4,23 @@
  * Keyboard (Tab/Arrows/Enter/Esc) and mouse navigable. Pauses the simulation while open.
  */
 import { EV } from '../core/EventBus.js';
-import { UI, PICKAXES, UPGRADES, CONSUMABLES, MATERIALS, ORES } from '../config.js';
+import { UI, PICKAXES, UPGRADES, CONSUMABLES, MATERIALS, ORES, CONTRACTS, DYNAMITE } from '../config.js';
+import { CAMP_BUILDINGS, ACHIEVEMENTS } from '../config.js';
+import { renderTech } from './TechScreen.js';
+import { renderContracts } from './ContractsScreen.js';
+import { upgradeBuilding } from '../systems/Camp.js';
+import { rollContracts, dayNumber, acceptContract, turnIn } from '../systems/Contracts.js';
+import { unlockTech } from '../systems/Tech.js';
 import { UPGRADE_KINDS, upgradeLevels, nextUpgradeCost, saleLines, cargoValue } from '../systems/Economy.js';
 
-const TABS = ['sell', 'upgrades', 'consumables'];
+const TABS = ['sell', 'stash', 'upgrades', 'tech', 'consumables', 'camp', 'contracts', 'awards'];
 
 export class Shop {
   /**
    * @param {HTMLElement} root
    * @param {import('../core/EventBus.js').EventBus} bus
    * @param {import('../systems/Economy.js').Economy} economy
-   * @param {{onClose:()=>void, click:()=>void}} hooks
+   * @param {{onClose:()=>void, click:()=>void, seed:()=>number}} hooks
    */
   constructor(root, bus, economy, hooks) {
     this.bus = bus;
@@ -32,8 +38,13 @@ export class Shop {
         <header><h2>EXPEDITION BASE CAMP · TERMINAL</h2><span class="shop-credits">$0</span><button class="btn close" title="Close (Esc)">✕</button></header>
         <nav class="tabs" role="tablist">
           <button class="tab" data-tab="sell" role="tab">Sell Cargo</button>
+          <button class="tab" data-tab="stash" role="tab">Stash</button>
           <button class="tab" data-tab="upgrades" role="tab">Upgrades</button>
+          <button class="tab" data-tab="tech" role="tab">Tech</button>
           <button class="tab" data-tab="consumables" role="tab">Consumables</button>
+          <button class="tab" data-tab="camp" role="tab">Camp</button>
+          <button class="tab" data-tab="contracts" role="tab">Contracts</button>
+          <button class="tab" data-tab="awards" role="tab">Awards</button>
         </nav>
         <section class="tab-body"></section>
         <footer class="hint-line">Tab / ←→ to navigate · Enter to buy · Esc to close</footer>
@@ -106,7 +117,12 @@ export class Shop {
   render() {
     const focusedKey = /** @type {HTMLElement|null} */ (document.activeElement)?.dataset?.key;
     if (this.tab === 'sell') this._renderSell();
+    else if (this.tab === 'stash') this._renderStash();
     else if (this.tab === 'upgrades') this._renderUpgrades();
+    else if (this.tab === 'tech') this.body.innerHTML = renderTech(this.economy);
+    else if (this.tab === 'camp') this._renderCamp();
+    else if (this.tab === 'contracts') this.body.innerHTML = renderContracts(this.economy, this._offers());
+    else if (this.tab === 'awards') this._renderAwards();
     else this._renderConsumables();
     this.body.querySelectorAll('button[data-key]').forEach((b) => b.addEventListener('click', () => this._onAction(/** @type {HTMLElement} */ (b).dataset.key || '')));
     if (focusedKey) /** @type {HTMLElement|null} */ (this.body.querySelector(`[data-key="${focusedKey}"]`))?.focus();
@@ -117,13 +133,21 @@ export class Shop {
     if (kind === 'sell') {
       const r = this.economy.sellAll();
       if (r.total > 0) this.bus.emit(EV.TOAST, { text: `Sold cargo for $${r.total.toLocaleString('en-US')}`, kind: 'good' });
-    } else if (kind === 'up') this.economy.buyUpgrade(id);
+    } else if (kind === 'dep') this.economy.deposit();
+    else if (kind === 'wd') this.economy.withdraw(+id, 1);
+    else if (kind === 'ss') this.economy.sellFromStash(+id, 1);
+    else if (kind === 'ssa') this.economy.sellFromStash(+id, Infinity);
+    else if (kind === 'tech') unlockTech(this.economy, id);
+    else if (kind === 'bld') { const r = upgradeBuilding(this.economy, id); if (!r.ok) this.bus.emit(EV.PURCHASE_FAILED, r.reason); }
+    else if (kind === 'acc') { const c = this._offers().find((o) => o.id === id); if (c) acceptContract(this.economy, c); }
+    else if (kind === 'ti') { const r = turnIn(this.economy, id); if (!r.ok) this.bus.emit(EV.PURCHASE_FAILED, r.reason); }
+    else if (kind === 'up') this.economy.buyUpgrade(id);
     else if (kind === 'buy') this.economy.buyConsumable(id);
   }
 
   _renderSell() {
     const lines = saleLines(this.economy.cargo);
-    const total = cargoValue(this.economy.cargo);
+    const total = Math.round(cargoValue(this.economy.cargo) * this.economy.sellMul * 100) / 100;
     if (!lines.length) {
       this.body.innerHTML = '<p class="empty">Cargo hold is empty. Head back down and dig!</p>';
       return;
@@ -137,12 +161,25 @@ export class Shop {
       <button class="btn primary" data-key="sell:all">Sell All Cargo · $${total.toLocaleString('en-US')}</button>`;
   }
 
+  _renderStash() {
+    const ec = this.economy;
+    const rows = [];
+    for (let o = 1; o < ORES.length; o++) {
+      if (!ec.stash[o]) continue;
+      const ore = /** @type {any} */ (ORES[o]);
+      rows.push(`<tr><td><span class="swatch" style="background:${ore.colors.light}"></span>${ore.name}</td><td>${ec.stash[o]}</td>
+        <td><button class="btn" data-key="wd:${o}">Take 1</button> <button class="btn" data-key="ss:${o}">Sell 1</button> <button class="btn" data-key="ssa:${o}">Sell all</button></td></tr>`);
+    }
+    this.body.innerHTML = `<button class="btn primary" data-key="dep:all" ${ec.cargoUnits ? '' : 'disabled'}>Deposit all cargo</button>`
+      + (rows.length ? `<table class="sell-table"><thead><tr><th>Ore</th><th>Stored</th><th></th></tr></thead><tbody>${rows.join('')}</tbody></table>` : '<p class="empty">Stash is empty. Deposited ore can be sold or spent on upgrades.</p>');
+  }
+
   _renderUpgrades() {
     const ec = this.economy;
     const rows = UPGRADE_KINDS.map((kind) => {
       const lvl = ec.levels[kind];
       const levels = upgradeLevels(kind);
-      const cost = nextUpgradeCost(kind, lvl);
+      const cost = ec.upgradeCost(kind);
       const max = cost < 0;
       const check = ec.canBuyUpgrade(kind);
       const name = kind === 'pickaxe' ? 'Pickaxe / Drill' : /** @type {any} */ (UPGRADES)[kind].name;
@@ -159,14 +196,35 @@ export class Shop {
     this.body.innerHTML = rows.join('');
   }
 
+  _offers() { return rollContracts(this.hooks.seed(), dayNumber(), this.economy.pickTier); }
+
+  _renderCamp() {
+    const ec = this.economy;
+    const price = (c) => [c.cash ? `$${c.cash.toLocaleString('en-US')}` : '', ...Object.entries(c.ores || {}).map(([o, n]) => `${n}× ${/** @type {any} */ (ORES[+o]).name}`)].filter(Boolean).join(' + ');
+    this.body.innerHTML = Object.entries(CAMP_BUILDINGS).map(([id, b]) => {
+      const lvl = ec.buildings[id] || 0; const max = lvl >= b.levels.length;
+      const nextCost = max ? null : b.levels[lvl].cost;
+      return `<div class="up-row"><div class="up-info"><div class="up-name">${b.name} <span class="lvl">Lv ${lvl}/${b.levels.length}</span></div>
+        <div class="up-stats">${id === 'shop' ? 'Better sell prices' : 'Cheaper upgrades'}${max ? '' : ` · next ${price(nextCost)}`}</div></div>
+        <div class="up-buy">${max ? '<span class="maxed">MAX</span>' : `<button class="btn ${ec.canAfford(nextCost) ? 'primary' : ''}" data-key="bld:${id}" ${ec.canAfford(nextCost) ? '' : 'disabled'}>Upgrade</button>`}</div></div>`;
+    }).join('') + `<p class="empty">Field charging stations: unlock the tech, then press G underground (${ec.stations.length} placed).</p>`;
+  }
+
+  _renderAwards() {
+    const own = this.economy.achievements;
+    this.body.innerHTML = ACHIEVEMENTS.map((a) => `<div class="up-row"><div class="up-info"><div class="up-name">${own.includes(a.id) ? '★ ' + a.name : '☆ ???'}</div><div class="up-stats">${own.includes(a.id) ? a.desc : a.desc.replace(/\d[\d,]*/g, '?')}</div></div></div>`).join('');
+  }
+
   _renderConsumables() {
     const ec = this.economy;
     const desc = {
       dynamite: 'Thrown explosive, 2.5 s fuse, 3×3 blast. Breaks rock up to your pickaxe tier + 1.',
       teleporter: 'Warps you safely to base camp, keeping all cargo.',
       cell: `Instantly restores ${CONSUMABLES.cell.frac * 100}% of battery energy.`,
+      ladder: 'Place on open air next to rock (aim + key). Climb with W / S.',
+      bigBomb: `Thrown explosive with a ${DYNAMITE.BIG_RADIUS * 2 + 1}×${DYNAMITE.BIG_RADIUS * 2 + 1} blast.`,
     };
-    this.body.innerHTML = Object.entries(CONSUMABLES).map(([k, c]) => {
+    this.body.innerHTML = Object.entries(CONSUMABLES).filter(([, c]) => !c.tech || ec.tech.includes(c.tech)).map(([k, c]) => {
       const check = ec.canBuyConsumable(k);
       return `<div class="up-row">
         <div class="up-info"><div class="up-name">${c.name} <span class="lvl">[${c.slot}] owned ×${ec.consumables[k]}</span></div><div class="up-stats">${/** @type {any} */ (desc)[k]}</div></div>

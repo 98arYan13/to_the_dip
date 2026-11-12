@@ -6,19 +6,68 @@
 
 /** Tile type ids (stored in World.tileType). */
 export const TILE = Object.freeze({
-  AIR: 0, SOIL: 1, LIMESTONE: 2, GRANITE: 3, BASALT: 4, MANTLE: 5, BEDROCK: 6, WATER: 7, MAGMA: 8,
+  AIR: 0, SOIL: 1, LIMESTONE: 2, GRANITE: 3, BASALT: 4, MANTLE: 5, BEDROCK: 6, WATER: 7, MAGMA: 8, CORE: 9, SAND: 10, LADDER: 11,
 });
 
 /** Ore ids (stored in World.oreType), in the design-table rank order. */
 export const ORE = Object.freeze({
   NONE: 0, COAL: 1, IRON: 2, LEAD: 3, ZINC: 4, COPPER: 5, NICKEL: 6, LITHIUM: 7, TIN: 8, COBALT: 9, FOSSIL: 10,
   URANIUM: 11, LAPIS: 12, SILVER: 13, BLACK_OPAL: 14, PLATINUM: 15, GOLD: 16, METEORITE: 17, RHODIUM: 18, RUBY: 19, DIAMOND: 20,
+  TUNGSTEN: 21, // appended last so saved oreType ids stay valid
 });
 
 /** Bit flags (stored in World.flags). */
 export const FLAG = Object.freeze({
-  DISCOVERED: 1, RADAR_LIT: 2, DIRTY: 4, SOLID: 8, FUNGI: 16, MOSS: 32,
+  DISCOVERED: 1, RADAR_LIT: 2, DIRTY: 4, SOLID: 8, FUNGI: 16, MOSS: 32, UNSTABLE: 64,
 });
+
+/** Hazard tunables. */
+export const HAZARD = Object.freeze({
+  COLLAPSE: Object.freeze({ WARN_S: 1.2, STEP_S: 0.08, PULSE_S: 0.3, MAX_PER_TICK: 24 }),
+  /** Fluid cells hold 0..MAX units; one flow step per FLOW_S (magma every MAGMA_EVERY-th step). */
+  FLUID: Object.freeze({ MAX: 8, FLOW_S: 0.1, MAGMA_EVERY: 3, MAX_PER_TICK: 300 }),
+  QUAKE: Object.freeze({ SAFE_DEPTH_M: 120, WARN_S: 2.5, MIN_GAP_S: 25, MAX_GAP_S: 90, RADIUS: 12, BASE_N: 3, MAX_N: 14, SHAKE_DECAY: 1.5 }),
+});
+
+/** Toxic/explosive gas: per-tile concentration 0..MAX in open air; sealed pockets until a wall breaks. */
+export const GAS = Object.freeze({ MAX: 8, STEP_S: 0.25, DPS: 6, EXPLODE_R: 2, MAX_CHAIN_PER_TICK: 40, MAX_PER_TICK: 400 });
+
+/** Designed zones (world/Zones.js). BANDS are depth fractions of the underground; SIZE is [w, h] incl. a 1-tile wall ring. */
+export const ZONES = Object.freeze({
+  PER_LAYER: 3,
+  LAYERS: [[0, 0.15], [0.15, 0.35], [0.35, 0.55], [0.55, 0.78], [0.78, 0.92]],
+  LANDMARKS: ['sand_pocket', 'fossil_chamber', 'gas_cavern', 'vault', 'lava_lake'],
+  BANDS: { sand_pocket: [0.03, 0.4], fossil_chamber: [0.12, 0.4], aquifer: [0.15, 0.55], vault: [0.2, 0.8], gas_cavern: [0.3, 0.75], crystal_geode: [0.35, 0.9], lava_lake: [0.78, 0.92] },
+  SIZE: { sand_pocket: [6, 5], fossil_chamber: [7, 5], aquifer: [8, 5], vault: [8, 6], gas_cavern: [9, 6], crystal_geode: [7, 6], lava_lake: [10, 6] },
+  CORE_CHAMBER: { W: 9, H: 5 },
+});
+
+export const CORE_GOAL = Object.freeze({ HOLD_S: 20, REWARD_CASH: 100000, QUAKE_EVERY_S: 4 });
+
+export const CAMP = Object.freeze({ STATION_MIN_GAP: 12, MAX_STATIONS: 4, STATION_RANGE: 1.6, STATION_COST: { cash: 1500, ores: { 8: 2 } } });
+
+/** Upgradeable camp buildings: level i+1 needs level i; effects are read by Economy. */
+export const CAMP_BUILDINGS = Object.freeze({
+  shop: { name: 'Trading Post', levels: [{ cost: { cash: 2000 }, effect: { sellMul: 1.1 } }, { cost: { cash: 15000 }, effect: { sellMul: 1.2 } }, { cost: { cash: 90000 }, effect: { sellMul: 1.3 } }] },
+  workshop: { name: 'Workshop', levels: [{ cost: { cash: 3000 }, effect: { upgradeDiscount: 0.95 } }, { cost: { cash: 25000 }, effect: { upgradeDiscount: 0.9 } }, { cost: { cash: 120000 }, effect: { upgradeDiscount: 0.85 } }] },
+});
+
+export const CONTRACTS = Object.freeze({ MAX_ACTIVE: 3, OFFERS: 4, PREMIUM: 0.25 });
+
+/** test: {event:'ore', ore, count} | {event:'depth', depthM} | {event:'completed'} */
+export const ACHIEVEMENTS = Object.freeze([
+  { id: 'first_fossil', name: 'Bone Collector', desc: 'Find a fossil.', test: { event: 'ore', ore: 10, count: 1 } },
+  { id: 'fossils_5', name: 'Paleontologist', desc: 'Find 5 fossils.', test: { event: 'ore', ore: 10, count: 5 } },
+  { id: 'fossils_15', name: 'Museum Curator', desc: 'Find 15 fossils.', test: { event: 'ore', ore: 10, count: 15 } },
+  { id: 'first_gold', name: 'Gold Fever', desc: 'Mine gold.', test: { event: 'ore', ore: 16, count: 1 } },
+  { id: 'first_diamond', name: 'Diamonds!', desc: 'Mine a diamond.', test: { event: 'ore', ore: 20, count: 1 } },
+  { id: 'depth_100', name: 'Going Down', desc: 'Reach 100 m.', test: { event: 'depth', depthM: 100 } },
+  { id: 'depth_500', name: 'Deep Diver', desc: 'Reach 500 m.', test: { event: 'depth', depthM: 500 } },
+  { id: 'depth_1000', name: 'Into the Mantle', desc: 'Reach 1,000 m.', test: { event: 'depth', depthM: 1000 } },
+  { id: 'core', name: 'Heart of the World', desc: 'Stabilize the Core.', test: { event: 'completed' } },
+]);
+
+export const DAILY = Object.freeze({ SALT: 0xda11 });
 
 export const WORLD = Object.freeze({
   W: 64,
@@ -70,7 +119,7 @@ export const MATERIALS = Object.freeze([
   { id: 4, key: 'BASALT', name: 'Basalt', layer: 'Deep Crust', hp: 24, tier: 4, hard: 1.6, solid: true, band: [0.55, 0.78], sfx: 'basalt',
     tiles: ['stone-02_3'],
     colors: { base: '#34363f', dark: '#1f2027', light: '#4c4f5b', accent: '#262830', extra: '#5a5e6c' } },
-  { id: 5, key: 'MANTLE', name: 'Mantle Rock (Obsidian)', layer: 'Mantle', hp: 40, tier: 5, hard: 2.2, solid: true, band: [0.78, 1], sfx: 'mantle',
+  { id: 5, key: 'MANTLE', name: 'Mantle Rock (Obsidian)', layer: 'Mantle', hp: 40, tier: 5, hard: 2.2, solid: true, band: [0.78, 0.92], sfx: 'mantle',
     colors: { base: '#17131b', dark: '#0b090d', light: '#3f3550', accent: '#ff6a1f', extra: '#ffc14a' } },
   { id: 6, key: 'BEDROCK', name: 'Bedrock', layer: 'Bedrock', hp: 65535, tier: 99, solid: true, sfx: 'clink',
     colors: { base: '#2a2a31', dark: '#18181d', light: '#3d3d46', accent: '#4a4a55', extra: '#101014' } },
@@ -78,6 +127,16 @@ export const MATERIALS = Object.freeze([
     colors: { base: '#2b6f8f', dark: '#1b4a63', light: '#5fb4d6', accent: '#9fe2ff', extra: '#173a4d' } },
   { id: 8, key: 'MAGMA', name: 'Magma Channel', hp: 0, tier: 0, solid: false, sfx: 'none',
     colors: { base: '#ff5a12', dark: '#7a1c08', light: '#ffb340', accent: '#ffe08a', extra: '#3a0d04' } },
+  // Deepest band. Drawn on top of lighting from the animated strip tiles/magma_anim.png (Renderer).
+  { id: 9, key: 'CORE', name: 'Magma Rock', layer: 'Molten Core', hp: 60, tier: 6, hard: 2.8, solid: true, band: [0.92, 1], sfx: 'mantle',
+    anim: { src: 'tiles/magma_anim.png', frames: 12, fps: 10 },
+    colors: { base: '#3a2a2e', dark: '#1e1416', light: '#ff7a1a', accent: '#ff5a12', extra: '#ffc14a' } },
+  // Loose sand pockets: no depth band; falls when unsupported (systems/Hazards/Collapse.js).
+  { id: 10, key: 'SAND', name: 'Loose Sand', layer: 'Sand', hp: 1, tier: 1, hard: 0.4, solid: true, sfx: 'soil',
+    colors: { base: '#d6b66a', dark: '#a8863e', light: '#ecd596', accent: '#c19d52', extra: '#8a6a30' } },
+  // Placed by the player (systems/Items.js); walkable, climbable.
+  { id: 11, key: 'LADDER', name: 'Ladder', hp: 0, tier: 0, solid: false, sfx: 'none',
+    colors: { base: '#8a5a2b', dark: '#4f3220', light: '#b98046', accent: '#6b4423', extra: '#3b2a1a' } },
 ]);
 
 /**
@@ -126,6 +185,10 @@ export const ORES = Object.freeze([
     colors: { base: '#c01a3a', light: '#3ae07a', spec: '#ffffff', dark: '#600d1d' }, glow: '#ff3a6a', tile: 'meteorit-rhodium-ruby-diamond_2' },
   { id: 20, key: 'DIAMOND', name: 'Diamond', kg: 0.5, hard: 10.0, perKg: 5000.0, price: 2500.0, tier: 6, hosts: [5], weight: 0.5, vein: [1, 2], glint: 1.0, pitch: 1568,
     colors: { base: '#7fe8ff', light: '#e8fdff', spec: '#ffffff', dark: '#3f747f' }, glow: '#8ff4ff', tile: 'meteorit-rhodium-ruby-diamond_3', crystal: true },
+  // Heaviest ore in the game (dense wolframite/scheelite): tier 4 like gold/platinum, priced between them, found in granite-to-basalt veins.
+  // Mining it with the Titanium Drill is what pays for the Tungsten Carbide Drill. No hand-drawn tile yet: procedural art.
+  { id: 21, key: 'TUNGSTEN', name: 'Tungsten', kg: 5.0, hard: 7.0, perKg: 112.0, price: 560.0, tier: 4, hosts: [3, 4], weight: 2.5, vein: [2, 4], glint: 0.5, pitch: 1060,
+    colors: { base: '#33313a', light: '#a68fc4', spec: '#ffffff', dark: '#18171c' }, glow: '#9a7aff', tile: null },
 ]);
 
 /** Ore tiles are tougher than plain host rock. */
@@ -167,14 +230,44 @@ export const UPGRADES = Object.freeze({
   ] },
 });
 
+/**
+ * Tech tree (flat). Each node needs cash, rare ores (ids from ORES) and its prerequisites.
+ * effect: {stat, add?, mul?} changes a derived stat (see systems/Tech.js); {unlock} is a flag checked by feature code.
+ */
+export const TECH = Object.freeze([
+  { id: 'battery_1', branch: 'suit', name: 'Battery Cell I', requires: [], cost: { cash: 600, ores: { 7: 3 } }, effect: { stat: 'maxEnergy', add: 50 } },
+  { id: 'battery_2', branch: 'suit', name: 'Battery Cell II', requires: ['battery_1'], cost: { cash: 6000, ores: { 9: 5 } }, effect: { stat: 'maxEnergy', add: 200 } },
+  { id: 'battery_3', branch: 'suit', name: 'Battery Cell III', requires: ['battery_2'], cost: { cash: 60000, ores: { 15: 5 } }, effect: { stat: 'maxEnergy', add: 800 } },
+  { id: 'padded_suit_1', branch: 'suit', name: 'Padded Suit I', requires: [], cost: { cash: 400, ores: { 5: 4 } }, effect: { stat: 'fallDamage', mul: 0.75 } },
+  { id: 'padded_suit_2', branch: 'suit', name: 'Padded Suit II', requires: ['padded_suit_1'], cost: { cash: 5000, ores: { 13: 3 } }, effect: { stat: 'fallDamage', mul: 0.6 } },
+  { id: 'heat_suit', branch: 'suit', name: 'Heat Suit', requires: ['padded_suit_2'], cost: { cash: 40000, ores: { 11: 4 } }, effect: { unlock: 'heat_suit' } },
+  { id: 'magma_boots', branch: 'suit', name: 'Magma Boots', requires: ['heat_suit'], cost: { cash: 90000, ores: { 21: 4 } }, effect: { unlock: 'magma_boots' } },
+  { id: 'gas_mask', branch: 'suit', name: 'Gas Mask', requires: [], cost: { cash: 3000, ores: { 12: 3 } }, effect: { unlock: 'gas_mask' } },
+  { id: 'jet_tank_1', branch: 'jet', name: 'Jet Tank I', requires: [], cost: { cash: 1000, ores: { 5: 4 } }, effect: { stat: 'jetDrain', mul: 0.8 } },
+  { id: 'jet_tank_2', branch: 'jet', name: 'Jet Tank II', requires: ['jet_tank_1'], cost: { cash: 11000, ores: { 14: 2 } }, effect: { stat: 'jetDrain', mul: 0.75 } },
+  { id: 'jet_thrust_1', branch: 'jet', name: 'Jet Thrusters', requires: ['jet_tank_1'], cost: { cash: 7000, ores: { 9: 4 } }, effect: { stat: 'jetThrust', mul: 1.2 } },
+  { id: 'stash_2', branch: 'camp', name: 'Bigger Stash', requires: [], cost: { cash: 2000, ores: { 2: 20 } }, effect: { stat: 'stashCap', add: 300 } },
+  { id: 'pack_1', branch: 'tools', name: 'Bigger Pack I', requires: [], cost: { cash: 800, ores: { 6: 4 } }, effect: { stat: 'capacity', add: 25 } },
+  { id: 'pack_2', branch: 'tools', name: 'Bigger Pack II', requires: ['pack_1'], cost: { cash: 9000, ores: { 16: 3 } }, effect: { stat: 'capacity', add: 75 } },
+  { id: 'charge_station', branch: 'camp', name: 'Field Charging Station', requires: ['battery_1'], cost: { cash: 8000, ores: { 8: 6 } }, effect: { unlock: 'charge_station' } },
+  { id: 'ladder_kit', branch: 'tools', name: 'Ladder Kit', requires: [], cost: { cash: 1200, ores: { 3: 4 } }, effect: { unlock: 'ladder_kit' } },
+  { id: 'big_bomb', branch: 'tools', name: 'Big Bomb Recipe', requires: [], cost: { cash: 6000, ores: { 11: 3 } }, effect: { unlock: 'big_bomb' } },
+  { id: 'deep_scanner', branch: 'tools', name: 'Deep Scanner', requires: [], cost: { cash: 7000, ores: { 13: 3 } }, effect: { stat: 'radarRange', mul: 1.5 } },
+  { id: 'contracts_terminal', branch: 'camp', name: 'Contracts Terminal', requires: [], cost: { cash: 2500, ores: { 4: 6 } }, effect: { unlock: 'contracts_terminal' } },
+]);
+
 export const CONSUMABLES = Object.freeze({
   dynamite: { name: 'Dynamite', short: 'Dynamite', price: 15, slot: 1, start: 2 },
   teleporter: { name: 'Portable Teleporter', short: 'Warp', price: 40, slot: 2, start: 0 },
   cell: { name: 'Reserve Energy Cell', short: 'Cell', price: 10, slot: 3, start: 1, frac: 0.4 },
+  ladder: { name: 'Ladder', short: 'Ladder', price: 6, slot: 4, start: 0, tech: 'ladder_kit' },
+  bigBomb: { name: 'Big Bomb', short: 'Big Bomb', price: 60, slot: 5, start: 0, tech: 'big_bomb' },
 });
 
 export const ECONOMY = Object.freeze({
   START_CREDITS: 0,
+  /** Units per ore the home stash holds (TECH stash_2 raises it). */
+  STASH_CAP: 200,
 });
 
 /** Balance model used by tests/economy.test.js. */
@@ -186,6 +279,9 @@ export const BALANCE = Object.freeze({
   TRIPS_MIN: 3,
   TRIPS_MAX: 5,
 });
+
+/** Protective gear (unlocked via TECH). */
+export const GEAR = Object.freeze({ HEAT_SUIT_RESIST: 0.8, AMBIENT_T0: 15, AMBIENT_T1: 350 });
 
 export const PHYSICS = Object.freeze({
   GRAVITY: 650,
@@ -201,7 +297,12 @@ export const PHYSICS = Object.freeze({
   FOOTSTEP_DIST: 26,
   /** Hard landing: damage = max(MIN, round((tiles - threshold) * PER_TILE * sqrt(fallMult))). */
   HARD_LANDING_MIN_DMG: 5,
+  /** Contact heat (°C): magma channels run MAGMA_T0 at the top of the mantle up to MAGMA_T1 at the bottom; core rock is CORE_T. */
+  MAGMA_T0: 700, MAGMA_T1: 1300, CORE_T: 1700,
+  /** Suit HP lost per second per °C above SAFE_T. */
+  HEAT_SAFE_T: 400, HEAT_DPS_PER_C: 0.02,
   HARD_LANDING_DMG_PER_TILE: 18,
+  LADDER_SPEED: 90,
   SUIT_HP: 100,
 });
 
@@ -213,6 +314,7 @@ export const DYNAMITE = Object.freeze({
   GROUND_FRICTION: 0.8,
   SIZE: 8,
   RADIUS: 1,
+  BIG_RADIUS: 3,
   MAX_ACTIVE: 8,
   FLASH_RATE_START: 3,
   FLASH_RATE_END: 14,
@@ -427,7 +529,7 @@ export const SAVE = Object.freeze({
   /** localStorage key holding the active slot number. */
   SLOT_KEY: 'jttdote.slot',
   SETTINGS_KEY: 'jttdote.settings',
-  VERSION: 3,
+  VERSION: 4,
   AUTOSAVE_SEC: 15,
   EXPLOSION_BLOCK_SEC: 1.5,
 });
@@ -452,6 +554,10 @@ export const KEYBINDS = Object.freeze({
   slot1: ['Digit1'],
   slot2: ['Digit2'],
   slot3: ['Digit3'],
+  slot4: ['Digit4'],
+  slot5: ['Digit5'],
+  down: ['KeyS', 'ArrowDown'],
+  station: ['KeyG'],
   interact: ['KeyE'],
   pause: ['Escape'],
   debug: ['F3'],

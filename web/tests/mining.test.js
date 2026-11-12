@@ -81,3 +81,12 @@ describe('Dynamite gating', () => {
     for (let tier = 1; tier <= 6; tier++) expect(dynamiteOutcome(TILE.BEDROCK, 0, tier)).toBe(DYN_KEEP);
   });
 });
+
+import { dynamiteOutcome, DYN_KEEP, DYN_DESTROY } from '../src/systems/Mining.js';
+import { TILE as T_ } from '../src/config.js';
+describe('core vs dynamite', () => {
+  it('only the tier-6 drill lets dynamite break core rock', () => {
+    expect(dynamiteOutcome(T_.CORE, 0, 5)).toBe(DYN_KEEP);
+    expect(dynamiteOutcome(T_.CORE, 0, 6)).toBe(DYN_DESTROY);
+  });
+});

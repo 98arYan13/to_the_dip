@@ -5,10 +5,11 @@
  */
 import { WORLD, TILE, ORE, FLAG, MATERIALS, ORES, ORE_HP_MUL, MINING } from '../config.js';
 import { RNG } from '../core/RNG.js';
+import { planZones, stampZone, stampCore } from './Zones.js';
 import { createNoise2D, fbm } from '../core/Noise.js';
 
 /** Band material ids, top to bottom. */
-export const BAND_MATERIALS = Object.freeze([TILE.SOIL, TILE.LIMESTONE, TILE.GRANITE, TILE.BASALT, TILE.MANTLE]);
+export const BAND_MATERIALS = Object.freeze([TILE.SOIL, TILE.LIMESTONE, TILE.GRANITE, TILE.BASALT, TILE.MANTLE, TILE.CORE]);
 
 /**
  * @typedef {Object} WorldData
@@ -71,6 +72,8 @@ export function generateWorld(seed, W = WORLD.W, H = WORLD.H) {
   const tileHP = new Uint16Array(n);
   const oreType = new Uint8Array(n);
   const flags = new Uint8Array(n);
+  const fluid = new Uint8Array(n);
+  const gas = new Uint8Array(n);
   const band = new Uint8Array(n);
   const rng = new RNG(seed);
   const caveNoise = createNoise2D((seed + 1013) | 0);
@@ -160,8 +163,16 @@ export function generateWorld(seed, W = WORLD.W, H = WORLD.H) {
     }
   }
 
+  // 3b. Designed zones (own RNG streams, applied after ores so the base layout is unchanged)
+  {
+    const d = { W, H, tileType, oreType, flags, fluid, gas, band };
+    const zrng = new RNG((seed ^ 0x5a17) >>> 0);
+    for (const z of planZones(seed, W, H)) stampZone(d, z, zrng);
+    stampCore(d);
+  }
+
   // 4. HP
   for (let i = 0; i < n; i++) tileHP[i] = maxHPFor(tileType[i], oreType[i]);
 
-  return { W, H, seed, tileType, tileHP, oreType, flags, band };
+  return { W, H, seed, tileType, tileHP, oreType, flags, band, fluid, gas };
 }

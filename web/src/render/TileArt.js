@@ -10,8 +10,8 @@ import { createCanvas, get2D, hexToRgb } from './canvas.js';
 
 const T = WORLD.TILE_PX;
 const N = T * T * 4;
-const SOLID_TYPES = [TILE.SOIL, TILE.LIMESTONE, TILE.GRANITE, TILE.BASALT, TILE.MANTLE, TILE.BEDROCK, TILE.MAGMA, TILE.WATER];
-const BAND_TYPES = [TILE.SOIL, TILE.LIMESTONE, TILE.GRANITE, TILE.BASALT, TILE.MANTLE];
+const SOLID_TYPES = [TILE.SOIL, TILE.LIMESTONE, TILE.GRANITE, TILE.BASALT, TILE.MANTLE, TILE.BEDROCK, TILE.MAGMA, TILE.WATER, TILE.CORE, TILE.SAND];
+const BAND_TYPES = [TILE.SOIL, TILE.LIMESTONE, TILE.GRANITE, TILE.BASALT, TILE.MANTLE, TILE.CORE];
 
 /** Small RGBA painter for one 32×32 cell. */
 class Cell {
@@ -88,7 +88,7 @@ export class TileArt {
       const tiles = MATERIALS[t].tiles;
       if (tiles) tiles.forEach((name, k) => put(name, this.mat[t].filter((_, v) => v % tiles.length === k)));
     }
-    for (let o = 1; o < ORES.length; o++) put(/** @type {any} */ (ORES[o]).tile, this.ore[o]);
+    for (let o = 1; o < ORES.length; o++) { const t = /** @type {any} */ (ORES[o]).tile; if (t) put(t, this.ore[o]); }
   }
 
   _alloc() { return this.cellCount++; }
@@ -196,6 +196,12 @@ export class TileArt {
             if (((x + y + Math.floor(n * 6)) % 13) === 0) c = col.light;
             const r = 1 - Math.abs(fbm(n2, x * 0.09 + v, y * 0.09, 3));
             if (r > 0.975) { c = col.extra; shade = 1; } else if (r > 0.94) { c = col.accent; shade = 1; }
+            break;
+          }
+          case TILE.SAND: {
+            const r = rng.float();
+            if (r < 0.1) c = col.light; else if (r < 0.2) c = col.accent; else if (r < 0.23) c = col.extra;
+            if (((y + Math.floor(n * 4)) % 6) === 0) c = col.dark;
             break;
           }
           case TILE.BEDROCK: {
@@ -459,11 +465,15 @@ export class TileArt {
     const t = w.tileType[i];
     const h = hash2(x, y, w.seed);
     const v = h % this.V;
-    if (t === TILE.AIR || t === TILE.WATER) {
+    if (t === TILE.AIR || t === TILE.WATER || t === TILE.LADDER) {
       if (y < WORLD.SURFACE_ROWS) return;
       const b = w.band[i] || TILE.SOIL;
       this.blit(ctx, this.back[b][v], dx, dy);
       if (t === TILE.WATER) this.blit(ctx, this.mat[TILE.WATER][v], dx, dy);
+      if (t === TILE.LADDER) {
+        ctx.fillStyle = '#8a5a2b'; ctx.fillRect(dx + 6, dy, 3, 32); ctx.fillRect(dx + 23, dy, 3, 32);
+        ctx.fillStyle = '#b98046'; for (let k = 3; k < 32; k += 8) ctx.fillRect(dx + 6, dy + k, 20, 3);
+      }
       if (w.isSolid(x, y - 1)) this.blit(ctx, this.ao[0], dx, dy);
       if (w.isSolid(x + 1, y)) this.blit(ctx, this.ao[1], dx, dy);
       if (w.isSolid(x, y + 1)) this.blit(ctx, this.ao[2], dx, dy);
@@ -482,6 +492,7 @@ export class TileArt {
     const f = w.flags[i];
     if (f & FLAG.MOSS) this.blit(ctx, this.moss[v], dx, dy);
     if (f & FLAG.FUNGI) this.blit(ctx, this.fungi[v], dx, dy);
+    if (f & FLAG.UNSTABLE) this.blit(ctx, this.crack[2], dx, dy);
   }
 
   /** Material + ore only (also used for the recoil redraw). */

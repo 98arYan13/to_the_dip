@@ -68,7 +68,7 @@ const bytesOf = (v) => new Uint8Array(v.buffer, v.byteOffset, v.byteLength);
  */
 export function encodeWorld(w) {
   const flags = new Uint8Array(w.flags);
-  for (let i = 0; i < flags.length; i++) flags[i] &= ~(FLAG.RADAR_LIT | FLAG.DIRTY);
+  for (let i = 0; i < flags.length; i++) flags[i] &= ~(FLAG.RADAR_LIT | FLAG.DIRTY | FLAG.UNSTABLE);
   const hp = bytesOf(w.tileHP);
   const parts = [w.tileType, hp, w.oreType, flags];
   return {
@@ -77,6 +77,8 @@ export function encodeWorld(w) {
     tileHP: toBase64(rleEncode(hp)),
     oreType: toBase64(rleEncode(w.oreType)),
     flags: toBase64(rleEncode(flags)),
+    fluid: toBase64(rleEncode(w.fluid || new Uint8Array(w.W * w.H))),
+    gas: toBase64(rleEncode(w.gas || new Uint8Array(w.W * w.H))),
     sum: checksum(parts),
   };
 }
@@ -97,7 +99,9 @@ export function decodeWorld(e, seed) {
   const starts = computeBandStarts(seed, e.W, e.H);
   const band = new Uint8Array(n);
   for (let y = 0; y < e.H; y++) for (let x = 0; x < e.W; x++) band[y * e.W + x] = bandMaterialAt(starts, x, y, e.W);
-  return { W: e.W, H: e.H, seed, tileType, tileHP, oreType, flags, band };
+  const fluid = e.fluid ? rleDecode(fromBase64(e.fluid), n) : new Uint8Array(n);
+  const gas = e.gas ? rleDecode(fromBase64(e.gas), n) : new Uint8Array(n);
+  return { W: e.W, H: e.H, seed, tileType, tileHP, oreType, flags, band, fluid, gas };
 }
 
 /**
@@ -114,6 +118,8 @@ export function migrate(save) {
       s = { ...s, version: 2 };
       delete s.settings;
       s.economy = { ...s.economy, levels: { radar: 0, cargo: 0, ...(s.economy?.levels || {}) } };
+    } else if (from === 3) {
+      s = { ...s, version: 4 }; // v4 adds optional world.fluid/gas and economy extras; absent fields default on load
     } else if (from === 2) {
       throw new Error('Save from the old 7-ore version is not compatible; starting a new game');
     } else throw new Error(`No migration from v${from}`);

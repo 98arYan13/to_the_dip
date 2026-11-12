@@ -17,6 +17,9 @@ export class World {
     this.oreType = data.oreType;
     this.flags = data.flags;
     this.band = data.band;
+    /** Fluid units per tile (0..HAZARD.FLUID.MAX) and gas concentration per tile (0..GAS.MAX). */
+    this.fluid = data.fluid || new Uint8Array(data.W * data.H);
+    this.gas = data.gas || new Uint8Array(data.W * data.H);
     /** Tile index of the last raycast hit (-1 if none). */
     this.lastHit = -1;
   }
@@ -47,6 +50,8 @@ export class World {
     this.tileType[i] = TILE.AIR;
     this.oreType[i] = 0;
     this.tileHP[i] = 0;
+    this.fluid[i] = 0;
+    this.gas[i] = 0;
     this.flags[i] = (this.flags[i] & ~(FLAG.SOLID | FLAG.FUNGI | FLAG.MOSS)) | FLAG.DIRTY;
   }
 

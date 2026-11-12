@@ -11,7 +11,7 @@ export class Dynamite {
     this.x = 0; this.y = 0; this.w = DYNAMITE.SIZE; this.h = DYNAMITE.SIZE;
     this.vx = 0; this.vy = 0; this.prevX = 0; this.prevY = 0;
     this.onGround = false; this.hitX = false; this.hitY = false; this.impactVX = 0; this.impactVY = 0;
-    this.fuse = 0; this.rot = 0;
+    this.fuse = 0; this.rot = 0; this.big = false;
   }
 }
 
@@ -33,7 +33,7 @@ export class DynamiteSystem {
   }
 
   /** Throw from (x,y) toward aim point. @returns {boolean} */
-  throw(x, y, aimX, aimY) {
+  throw(x, y, aimX, aimY, big = false) {
     if (this.active.length >= DYNAMITE.MAX_ACTIVE) return false;
     const d = this.pool.acquire();
     let dx = aimX - x; let dy = aimY - y;
@@ -43,7 +43,7 @@ export class DynamiteSystem {
     d.prevX = d.x; d.prevY = d.y;
     d.vx = dx * DYNAMITE.THROW_SPEED;
     d.vy = dy * DYNAMITE.THROW_SPEED - DYNAMITE.THROW_UP_BIAS;
-    d.fuse = DYNAMITE.FUSE;
+    d.fuse = DYNAMITE.FUSE; d.big = big;
     d.rot = 0;
     this.active.push(d);
     this.payload.x = x; this.payload.y = y;
@@ -80,7 +80,7 @@ export class DynamiteSystem {
   _detonate(d) {
     const T = WORLD.TILE_PX;
     const cx = d.x + d.w / 2; const cy = d.y + d.h / 2;
-    this.mining.blast(Math.floor(cx / T), Math.floor(cy / T));
+    this.mining.blast(Math.floor(cx / T), Math.floor(cy / T), d.big ? DYNAMITE.BIG_RADIUS : DYNAMITE.RADIUS);
     this.lastExplosionAge = 0;
     this.payload.x = cx; this.payload.y = cy;
     this.bus.emit(EV.EXPLOSION, this.payload);

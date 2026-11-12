@@ -4,7 +4,7 @@
  * background → tiles (chunks) → crack overlays → ore glints → entities → particles →
  * lighting composite → bloom → fog of war → radar markers → PostFX → (DOM HUD).
  */
-import { WORLD, CAMERA, RENDER, ORES, FLAG, TILE, DYNAMITE, ENERGY, PICKUPS, MINING } from '../config.js';
+import { MATERIALS, WORLD, CAMERA, RENDER, ORES, FLAG, TILE, DYNAMITE, ENERGY, PICKUPS, MINING, HAZARD } from '../config.js';
 import { hash2 } from '../core/RNG.js';
 import { requiredTier } from '../systems/Mining.js';
 import { hexToRgb } from './canvas.js';
@@ -144,6 +144,42 @@ export class Renderer {
     ctx.globalAlpha = 1;
     ctx.globalCompositeOperation = 'source-over';
 
+    // Hazards: fluid level + wavy surface, gas haze and bubbles, field charging stations
+    const FM = HAZARD.FLUID.MAX;
+    for (let y = Math.max(0, ty0); y <= Math.min(world.H - 1, ty1); y++) {
+      for (let x = Math.max(0, tx0); x <= Math.min(world.W - 1, tx1); x++) {
+        const i = y * world.W + x; const t = world.tileType[i];
+        if ((t !== TILE.WATER && t !== TILE.MAGMA) || !(this.devReveal || world.flags[i] & FLAG.DISCOVERED)) continue;
+        const L = world.fluid[i];
+        if (y > 0 && world.tileType[i - world.W] === t) continue; // not the surface cell
+        const empty = Math.round(T * (1 - Math.min(L, FM) / FM));
+        if (empty > 0) {
+          ctx.save(); ctx.beginPath(); ctx.rect(x * T, y * T, T, empty); ctx.clip();
+          art.blit(ctx, art.back[world.band[i] || TILE.SOIL][hash2(x, y, world.seed) % art.V], x * T, y * T);
+          ctx.restore();
+        }
+        ctx.fillStyle = t === TILE.WATER ? 'rgba(190,240,255,0.7)' : 'rgba(255,230,140,0.85)';
+        for (let k = 0; k < 8; k++) ctx.fillRect(x * T + k * 4, y * T + empty + Math.round(Math.sin(this.time * 3 + k * 0.9 + x) * 1), 4, 2);
+      }
+    }
+    for (let y = Math.max(0, ty0); y <= Math.min(world.H - 1, ty1); y++) {
+      for (let x = Math.max(0, tx0); x <= Math.min(world.W - 1, tx1); x++) {
+        const g = world.gas[y * world.W + x];
+        if (!g || !(this.devReveal || world.flags[y * world.W + x] & FLAG.DISCOVERED)) continue;
+        ctx.fillStyle = `rgba(120,230,70,${0.1 + g * 0.035 + 0.04 * Math.sin(this.time * 3 + x + y)})`;
+        ctx.fillRect(x * T, y * T, T, T);
+        ctx.fillStyle = 'rgba(200,255,150,0.55)';
+        for (let b = 0; b < 2; b++) {
+          const h = hash2(x * 3 + b, y, 5);
+          ctx.fillRect(x * T + 3 + (h % (T - 6)), y * T + T - ((this.time * (10 + (h & 7)) + h) % T), 2, 2);
+        }
+      }
+    }
+    for (const s of this.d.economy.stations) {
+      ctx.fillStyle = '#2b3a4a'; ctx.fillRect(s.x * T + 8, s.y * T + 10, T - 16, T - 10);
+      ctx.fillStyle = `rgba(90,220,255,${0.6 + 0.3 * Math.sin(this.time * 4)})`; ctx.fillRect(s.x * T + 12, s.y * T + 14, T - 24, 6);
+    }
+
     // Entities
     calls += this._drawPickups(ctx, alpha);
     calls += this._drawDynamites(ctx, alpha);
@@ -161,6 +197,23 @@ export class Renderer {
     fs.canvasW = this.canvas.width; fs.canvasH = this.canvas.height;
     // Dev reveal: full-bright, no fog.
     if (!this.devReveal) { lighting.render(ctx, fs); calls += lighting.drawCalls; }
+
+    // Animated tiles (magma core) glow: drawn after lighting so darkness never dims them.
+    const core = MATERIALS[TILE.CORE].anim;
+    if (!this.coreImg) { this.coreImg = new Image(); this.coreImg.src = core.src; }
+    if (this.coreImg.complete && this.coreImg.naturalWidth) {
+      ctx.setTransform(s, 0, 0, s, -camL * s, -camT * s);
+      const fr = Math.floor(this.time * core.fps) % core.frames;
+      for (let y = Math.max(0, ty0); y <= Math.min(world.H - 1, ty1); y++) {
+        for (let x = Math.max(0, tx0); x <= Math.min(world.W - 1, tx1); x++) {
+          if (world.tileType[y * world.W + x] !== TILE.CORE) continue;
+          // Neighbouring tiles start on different frames so the field doesn't pulse in lockstep.
+          const f = (fr + ((x * 7 + y * 3) % core.frames)) % core.frames;
+          ctx.drawImage(this.coreImg, f * T, 0, T, T, x * T, y * T, T, T);
+          calls++;
+        }
+      }
+    }
 
     // Fog of war
     ctx.setTransform(s, 0, 0, s, -camL * s, -camT * s);

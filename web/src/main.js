@@ -5,12 +5,12 @@
  */
 import {
   WORLD, TILE, FLAG, MATERIALS, PHYSICS, CAMERA, MINING, ENERGY, RADAR, TELEPORT, CONSUMABLES, GAMEPAD,
-  PARTICLES, QUALITY, SAVE, SETTINGS_DEFAULT,
+  PARTICLES, QUALITY, SAVE, SETTINGS_DEFAULT, PICKAXES,
 } from './config.js';
 import { EventBus, EV } from './core/EventBus.js';
 import { GameLoop } from './core/GameLoop.js';
 import { Input } from './core/Input.js';
-import { randomSeed } from './core/RNG.js';
+import { randomSeed, RNG } from './core/RNG.js';
 import { log } from './core/log.js';
 import { World } from './world/World.js';
 import { Visibility } from './world/Visibility.js';
@@ -21,6 +21,17 @@ import { PickupSystem } from './entities/Pickup.js';
 import { Physics } from './systems/Physics.js';
 import { Mining, canMine, isCampGround } from './systems/Mining.js';
 import { Energy } from './systems/Energy.js';
+import { Collapse } from './systems/Hazards/Collapse.js';
+import { Fluids } from './systems/Hazards/Fluids.js';
+import { Gas } from './systems/Hazards/Gas.js';
+import { Quake } from './systems/Hazards/Quake.js';
+import { CoreGoal } from './systems/CoreGoal.js';
+import { Collectibles } from './systems/Collectibles.js';
+import { placeLadder } from './systems/Items.js';
+import { placeChargeStation, nearStation } from './systems/Camp.js';
+import { dailySeed, dailyScore, dateKey } from './systems/Daily.js';
+import { coreChamber } from './world/Zones.js';
+import { Ending } from './ui/Ending.js';
 import { Economy, createEconomyState } from './systems/Economy.js';
 import { Renderer } from './render/Renderer.js';
 import { Camera } from './render/Camera.js';
@@ -31,7 +42,7 @@ import { Background } from './render/Background.js';
 import { PostFX } from './render/PostFX.js';
 import { AudioEngine } from './audio/AudioEngine.js';
 import { Music } from './audio/Music.js';
-import { SaveMenu, slotKey } from './ui/SaveMenu.js';
+import { SaveMenu, slotKey, dailyBests } from './ui/SaveMenu.js';
 import { DevPanel } from './ui/DevPanel.js';
 import { SFX, Ambience } from './audio/SFX.js';
 import { HUD } from './ui/HUD.js';
@@ -71,13 +82,14 @@ function boot() {
   const splash = /** @type {HTMLElement} */ (document.getElementById('splash'));
   const bus = new EventBus();
   const storage = safeStorage();
-  let slot = Number(storage.getItem(SAVE.SLOT_KEY)) || 1;
+  const storedSlot = storage.getItem(SAVE.SLOT_KEY);
+  let slot = storedSlot === null || Number.isNaN(Number(storedSlot)) ? 1 : Number(storedSlot);
   const saves = new SaveSystem(storage, slotKey(slot));
   let settingsValues = loadSettings(storage);
 
   // ---------- World & simulation ----------
   const loaded = saves.load();
-  let seed = loaded.ok ? loaded.data.seed : randomSeed();
+  let seed = loaded.ok ? loaded.data.seed : slot === 0 ? dailySeed() : randomSeed();
   let world = loaded.ok ? new World(loaded.data.world) : World.generate(seed);
   const economy = new Economy(bus, loaded.ok ? loaded.data.economy : createEconomyState());
   const vis = new Visibility(world, bus);
@@ -88,6 +100,22 @@ function boot() {
   const energy = new Energy(bus, economy);
   const player = new Player({ physics, mining, energy, economy, bus });
   const dynamites = new DynamiteSystem(physics, mining, bus);
+  const collapse = new Collapse(world, bus);
+  collapse.markAll();
+  const fluids = new Fluids(world, bus);
+  const gas = new Gas(world, bus, player);
+  gas.mining = mining; /** @type {any} */ (mining).gas = gas;
+  gas.hasMask = () => economy.tech.includes('gas_mask');
+  const quake = new Quake(world, bus, collapse, new RNG((seed ^ 0x9e37) >>> 0));
+  const coreGoal = new CoreGoal(world, bus, economy);
+  coreGoal.onQuake = () => quake.trigger(0.8);
+  coreGoal.onFail = () => player.die('core heat');
+  new Collectibles(bus, economy);
+  collapse.crush = (x, y) => {
+    const tx0 = Math.floor(player.x / T); const tx1 = Math.floor((player.x + player.w - 1) / T);
+    const ty0 = Math.floor(player.y / T); const ty1 = Math.floor((player.y + player.h - 1) / T);
+    return x >= tx0 && x <= tx1 && y >= ty0 && y <= ty1;
+  };
   if (loaded.ok && loaded.data.player) {
     const p = loaded.data.player;
     player.placeAt(p.x, p.y);
@@ -132,7 +160,8 @@ function boot() {
   const toast = new Toast(hudRoot);
   const minimap = new Minimap(hud.minimapParent, bus);
   minimap.setWorld(world);
-  const shop = new Shop(hudRoot, bus, economy, { onClose: () => { input.clear(); canvas.focus(); }, click: () => sfx.uiClick() });
+  const ending = new Ending(hudRoot, { onClose: () => { input.clear(); canvas.focus(); } });
+  const shop = new Shop(hudRoot, bus, economy, { seed: () => seed, onClose: () => { input.clear(); canvas.focus(); }, click: () => sfx.uiClick() });
   const settings = new Settings(hudRoot, settingsValues, {
     onChange: (s) => { settingsValues = s; applySettings(s); },
     onClose: () => { input.clear(); },
@@ -146,8 +175,18 @@ function boot() {
     onClose: () => { input.clear(); canvas.focus(); },
   });
   const devPanel = new DevPanel(hudRoot, {
+    onAction: (a) => {
+      const tx = Math.floor(player.cx / T); const ty = Math.floor(player.cy / T);
+      if (a === 'gas') { for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) gas.spawn(tx + dx, ty + dy); }
+      else if (a === 'quake') { quake.focus.x = tx; quake.focus.y = ty; quake.trigger(1); }
+      else if (a === 'cash') { economy.credits += 100000; bus.emit(EV.CREDITS_CHANGED, economy.credits); }
+      else if (a === 'core') { const c = coreChamber(world.W, world.H); player.placeAt((c.x + c.w / 2) * T, (c.y + c.h - 1) * T - player.h); camera.snap(player.cx, player.cy); }
+      canvas.focus();
+    },
     onChange: (s) => {
-      economy.devPick = s.on ? s.pick : 0;
+      const god = s.on && s.god;
+      economy.devPick = s.on ? (god ? PICKAXES.length : s.pick) : 0;
+      player.god = god; energy.god = god; mining.god = god;
       renderer.devReveal = s.on && s.reveal;
       hud.refreshAll();
       canvas.focus();
@@ -199,6 +238,9 @@ function boot() {
 
   function saveGame(manual) {
     if (dynamites.active.length > 0 && !manual) return;
+    if (slot === 0) {
+      try { const b = dailyBests(storage); b[dateKey()] = Math.max(b[dateKey()] || 0, dailyScore(economy)); storage.setItem(`${SAVE.KEY}.dailybest`, JSON.stringify(b)); } catch { /* ignore */ }
+    }
     if (saves.save(getState())) { if (manual) bus.emit(EV.SAVED); }
     else if (manual) toast.show('Saving failed (storage unavailable)', 'bad');
   }
@@ -220,6 +262,7 @@ function boot() {
         w.flags[i] |= FLAG.SOLID | FLAG.DIRTY | FLAG.DISCOVERED;
       }
     }
+    collapse.setWorld(w); fluids.setWorld(w); gas.setWorld(w); quake.world = w; coreGoal.world = w;
     vis.setWorld(w); physics.world = w; mining.setWorld(w); chunks.setWorld(w);
     particles.world = w; renderer.setWorld(w); minimap.setWorld(w);
   }
@@ -259,6 +302,16 @@ function boot() {
     camera.addTrauma(CAMERA.TRAUMA_BREAK);
     g.hitStop = MINING.HIT_STOP_FRAMES;
   });
+  bus.on(EV.TILE_WARN, (t) => {
+    particles.debris(t.x * T + T / 2, t.y * T + T, TILE.SOIL, 0, 2);
+    camera.addTrauma(0.04);
+    sfx.rumble(0.2);
+  });
+  bus.on(EV.TILE_CRUSH, () => player.die('crushed'));
+  bus.on(EV.SWING, () => gas.onPlayerMine());
+  bus.on(EV.QUAKE_WARN, () => { toast.show('The ground is rumbling…', 'warn'); sfx.rumble(0.6); });
+  bus.on(EV.QUAKE, (q) => { camera.addTrauma(0.4 + 0.6 * q.strength); sfx.rumble(0.8 + 0.2 * q.strength); });
+  bus.on(EV.COMPLETED, () => { ending.show(); input.clear(); });
   bus.on(EV.HINT, (text) => toast.show(text, 'warn'));
   bus.on(EV.CARGO_FULL, () => toast.show('Cargo hold full! Ore dropped on the ground.', 'warn'));
   bus.on(EV.EXPLOSION, (p) => {
@@ -282,12 +335,14 @@ function boot() {
     camera.addTrauma(Math.min(1, 0.3 + h.damage / 60));
     toast.show(`Hard landing! Suit -${h.damage}%`, 'warn');
   });
-  bus.on(EV.SUIT_BROKEN, () => {
+  bus.on(EV.PLAYER_DEAD, (cause) => {
+    economy.applyDeath();
+    energy.refill();
     dynamites.clear();
     g.warpTimer = -1;
     bus.emit(EV.TELEPORT_START);
     player.setHP(PHYSICS.SUIT_HP);
-    warpHome('Suit integrity lost! Emergency recovery to base camp.', 'bad');
+    warpHome(`You died (${cause})! Cargo and consumables lost.`, 'bad');
   });
   bus.on(EV.RESCUE, () => {
     const lost = economy.applyRescueLoss();
@@ -322,7 +377,7 @@ function boot() {
       if (g.radarCd > 0) toast.show('Radar recharging…', 'info');
       else if (energy.value <= ENERGY.RADAR_COST) toast.show('Not enough energy for radar', 'warn');
       else {
-        const r = economy.radar;
+        const r = { ...economy.radar, radius: economy.stat('radarRange', economy.radar.radius) };
         energy.drain(ENERGY.RADAR_COST);
         g.radarCd = RADAR.COOLDOWN;
         vis.radarPulse(player.cx, player.cy, r.radius, r.duration, RADAR.RING_SPEED);
@@ -333,6 +388,21 @@ function boot() {
     if (input.wasPressed('slot1')) {
       if (c.dynamite <= 0) toast.show('No dynamite — buy some at the Trading Post', 'warn');
       else if (dynamites.throw(player.cx, player.cy, g.aimX, g.aimY)) { economy.useConsumable('dynamite'); bus.emit(EV.CONSUMABLE_USED, 'dynamite'); }
+    }
+    if (input.wasPressed('slot5')) {
+      if (c.bigBomb <= 0) toast.show('No big bombs — unlock the recipe in Tech, buy at the Trading Post', 'warn');
+      else if (dynamites.throw(player.cx, player.cy, g.aimX, g.aimY, true)) { economy.useConsumable('bigBomb'); bus.emit(EV.CONSUMABLE_USED, 'bigBomb'); }
+    }
+    if (input.wasPressed('slot4')) {
+      if (c.ladder <= 0) toast.show('No ladders — unlock the kit in Tech, buy at the Trading Post', 'warn');
+      else if (Math.hypot(g.aimX - player.cx, g.aimY - player.cy) > 5 * T) toast.show('Too far to place', 'info');
+      else if (placeLadder(world, bus, Math.floor(g.aimX / T), Math.floor(g.aimY / T))) economy.useConsumable('ladder');
+      else toast.show('Ladders need open air next to rock', 'info');
+    }
+    if (input.wasPressed('station')) {
+      const r = placeChargeStation(economy, world, Math.floor(player.cx / T), Math.floor((player.feetY - 1) / T));
+      toast.show(r.ok ? 'Charging station placed' : r.reason, r.ok ? 'good' : 'warn');
+      if (r.ok) { bus.emit(EV.CARGO_CHANGED); bus.emit(EV.CREDITS_CHANGED, economy.credits); }
     }
     if (input.wasPressed('slot2')) {
       if (c.teleporter <= 0) toast.show('No teleporters — buy one at the Trading Post', 'warn');
@@ -391,7 +461,7 @@ function boot() {
   }
 
   function update(dt) {
-    if (!g.started || g.tabHidden || shop.open || settings.open || saveMenu.open) { input.endStep(); return; }
+    if (!g.started || g.tabHidden || shop.open || settings.open || saveMenu.open || ending.open) { input.endStep(); return; }
     if (g.hitStop > 0) { g.hitStop--; return; }
     input.pollGamepad();
     g.time += dt;
@@ -422,6 +492,9 @@ function boot() {
     dynamites.update(dt, PHYSICS.GRAVITY);
     particles.update(dt);
     mining.update(dt);
+    collapse.update(dt);
+    fluids.update(dt);
+    gas.update(dt);
     lighting.update(dt, RADAR.RING_SPEED);
     vis.update(dt, player.cx, player.cy, economy.radar.headlamp, Math.atan2(g.aimY - player.cy, g.aimX - player.cx));
 
@@ -450,10 +523,17 @@ function boot() {
       bus.emit(EV.PROMPT, prompt === 'shop' ? '[E] Open Trading Post terminal' : prompt === 'station' ? 'Recharging suit energy…' : null);
     }
     energy.depthM = meters;
-    energy.update(dt, { jetting: player.jetting, atStation, onSurface });
+    quake.focus.x = ptx; quake.focus.y = pty;
+    quake.update(dt, g.depth01);
+    if (quake.shake > 0) camera.addTrauma(quake.shake * dt);
+    coreGoal.update(dt, player.cx, player.cy);
+    const atField = nearStation(economy, player.cx, player.cy);
+    energy.update(dt, { jetting: player.jetting, atStation: atStation || atField, onSurface });
+    player.burn(dt, world, g.depth01);
+    hud.setTemp(player.temp);
     const dev = devPanel.state;
-    if (dev.on && dev.lockEnergy && energy.value < energy.max) energy.refill();
-    if (dev.on && dev.lockHp && player.hp < PHYSICS.SUIT_HP) player.setHP(PHYSICS.SUIT_HP);
+    if (dev.on && (dev.lockEnergy || dev.god) && energy.value < energy.max) energy.refill();
+    if (dev.on && (dev.lockHp || dev.god) && player.hp < PHYSICS.SUIT_HP) player.setHP(PHYSICS.SUIT_HP);
     if (atStation && player.hp < PHYSICS.SUIT_HP) player.setHP(PHYSICS.SUIT_HP); // station also repairs the suit
 
     camera.update(dt, player.cx + player.vx * CAMERA.LOOK_AHEAD, player.cy);

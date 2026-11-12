@@ -2,7 +2,7 @@
  * @module systems/Mining
  * Damage, tier gating, cracks and drops. Gating rules are pure functions (unit-tested).
  */
-import { TILE, ORE, MATERIALS, ORES, PICKAXES, MINING, WORLD } from '../config.js';
+import { TILE, ORE, MATERIALS, ORES, PICKAXES, MINING, WORLD, DYNAMITE } from '../config.js';
 import { EV } from '../core/EventBus.js';
 
 /** Ground under the base camp buildings stays solid so the camp and spawn point never float. */
@@ -69,6 +69,7 @@ export function dynamiteOutcome(type, ore, pickTier) {
   const m = MATERIALS[type];
   if (!m || !m.solid || type === TILE.BEDROCK) return DYN_KEEP;
   if (m.tier > pickTier + 1) return DYN_KEEP;
+  if (type === TILE.CORE && pickTier < m.tier) return DYN_KEEP; // the Core needs the tier-6 drill, no bomb shortcut
   if (ore) {
     const ot = /** @type {any} */ (ORES[ore]).tier;
     if (pickTier < ot) return DYN_KEEP;
@@ -145,7 +146,8 @@ export class Mining {
     h.i = i; h.x = x; h.y = y; h.type = type; h.ore = ore; h.nx = nx; h.ny = ny; h.hint = '';
     const tier = this.economy.pickTier;
     const camp = isCampGround(x, y);
-    const dmg = camp ? 0 : hitDamage(type, ore, tier);
+    let dmg = camp ? 0 : hitDamage(type, ore, tier);
+    if (this.god && dmg > 0) dmg = w.tileHP[i]; // god mode: one hit breaks anything breakable
     if (dmg <= 0) {
       h.stage = crackStage(w.tileHP[i], w.maxHP(i));
       if (this.hintCooldown <= 0) {
@@ -203,15 +205,15 @@ export class Mining {
    * Dynamite blast centred on tile (tx, ty).
    * @returns {number} tiles destroyed
    */
-  blast(tx, ty) {
+  blast(tx, ty, r = DYNAMITE.RADIUS) {
     const w = this.world;
-    const r = 1;
     const tier = this.economy.pickTier;
     let n = 0;
     for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
       const x = tx + dx; const y = ty + dy;
       if (!w.inBounds(x, y)) continue;
       const i = y * w.W + x;
+      if (this.gas && !this.gas.exploding && w.gas[i] > 0) this.gas.explodeAt(x, y);
       const out = isCampGround(x, y) ? DYN_KEEP : dynamiteOutcome(w.tileType[i], w.oreType[i], tier);
       if (out === DYN_KEEP) { if (w.oreType[i]) this.vis.revealAround(x, y); continue; }
       this.breakTile(i, out === DYN_COLLECT);

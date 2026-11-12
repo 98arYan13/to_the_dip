@@ -19,7 +19,7 @@ export const EV = Object.freeze({
   LOW_ENERGY: 'energy:low',
   HARD_LANDING: 'player:hardLanding',    // payload: {damage, tiles, vy}
   HP_CHANGED: 'player:hp',               // payload: hp
-  SUIT_BROKEN: 'player:suitBroken',
+  PLAYER_DEAD: 'player:dead',            // payload: cause string
   SWING: 'player:swing',
   RESCUE: 'energy:rescue',
   DEPTH_CHANGED: 'depth:changed',        // payload: {meters, layer}
@@ -47,6 +47,13 @@ export const EV = Object.freeze({
   ORE_DROPPED: 'ore:dropped',
   NEW_GAME: 'game:new',
   STATION_FULL: 'station:full',
+  QUAKE_WARN: 'quake:warn',              // payload: {strength}
+  QUAKE: 'quake',                        // payload: {strength}
+  COMPLETED: 'game:completed',           // the Core was stabilized
+  ACHIEVEMENT: 'achievement',            // payload: {id}
+  TILE_WARN: 'tile:warn',                // payload: {x,y} unstable tile cracking
+  TILE_FELL: 'tile:fell',                // payload: {x,y} new position
+  TILE_CRUSH: 'tile:crush',              // payload: {x,y} a falling tile landed on the player
 });
 
 /**

@@ -3,7 +3,7 @@
  * DOM/CSS heads-up display. Updated only from events (never per frame).
  */
 import { EV } from '../core/EventBus.js';
-import { CONSUMABLES, MATERIALS, ORES, TILE, FLAG, ENERGY } from '../config.js';
+import { CONSUMABLES, MATERIALS, ORES, TILE, FLAG, ENERGY, PHYSICS } from '../config.js';
 import { canMine, requirementHint, isCampGround, CAMP_HINT } from '../systems/Mining.js';
 
 export class HUD {
@@ -21,6 +21,7 @@ export class HUD {
         <div class="row health"><span class="lbl">HEALTH</span><div class="bar"><div class="hp-fill"></div></div><span class="val hp-val">100</span></div>
         <div class="row"><span class="lbl">CARGO</span><span class="val cargo-val">0 kg</span></div>
         <div class="row"><span class="lbl">CREDITS</span><span class="val credits-val">$0</span></div>
+        <div class="row"><span class="lbl">TEMP</span><span class="val temp-val">15 °C</span></div>
         <div class="row"><span class="lbl">DEPTH</span><span class="val depth-val">0 m</span></div>
         <div class="row layer-val">Surface · Base Camp</div>
         <div class="row pick"><span class="pick-icon"></span><span class="pick-name">Bronze Pickaxe</span></div>
@@ -41,13 +42,15 @@ export class HUD {
         <div class="slot" data-slot="dynamite"><kbd>1</kbd><span class="s-name">${CONSUMABLES.dynamite.short}</span><span class="s-count">×0</span></div>
         <div class="slot" data-slot="teleporter"><kbd>2</kbd><span class="s-name">${CONSUMABLES.teleporter.short}</span><span class="s-count">×0</span></div>
         <div class="slot" data-slot="cell"><kbd>3</kbd><span class="s-name">${CONSUMABLES.cell.short}</span><span class="s-count">×0</span></div>
+        <div class="slot" data-slot="ladder"><kbd>4</kbd><span class="s-name">${CONSUMABLES.ladder.short}</span><span class="s-count">×0</span></div>
+        <div class="slot" data-slot="bigBomb"><kbd>5</kbd><span class="s-name">${CONSUMABLES.bigBomb.short}</span><span class="s-count">×0</span></div>
         <div class="slot radar-slot"><kbd>R</kbd><span class="s-name">Radar</span><span class="s-count r-cd">ready</span></div>
       </div>
       <div class="tooltip hidden"></div>`;
     const q = (s) => /** @type {HTMLElement} */ (root.querySelector(s));
     this.el = {
       energyRow: q('.energy'), fill: q('.fill'), eVal: q('.e-val'), cargo: q('.cargo-val'), hp: q('.hp-val'), hpFill: q('.hp-fill'), healthRow: q('.health'), credits: q('.credits-val'),
-      depth: q('.depth-val'), layer: q('.layer-val'), pickIcon: q('.pick-icon'), pickName: q('.pick-name'),
+      depth: q('.depth-val'), temp: q('.temp-val'), layer: q('.layer-val'), pickIcon: q('.pick-icon'), pickName: q('.pick-name'),
       prompt: q('.prompt'), tooltip: q('.tooltip'), radarCd: q('.r-cd'), minimapWrap: q('.minimap-wrap'),
       mute: q('[data-act="mute"]'), music: q('[data-act="music"]'),
     };
@@ -99,6 +102,15 @@ export class HUD {
     const ec = this.d.economy;
     this.el.cargo.textContent = `${ec.cargoWeight.toFixed(1)}/${ec.capacity} kg · speed ${Math.round(ec.speedMult * 100)}%`;
     this.el.cargo.classList.toggle('full', ec.loadFrac >= 0.95);
+  }
+
+  /** @param {number} t °C */
+  setTemp(t) {
+    const r = Math.round(t / 5) * 5;
+    if (r === this._temp) return;
+    this._temp = r;
+    this.el.temp.textContent = `${r} °C${this.d.economy.tech.includes('heat_suit') ? ' ♨' : ''}${this.d.economy.tech.includes('magma_boots') ? ' ▲' : ''}`;
+    this.el.temp.style.color = t >= PHYSICS.HEAT_SAFE_T * 0.8 ? '#ff5a4a' : '';
   }
 
   refreshCredits() { this.el.credits.textContent = `$${this.d.economy.credits.toLocaleString('en-US')}`; }

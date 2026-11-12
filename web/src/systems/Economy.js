@@ -3,10 +3,11 @@
  * Cargo, credits, upgrades and consumables. The rules are pure functions (unit-tested);
  * the Economy class wraps them with state and events.
  */
-import { ORES, PICKAXES, UPGRADES, CONSUMABLES, ECONOMY, BALANCE, ENERGY } from '../config.js';
+import { ORES, PICKAXES, UPGRADES, CONSUMABLES, ECONOMY, BALANCE, ENERGY, CAMP_BUILDINGS } from '../config.js';
 
 const cents = (v) => Math.round(v * 100) / 100;
 import { EV } from '../core/EventBus.js';
+import { techStat } from './Tech.js';
 
 /** Upgrade kinds in shop order. */
 export const UPGRADE_KINDS = Object.freeze(['pickaxe', 'rig', 'jetpack', 'radar']);
@@ -41,7 +42,7 @@ export function cargoUnits(cargo) {
   return u;
 }
 
-/** Sell value of a cargo array. */
+/** Sell value of a cargo or stash array. */
 export function cargoValue(cargo) {
   let v = 0;
   for (let o = 1; o < cargo.length; o++) v += cargo[o] * /** @type {any} */ (ORES[o]).price;
@@ -118,6 +119,14 @@ export function createEconomyState() {
   return {
     credits: ECONOMY.START_CREDITS,
     cargo: new Array(ORES.length).fill(0),
+    stash: new Array(ORES.length).fill(0),
+    tech: /** @type {string[]} */ ([]),
+    buildings: /** @type {Record<string, number>} */ ({}),
+    stations: /** @type {{x:number,y:number}[]} */ ([]),
+    contracts: { active: /** @type {any[]} */ ([]), done: /** @type {string[]} */ ([]) },
+    achievements: /** @type {string[]} */ ([]),
+    collect: { ore: /** @type {Record<number,number>} */ ({}), maxDepth: 0 },
+    completed: false,
     levels: { pickaxe: 0, rig: 0, jetpack: 0, radar: 0 },
     consumables,
   };
@@ -137,13 +146,21 @@ export class Economy {
   load(s) {
     this.credits = s.credits;
     this.cargo = new Uint16Array(ORES.length);
-    for (let o = 0; o < ORES.length; o++) this.cargo[o] = s.cargo[o] || 0;
+    this.tech = [...(s.tech || [])];
+    this.buildings = { ...(s.buildings || {}) };
+    this.stations = (s.stations || []).map((p) => ({ ...p }));
+    this.contracts = { active: [...(s.contracts?.active || [])], done: [...(s.contracts?.done || [])] };
+    this.achievements = [...(s.achievements || [])];
+    this.collect = { ore: { ...(s.collect?.ore || {}) }, maxDepth: s.collect?.maxDepth || 0 };
+    this.completed = !!s.completed;
+    this.stash = new Uint16Array(ORES.length);
+    for (let o = 0; o < ORES.length; o++) { this.cargo[o] = s.cargo[o] || 0; this.stash[o] = s.stash?.[o] || 0; }
     this.levels = { ...createEconomyState().levels, ...s.levels };
     this.consumables = { ...createEconomyState().consumables, ...s.consumables };
   }
 
   toJSON() {
-    return { credits: this.credits, cargo: Array.from(this.cargo), levels: { ...this.levels }, consumables: { ...this.consumables } };
+    return { credits: this.credits, cargo: Array.from(this.cargo), stash: Array.from(this.stash), tech: [...this.tech], buildings: { ...this.buildings }, stations: this.stations.map((p) => ({ ...p })), contracts: { active: [...this.contracts.active], done: [...this.contracts.done] }, achievements: [...this.achievements], collect: { ore: { ...this.collect.ore }, maxDepth: this.collect.maxDepth }, completed: this.completed, levels: { ...this.levels }, consumables: { ...this.consumables } };
   }
 
   /** Dev override: tier 1..6, or 0 for the owned tool. Not saved. */
@@ -153,7 +170,13 @@ export class Economy {
   get jetpack() { return UPGRADES.jetpack.levels[this.levels.jetpack]; }
   get rig() { return UPGRADES.rig.levels[this.levels.rig]; }
   get radar() { return UPGRADES.radar.levels[this.levels.radar]; }
-  get capacity() { return this.rig.capacity; }
+  get capacity() { return this.stat('capacity', this.rig.capacity); }
+  /** @param {string} name @param {number} base */
+  get sellMul() { const l = this.buildings.shop || 0; return l ? CAMP_BUILDINGS.shop.levels[l - 1].effect.sellMul : 1; }
+  get upgradeDiscount() { const l = this.buildings.workshop || 0; return l ? CAMP_BUILDINGS.workshop.levels[l - 1].effect.upgradeDiscount : 1; }
+  /** Upgrade price after workshop discount; -1 if maxed. @param {string} kind */
+  upgradeCost(kind) { const c = nextUpgradeCost(kind, this.levels[kind]); return c < 0 ? c : Math.round(c * this.upgradeDiscount); }
+  stat(name, base) { return techStat(this.tech, name, base); }
   get cargoWeight() { return cargoWeight(this.cargo); }
   /** W_total / C_max, 0..1. */
   get loadFrac() { return Math.min(1, this.cargoWeight / this.capacity); }
@@ -175,7 +198,7 @@ export class Economy {
   /** Sell everything. @returns {{total:number, lines:ReturnType<typeof saleLines>}} */
   sellAll() {
     const lines = saleLines(this.cargo);
-    const total = cargoValue(this.cargo);
+    const total = cents(cargoValue(this.cargo) * this.sellMul);
     if (total <= 0) return { total: 0, lines };
     this.cargo.fill(0);
     this.credits = cents(this.credits + total);
@@ -187,7 +210,7 @@ export class Economy {
 
   /** @param {string} kind @returns {{ok:boolean, reason?:string}} */
   canBuyUpgrade(kind) {
-    const cost = nextUpgradeCost(kind, this.levels[kind]);
+    const cost = this.upgradeCost(kind);
     if (cost < 0) return { ok: false, reason: 'Maxed out' };
     if (this.credits < cost) return { ok: false, reason: `Need $${(cost - this.credits).toLocaleString('en-US')} more` };
     return { ok: true };
@@ -197,7 +220,7 @@ export class Economy {
   buyUpgrade(kind) {
     const check = this.canBuyUpgrade(kind);
     if (!check.ok) { this.bus.emit(EV.PURCHASE_FAILED, check.reason); return check; }
-    this.credits = cents(this.credits - nextUpgradeCost(kind, this.levels[kind]));
+    this.credits = cents(this.credits - this.upgradeCost(kind));
     this.levels[kind]++;
     this.bus.emit(EV.CREDITS_CHANGED, this.credits);
     this.bus.emit(EV.UPGRADE_BOUGHT, { kind, level: this.levels[kind] });
@@ -208,6 +231,7 @@ export class Economy {
   /** @param {string} kind */
   canBuyConsumable(kind) {
     const c = /** @type {any} */ (CONSUMABLES)[kind];
+    if (c.tech && !this.tech.includes(c.tech)) return { ok: false, reason: 'Requires tech' };
     if (this.credits < c.price) return { ok: false, reason: `Need $${(c.price - this.credits).toLocaleString('en-US')} more` };
     return { ok: true };
   }
@@ -229,6 +253,60 @@ export class Economy {
     this.consumables[kind]--;
     this.bus.emit(EV.CONSUMABLES_CHANGED);
     return true;
+  }
+
+  /** Move cargo into the home stash (all ores, or just `ore`). */
+  deposit(ore = 0) {
+    const cap = this.stat('stashCap', ECONOMY.STASH_CAP);
+    for (let o = 1; o < this.cargo.length; o++) if (!ore || o === ore) { const n = Math.min(this.cargo[o], Math.max(0, cap - this.stash[o])); this.stash[o] += n; this.cargo[o] -= n; }
+    this.bus.emit(EV.CARGO_CHANGED);
+  }
+
+  /** Take up to n units of `ore` from the stash into cargo, as far as capacity allows. @returns {number} moved */
+  withdraw(ore, n) {
+    let moved = 0;
+    while (moved < n && this.stash[ore] > 0 && canAddOre(this.cargo, ore, this.capacity)) { this.stash[ore]--; this.cargo[ore]++; moved++; }
+    if (moved) this.bus.emit(EV.CARGO_CHANGED);
+    return moved;
+  }
+
+  /** Sell up to n units of `ore` from the stash. @returns {number} credits earned */
+  sellFromStash(ore, n) {
+    const k = Math.min(n, this.stash[ore]);
+    if (k <= 0) return 0;
+    const total = cents(k * /** @type {any} */ (ORES[ore]).price * this.sellMul);
+    this.stash[ore] -= k;
+    this.credits = cents(this.credits + total);
+    this.bus.emit(EV.CARGO_CHANGED);
+    this.bus.emit(EV.CREDITS_CHANGED, this.credits);
+    return total;
+  }
+
+  /** @param {{cash?:number, ores?:Record<number,number>}} cost */
+  canAfford(cost) {
+    if ((cost.cash || 0) > this.credits) return false;
+    return Object.entries(cost.ores || {}).every(([o, n]) => this.stash[+o] + this.cargo[+o] >= n);
+  }
+
+  /** Pay cash plus ores (stash first, then cargo). Changes nothing and returns false if unaffordable. */
+  pay(cost) {
+    if (!this.canAfford(cost)) return false;
+    this.credits = cents(this.credits - (cost.cash || 0));
+    for (const [o, n] of Object.entries(cost.ores || {})) {
+      const fromStash = Math.min(n, this.stash[+o]);
+      this.stash[+o] -= fromStash; this.cargo[+o] -= n - fromStash;
+    }
+    this.bus.emit(EV.CARGO_CHANGED);
+    this.bus.emit(EV.CREDITS_CHANGED, this.credits);
+    return true;
+  }
+
+  /** Death: the run's loot (cargo + consumables) is lost; credits, upgrades and stash are kept. */
+  applyDeath() {
+    this.cargo.fill(0);
+    this.consumables = createEconomyState().consumables;
+    this.bus.emit(EV.CARGO_CHANGED);
+    this.bus.emit(EV.CONSUMABLES_CHANGED);
   }
 
   /** Apply emergency-rescue cargo loss. @returns {number} units lost */

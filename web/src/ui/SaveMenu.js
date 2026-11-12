@@ -4,9 +4,13 @@
  * Risky actions need a second click on the same button (no window.confirm: it is blocked in some embeds).
  */
 import { SAVE, WORLD } from '../config.js';
+import { dateKey } from '../systems/Daily.js';
 
 /** localStorage key for slot n (slot 1 keeps the pre-slot key so old saves stay in slot 1). */
-export const slotKey = (n) => (n === 1 ? SAVE.KEY : `${SAVE.KEY}.${n}`);
+export const slotKey = (n) => (n === 0 ? `${SAVE.KEY}.daily.${dateKey()}` : n === 1 ? SAVE.KEY : `${SAVE.KEY}.${n}`);
+
+/** Best daily scores by date. @param {any} storage */
+export function dailyBests(storage) { try { return JSON.parse(storage.getItem(`${SAVE.KEY}.dailybest`) || '{}'); } catch { return {}; } }
 
 export class SaveMenu {
   /**
@@ -58,6 +62,10 @@ export class SaveMenu {
       html += `<div class="up-row"><div><div class="up-name">Slot ${n}${n === active ? ' <span class="lvl">(active)</span>' : ''}</div><div class="up-stats">${info}</div></div>
         <div class="up-buy">${btn('save', 'Save here', false)} ${has && n !== active ? btn('load', 'Load', false) : ''} ${btn('new', 'New game', true)}</div></div>`;
     }
+    const best = dailyBests(this.storage)[dateKey()];
+    const dHas = this._has(0);
+    html += `<div class="up-row"><div><div class="up-name">Daily Challenge ${dateKey()}${active === 0 ? ' <span class="lvl">(active)</span>' : ''}</div><div class="up-stats">Same world for everyone today · base equipment · separate save${best ? ` · best ${best}` : ''}</div></div>
+      <div class="up-buy"><button class="btn primary" data-act="${dHas ? 'load' : 'new'}" data-slot="0">${this.armed === (dHas ? 'load0' : 'new0') ? 'Sure?' : dHas ? 'Resume' : 'Play'}</button></div></div>`;
     this.body.innerHTML = html;
   }
 

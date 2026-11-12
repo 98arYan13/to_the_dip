@@ -29,7 +29,7 @@ export class Energy {
   constructor(bus, economy) {
     this.bus = bus;
     this.economy = economy;
-    this.value = economy.rig.maxEnergy;
+    this.value = this.max;
     /** Current depth in meters (set by the game loop). */
     this.depthM = 0;
     this.lowTimer = 0;
@@ -40,7 +40,7 @@ export class Energy {
     this.payload = { value: 0, max: 0 };
   }
 
-  get max() { return this.economy.rig.maxEnergy; }
+  get max() { return this.economy.stat('maxEnergy', this.economy.rig.maxEnergy); }
   get frac() { return this.value / this.max; }
 
   /**
@@ -56,7 +56,7 @@ export class Energy {
     } else {
       // Depth heat/pressure only drains underground; the surface is free.
       // Only the jetpack drains over time; hand tools are free, drills pay per block (drainBlock).
-      if (s.jetting) this.value -= this.economy.jetpack.drain * dt;
+      if (s.jetting && !this.god) this.value -= this.economy.stat('jetDrain', this.economy.jetpack.drain) * dt;
     }
     this._clampAndReport();
     if (this.frac < ENERGY.LOW_THRESHOLD && this.value > 0) {
@@ -83,7 +83,7 @@ export class Energy {
   /** One-off drain (mining hit, radar). @param {number} amount */
   drain(amount) { this._drainWarn(amount); }
 
-  _drainWarn(amount) { this.value -= amount; this._clampAndReport(); this._warn(); }
+  _drainWarn(amount) { if (this.god) return; this.value -= amount; this._clampAndReport(); this._warn(); }
 
   /** @param {number} amount */
   add(amount) { this.value = Math.min(this.max, this.value + amount); this._clampAndReport(); }
