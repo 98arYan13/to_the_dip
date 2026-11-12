@@ -1,0 +1,21 @@
+{
+  "canvas": 96,
+  "angleStep": 10,
+  "bones": [
+    { "name": "hips", "parent": null, "x": 48, "y": 60, "rest": 90, "length": 8, "width": 12, "layer": 9, "color": "#673b2d" },
+    { "name": "torso", "parent": "hips", "x": 0, "y": 0, "rest": 180, "length": 27, "width": 16, "layer": 10, "color": "#bc6650" },
+    { "name": "head", "parent": "torso", "x": 27, "y": 0, "rest": 0, "length": 23, "width": 20, "layer": 11, "color": "#f2a985" },
+    { "name": "armB_upper", "parent": "torso", "x": 24, "y": -2, "rest": 180, "length": 13, "width": 5, "layer": 4, "color": "#f2a985" },
+    { "name": "armB_lower", "parent": "armB_upper", "x": 13, "y": 0, "rest": 0, "length": 12, "width": 4, "layer": 5, "color": "#f2a985" },
+    { "name": "handB", "parent": "armB_lower", "x": 12, "y": 0, "rest": 0, "length": 4, "width": 4, "layer": 6, "color": "#f2a985" },
+    { "name": "armF_upper", "parent": "torso", "x": 24, "y": 2, "rest": 180, "length": 13, "width": 5, "layer": 15, "color": "#f2a985" },
+    { "name": "armF_lower", "parent": "armF_upper", "x": 13, "y": 0, "rest": 0, "length": 12, "width": 4, "layer": 16, "color": "#f2a985" },
+    { "name": "handF", "parent": "armF_lower", "x": 12, "y": 0, "rest": 0, "length": 4, "width": 4, "layer": 17, "color": "#f2a985" },
+    { "name": "legB_thigh", "parent": "hips", "x": 0, "y": 3, "rest": 0, "length": 16, "width": 6, "layer": 1, "color": "#582f25" },
+    { "name": "legB_shin", "parent": "legB_thigh", "x": 16, "y": 0, "rest": 0, "length": 16, "width": 5, "layer": 2, "color": "#582f25" },
+    { "name": "footB", "parent": "legB_shin", "x": 16, "y": 0, "rest": -90, "length": 8, "width": 4, "layer": 3, "color": "#382121" },
+    { "name": "legF_thigh", "parent": "hips", "x": 0, "y": -2, "rest": 0, "length": 16, "width": 6, "layer": 12, "color": "#673b2d" },
+    { "name": "legF_shin", "parent": "legF_thigh", "x": 16, "y": 0, "rest": 0, "length": 16, "width": 5, "layer": 13, "color": "#673b2d" },
+    { "name": "footF", "parent": "legF_shin", "x": 16, "y": 0, "rest": -90, "length": 8, "width": 4, "layer": 14, "color": "#382121" }
+  ]
+}
