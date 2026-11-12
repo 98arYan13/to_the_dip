@@ -22,7 +22,7 @@ export function tileHeat(type, depth01) {
   return type === TILE.CORE ? PHYSICS.CORE_T : 0;
 }
 
-/** Ambient air/rock temperature (°C) at depth01; stays below HEAT_SAFE_T so only contact heat hurts. */
+/** Ambient air/rock temperature (°C) at depth01; past HEAT_SAFE_T in the deep layers, so the depths burn slowly too. */
 export function ambientTemp(depth01) {
   return GEAR.AMBIENT_T0 + (GEAR.AMBIENT_T1 - GEAR.AMBIENT_T0) * depth01;
 }
@@ -223,16 +223,22 @@ export class Player {
       }
     }
     this.temp = Math.max(temp, ambientTemp(depth01));
-    this.burnAcc = (this.burnAcc || 0) + heatDps(temp, economy.tech.includes('heat_suit') ? GEAR.HEAT_SUIT_RESIST : 0) * dt;
-    if (this.burnAcc >= 1) { const d = Math.floor(this.burnAcc); this.burnAcc -= d; this.setHP(this.hp - d); }
+    this.burnAcc = (this.burnAcc || 0) + heatDps(this.temp, economy.tech.includes('heat_suit') ? GEAR.HEAT_SUIT_RESIST : 0) * dt;
+    this.burnFlinch = (this.burnFlinch || 0) - dt;
+    if (this.burnAcc >= 1) {
+      const d = Math.floor(this.burnAcc); this.burnAcc -= d;
+      // heat ticks every few frames: flinch at most once a second, or the hurt clip would lock out every other pose
+      const flinch = this.burnFlinch <= 0; if (flinch) this.burnFlinch = 1;
+      this.setHP(this.hp - d, flinch);
+    }
   }
 
-  /** @param {number} hp */
-  setHP(hp) {
+  /** @param {number} hp @param {boolean} [flinch] play the hurt animation on damage */
+  setHP(hp, flinch = true) {
     const was = this.hp;
     if (this.god && hp < was) return; // god mode: damage has no effect
     this.hp =Math.max(0, Math.min(PHYSICS.SUIT_HP, hp));
-    if (this.hp < was) this.hurtTimer = 0.3; // drives the hurt animation
+    if (this.hp < was && flinch) this.hurtTimer = 0.3; // drives the hurt animation
     if (this.hp !== was) this.d.bus.emit(EV.HP_CHANGED, this.hp);
     if (this.hp <= 0 && was > 0) this.d.bus.emit(EV.PLAYER_DEAD, 'suit');
   }

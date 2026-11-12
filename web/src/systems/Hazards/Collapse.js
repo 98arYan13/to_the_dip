@@ -33,10 +33,15 @@ export class Collapse {
     this.crush = (/** @type {number} */ x, /** @type {number} */ y) => false;
     this.processed = 0;
     /** @type {Set<number>} tiles forced to fall (quake rockfall): not cancelled by the support check */ this.forced = new Set();
-    bus.on(EV.TILE_CHANGED, (i) => this._near(i % world.W, (i / world.W) | 0));
+    /** @type {Set<number>} core rock whose tile below just emptied: melts into magma */ this.melt = new Set();
+    bus.on(EV.TILE_CHANGED, (i) => {
+      const w = this.world;
+      this._near(i % w.W, (i / w.W) | 0);
+      if (w.tileType[i] === TILE.AIR && i >= w.W && w.tileType[i - w.W] === TILE.CORE) this.melt.add(i - w.W);
+    });
   }
 
-  setWorld(w) { this.world = w; this.forced.clear(); this.dirty.clear(); this.warn.clear(); this.falling.clear(); this.markAll(); }
+  setWorld(w) { this.world = w; this.forced.clear(); this.dirty.clear(); this.warn.clear(); this.falling.clear(); this.melt.clear(); this.markAll(); }
 
   /** Queue every sand/soil tile once (after load, so floating sand starts moving). */
   markAll() {
@@ -67,6 +72,13 @@ export class Collapse {
     const w = this.world;
     let budget = C.MAX_PER_TICK;
     this.processed = 0;
+
+    for (const i of [...this.melt]) {
+      this.melt.delete(i);
+      if (w.tileType[i] !== TILE.CORE || w.tileType[i + w.W] !== TILE.AIR) continue;
+      w.clear(i); w.tileType[i] = TILE.MAGMA; w.fluid[i] = HAZARD.FLUID.MAX;
+      this.bus.emit(EV.TILE_CHANGED, i);
+    }
 
     for (const i of this.dirty) {
       if (budget <= 0) break;

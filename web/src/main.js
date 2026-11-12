@@ -312,8 +312,10 @@ function boot() {
     sfx.rumble(0.2);
   });
   bus.on(EV.TILE_CRUSH, () => player.die('crushed'));
+  let lastHP = player.hp;
+  bus.on(EV.HP_CHANGED, (hp) => { if (hp < lastHP) postfx.hurt = 1; lastHP = hp; });
   bus.on(EV.SWING, () => gas.onPlayerMine());
-  bus.on(EV.QUAKE_WARN, () => { toast.show('The ground is rumbling…', 'warn'); sfx.rumble(0.6); });
+  bus.on(EV.QUAKE_WARN, () => { camera.addTrauma(0.3); sfx.rumble(0.3); }); // foreshock, main quake follows after WARN_S
   bus.on(EV.QUAKE, (q) => { camera.addTrauma(0.4 + 0.6 * q.strength); sfx.rumble(0.8 + 0.2 * q.strength); });
   bus.on(EV.COMPLETED, () => { ending.show(); input.clear(); });
   bus.on(EV.HINT, (text) => toast.show(text, 'warn'));

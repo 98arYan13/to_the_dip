@@ -18,6 +18,8 @@ export class PostFX {
     this.grainEnabled = true;
     this.shimmerEnabled = true;
     this.reducedFlashing = false;
+    /** 0..1 red screen-edge flash on suit damage; set to 1 on a hit, fades in 0.5 s. */
+    this.hurt = 0; this.lastT = 0;
     this.grades = [];
     const g = POSTFX.GRADES;
     const stops = [0, 0.35, 0.6, 1];
@@ -97,6 +99,13 @@ export class PostFX {
     calls++;
     if (s.energyFrac < s.lowThreshold) {
       ctx.globalAlpha = this.reducedFlashing ? 0.4 : 0.25 + 0.35 * (0.5 + 0.5 * Math.sin(s.time * 6));
+      ctx.drawImage(/** @type {any} */ (this.lowVignette), 0, 0);
+      calls++;
+    }
+    const dt = Math.min(0.1, Math.max(0, s.time - this.lastT)); this.lastT = s.time;
+    if (this.hurt > 0) {
+      this.hurt = Math.max(0, this.hurt - dt * 2);
+      ctx.globalAlpha = 0.7 * this.hurt;
       ctx.drawImage(/** @type {any} */ (this.lowVignette), 0, 0);
       calls++;
     }

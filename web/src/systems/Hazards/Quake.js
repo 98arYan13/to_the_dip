@@ -1,9 +1,9 @@
 /**
  * @module systems/Hazards/Quake
- * Seeded earthquake scheduler: rumble warning, then ceiling tiles near the player are forced to fall (rockfall).
+ * Seeded earthquake scheduler: a small foreshock, a few calm seconds, then weak ceiling tiles near the player fall (rockfall).
  * Never above SAFE_DEPTH_M or at camp.
  */
-import { WORLD, HAZARD } from '../../config.js';
+import { WORLD, HAZARD, MATERIALS, TILE } from '../../config.js';
 import { EV } from '../../core/EventBus.js';
 import { isCampGround } from '../Mining.js';
 
@@ -31,7 +31,6 @@ export class Quake {
     this.shake = Math.max(0, this.shake - Q.SHAKE_DECAY * dt);
     if (this.warn >= 0) {
       this.warn -= dt;
-      this.shake = Math.max(this.shake, 0.15 + 0.1 * this.pending);
       if (this.warn < 0) this.trigger(this.pending);
       return;
     }
@@ -51,7 +50,7 @@ export class Quake {
     this.bus.emit(EV.QUAKE, { strength });
     const cand = [];
     for (let y = this.focus.y - R; y <= this.focus.y + R; y++) for (let x = this.focus.x - R; x <= this.focus.x + R; x++) {
-      if (w.inBounds(x, y) && w.isSolid(x, y) && !w.isSolid(x, y + 1) && !isCampGround(x, y)) cand.push([x, y]);
+      if (w.inBounds(x, y) && w.isSolid(x, y) && !w.isSolid(x, y + 1) && w.tileType[y * w.W + x] !== TILE.SAND && MATERIALS[w.tileType[y * w.W + x]].hard <= Q.WEAK_MAX_HARD && !isCampGround(x, y)) cand.push([x, y]);
     }
     for (let k = cand.length - 1; k > 0; k--) { const j = this.rng.int(0, k); [cand[k], cand[j]] = [cand[j], cand[k]]; }
     const n = Math.round(Q.BASE_N + (Q.MAX_N - Q.BASE_N) * strength);

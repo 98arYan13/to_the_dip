@@ -62,7 +62,7 @@ import { loadRigAssets } from './src/anim/loadRigAssets.js';
 import { createPose, solveWorld } from './src/anim/Rig.js';
 import { sampleClip } from './src/anim/Clip.js';
 import { applyOverlays } from './src/anim/Overlays.js';
-import { RigRenderer } from './src/anim/RigRenderer.js';
+import { RigRenderer, PAD } from './src/anim/RigRenderer.js';
 import { defaultOutfit, WEAR_KINDS } from './src/anim/Outfit.js';
 
 const $ = (id) => document.getElementById(id);
@@ -176,7 +176,7 @@ function draw() {
   const render = (p, alpha) => {
     const w = applyOverlays(rig, p, { look: $('aim').checked ? mouse : [200, 40], mining: $('mining').checked, pickAngle: $('aim').checked ? Math.atan2(mouse[1] - 40, mouse[0] - 60) : 0.4, landVY: 0, squashT: 1 });
     const c = rr.render(w, outfit, { sprite: pickImg.complete && pickImg.naturalWidth ? pickImg : null, angle: 0.9, color: '#fff' });
-    vg.globalAlpha = alpha; vg.drawImage(c, 0, 0, 96 * sc, 96 * sc);
+    vg.globalAlpha = alpha; vg.drawImage(c, -PAD * sc, -PAD * sc, c.width * sc, c.height * sc);
   };
   vg.fillStyle = '#3a4052'; vg.fillRect(0, 94 * sc, 96 * sc, 1);
   if ($('onion').checked) {

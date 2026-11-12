@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { createPose, solveWorld, boneTip } from '../src/anim/Rig.js';
-import { toRigSpace, solveTwoBone, headLook, gripTarget, applyOverlays, squashOffset } from '../src/anim/Overlays.js';
+import { toRigSpace, solveTwoBone, headLook, gripTarget, applyOverlays, squashOffset, HAND_GAP } from '../src/anim/Overlays.js';
 import { realRig } from './rig.test.js';
 
 const rig = realRig();
@@ -37,6 +37,14 @@ describe('Overlays', () => {
     const [gx, gy] = gripTarget(rig, w, 0.4); const h = rig.index.get('handF');
     expect(Math.hypot(w.x[h] - gx, w.y[h] - gy)).toBeLessThan(1);
     expect(boneTip(rig, w, h)).toBeDefined();
+  });
+  it('mining puts both hands on the handle at every swing angle', () => {
+    for (const a of [-2.2, -1.2, 0, 0.6, 1.4]) {
+      const w = applyOverlays(rig, createPose(rig), { look: [90, 40], mining: true, pickAngle: a, landVY: 0, squashT: 1 });
+      const [gx, gy] = gripTarget(rig, w, a); const f = rig.index.get('handF'); const b = rig.index.get('handB');
+      expect(Math.hypot(w.x[f] - gx, w.y[f] - gy)).toBeLessThan(1);
+      expect(Math.hypot(w.x[b] - (gx + HAND_GAP * Math.cos(a)), w.y[b] - (gy + HAND_GAP * Math.sin(a)))).toBeLessThan(1);
+    }
   });
   it('squash', () => { expect(squashOffset(300, 0)).toBe(5); expect(squashOffset(300, 0.2)).toBe(0); });
 });

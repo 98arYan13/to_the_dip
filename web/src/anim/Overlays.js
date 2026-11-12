@@ -39,12 +39,17 @@ export function headLook(rig, pose, world, tx, ty) {
 
 export function gripTarget(rig, world, pickAngle) {
   const u = rig.index.get('armF_upper'); const l = rig.index.get('armF_lower');
-  const r = 0.85 * (rig.bones[u].length + rig.bones[l].length);
+  // close to the body so the back hand, HAND_GAP further up the handle, still reaches
+  const r = 0.5 * (rig.bones[u].length + rig.bones[l].length);
   return /** @type {[number, number]} */ ([world.x[u] + r * Math.cos(pickAngle), world.y[u] + r * Math.sin(pickAngle)]);
 }
 
-export function armToGrip(rig, pose, world, gx, gy) {
-  const u = rig.index.get('armF_upper'); const l = rig.index.get('armF_lower');
+/** Rig px between the two hands along the pick handle (front hand at the butt, back hand toward the head). */
+export const HAND_GAP = 8;
+
+/** @param {'F'|'B'} side */
+export function armToGrip(rig, pose, world, gx, gy, side = 'F') {
+  const u = rig.index.get(`arm${side}_upper`); const l = rig.index.get(`arm${side}_lower`);
   const { a1, a2 } = solveTwoBone(rig.bones[u].length, rig.bones[l].length, gx - world.x[u], gy - world.y[u], -1);
   pose.angle[u] = a1 - (world.a[rig.parent[u]] + rig.bones[u].restRad);
   pose.angle[l] = a2 - rig.bones[l].restRad;
@@ -54,7 +59,7 @@ export function armToGrip(rig, pose, world, gx, gy) {
 export const squashOffset = (landVY, t) => Math.round(Math.min(6, landVY / 60) * Math.max(0, 1 - t / 0.18));
 
 /**
- * squash → solve → head look → (mining) arm IK → solve. Mutates `pose`.
+ * squash → solve → head look → (mining) two-hand arm IK → solve. Mutates `pose`.
  * @param {{look:[number,number], mining:boolean, pickAngle:number, landVY:number, squashT:number}} ctx
  */
 export function applyOverlays(rig, pose, ctx) {
@@ -64,6 +69,7 @@ export function applyOverlays(rig, pose, ctx) {
   if (ctx.mining) {
     const [gx, gy] = gripTarget(rig, w, ctx.pickAngle);
     armToGrip(rig, pose, w, gx, gy);
+    armToGrip(rig, pose, w, gx + HAND_GAP * Math.cos(ctx.pickAngle), gy + HAND_GAP * Math.sin(ctx.pickAngle), 'B');
   }
   w = solveWorld(rig, pose, w);
   return w;

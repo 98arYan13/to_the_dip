@@ -33,6 +33,9 @@ export function buildDrawList(rig, outfit, items) {
   return list.map((d, i) => [d, i]).sort((a, b) => /** @type {any} */ (a[0]).layer - /** @type {any} */ (b[0]).layer || /** @type {any} */ (a[1]) - /** @type {any} */ (b[1])).map((x) => /** @type {DrawItem} */ (x[0]));
 }
 
+/** Rig px of empty margin on each side of the canvas, so a swung pick reaching past the 96px box is not cut off. */
+export const PAD = 48;
+
 export class RigRenderer {
   /** @param {import('./Rig.js').Rig} rig @param {any[]} items @param {Map<string, HTMLImageElement>} images */
   constructor(rig, items, images) {
@@ -60,11 +63,12 @@ export class RigRenderer {
   render(world, outfit, pick) {
     const rig = this.rig;
     if (!this.canvas) {
-      this.canvas = document.createElement('canvas'); this.canvas.width = this.canvas.height = rig.canvas;
+      this.canvas = document.createElement('canvas'); this.canvas.width = this.canvas.height = rig.canvas + 2 * PAD;
     }
     const ctx = /** @type {CanvasRenderingContext2D} */ (this.canvas.getContext('2d'));
     ctx.imageSmoothingEnabled = false;
-    ctx.clearRect(0, 0, rig.canvas, rig.canvas);
+    ctx.setTransform(1, 0, 0, 1, PAD, PAD);
+    ctx.clearRect(-PAD, -PAD, rig.canvas + 2 * PAD, rig.canvas + 2 * PAD);
     for (const d of buildDrawList(rig, outfit, this.items)) {
       ctx.save();
       ctx.translate(Math.round(world.x[d.bone]), Math.round(world.y[d.bone]));

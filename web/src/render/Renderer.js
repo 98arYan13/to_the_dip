@@ -10,13 +10,21 @@ import { requiredTier } from '../systems/Mining.js';
 import { hexToRgb } from './canvas.js';
 import { loadRigAssets } from '../anim/loadRigAssets.js';
 import { Animator } from '../anim/Animator.js';
-import { RigRenderer } from '../anim/RigRenderer.js';
+import { RigRenderer, PAD as RIG_PAD } from '../anim/RigRenderer.js';
 import { sanitizeOutfit } from '../anim/Outfit.js';
 import { applyOverlays, toRigSpace } from '../anim/Overlays.js';
 import { solveWorld } from '../anim/Rig.js';
 
 const T = WORLD.TILE_PX;
 const MAX_SHOCKWAVES = 8;
+
+/** Pick angle offset (rad) from aim over one swing. Phase 0 and 1 are both the impact, so the loop is seamless:
+ * slow ease-out lift to the wind-up at 0.6, then an accelerating chop back into the block. */
+export function swingOffset(phase) {
+  const HIT = 0.35; const UP = -1.7;
+  if (phase < 0.6) { const k = phase / 0.6; return HIT + (UP - HIT) * (1 - (1 - k) * (1 - k)); }
+  const k = (phase - 0.6) / 0.4; return UP + (HIT - UP) * k * k * k;
+}
 
 export class Renderer {
   /**
@@ -349,7 +357,7 @@ export class Renderer {
     const w0 = solveWorld(rig, pose);
     const sh = rig.index.get('armF_upper');
     const mining = p.mineState === 1;
-    const swing = mining ? -1.5 + Math.pow(p.swingPhase, 2.2) * 2.1 : 0;
+    const swing = mining ? swingOffset(p.swingPhase) : 0;
     const angle = mining ? Math.atan2(my - w0.y[sh], mx - w0.x[sh]) + swing : 0.9;
     const world = applyOverlays(rig, pose, { look: [mx, my], mining, pickAngle: angle, landVY: this.animator.landVY, squashT: this.animator.squashT });
     const color = this.d.economy.pickaxe.color;
@@ -357,7 +365,7 @@ export class Renderer {
     ctx.save();
     ctx.translate(cx, top);
     if (f < 0) ctx.scale(-1, 1);
-    ctx.drawImage(canvas, -16, 0, 32, 32);
+    ctx.drawImage(canvas, -16 - RIG_PAD / 3, -RIG_PAD / 3, 32 + RIG_PAD * 2 / 3, 32 + RIG_PAD * 2 / 3);
     ctx.restore();
     if (p.jetting) r(-2, 23, 3, 2 + ((this.time * 40) | 0) % 3, '#ffb340');
     return 2;
@@ -431,7 +439,7 @@ export class Renderer {
     // pickaxe
     const hx = x + W / 2 + f * 5; const hy = y + 14;
     const aim = Math.atan2(st.aimY - hy, st.aimX - hx);
-    const swing = p.mineState === 1 ? (-1.5 + Math.pow(p.swingPhase, 2.2) * 2.1) * f : 0;
+    const swing = p.mineState === 1 ? swingOffset(p.swingPhase) * f : 0;
     const idle = f > 0 ? 0.9 : Math.PI - 0.9;
     const ang = p.mineState === 1 ? aim + swing : idle;
     ctx.save();

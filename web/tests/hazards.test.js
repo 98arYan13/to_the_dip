@@ -144,6 +144,12 @@ describe('quake', () => {
     for (let k = 0; k < 100; k++) q.update(0.1, 0);
     expect(q.shake).toBe(0);
   });
+  it('hard rock stays put', () => {
+    const { w, q } = mk();
+    for (let y = 40; y < 80; y++) for (let x = 4; x < 40; x++) if (w.isSolid(x, y)) w.tileType[y * w.W + x] = TILE.BASALT;
+    q.focus.x = 19; q.focus.y = 54;
+    expect(q.trigger(1)).toBe(0);
+  });
   it('forced rock really falls', () => {
     const { w, c } = mk();
     expect(c.forceFall(19, 49)).toBe(true);

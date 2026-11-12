@@ -56,6 +56,15 @@ describe('collapse', () => {
     expect(max).toBeLessThanOrEqual(HAZARD.COLLAPSE.MAX_PER_TICK);
     expect(c.dirty.size + c.warn.size + c.falling.size).toBe(0);
   });
+  it('core rock melts into magma only when the tile under it is emptied', () => {
+    const { w, bus, c, i } = setup(TILE.CORE);
+    const side = i + 1; w.tileType[side] = TILE.CORE; w.clear(side + w.W); // natural ceiling: left alone
+    w.clear(i + w.W); bus.emit(EV.TILE_CHANGED, i + w.W);
+    c.update(0.05);
+    expect(w.tileType[i]).toBe(TILE.MAGMA);
+    expect(w.fluid[i]).toBe(HAZARD.FLUID.MAX);
+    expect(w.tileType[side]).toBe(TILE.CORE);
+  });
   it('camp pad never becomes unstable', () => {
     const { w, c } = setup(TILE.SAND);
     const x = WORLD.BASE_CAMP.PAD_X0 + 1; const y = WORLD.SURFACE_ROWS;

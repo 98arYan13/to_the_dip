@@ -26,7 +26,8 @@ export const HAZARD = Object.freeze({
   COLLAPSE: Object.freeze({ WARN_S: 1.2, STEP_S: 0.08, PULSE_S: 0.3, MAX_PER_TICK: 24 }),
   /** Fluid cells hold 0..MAX units; one flow step per FLOW_S (magma every MAGMA_EVERY-th step). */
   FLUID: Object.freeze({ MAX: 8, FLOW_S: 0.1, MAGMA_EVERY: 3, MAX_PER_TICK: 300 }),
-  QUAKE: Object.freeze({ SAFE_DEPTH_M: 120, WARN_S: 2.5, MIN_GAP_S: 25, MAX_GAP_S: 90, RADIUS: 12, BASE_N: 3, MAX_N: 14, SHAKE_DECAY: 1.5 }),
+  /** Rare and deep only: a small foreshock, WARN_S of calm, then the main quake. Only rock with hard <= WEAK_MAX_HARD falls. */
+  QUAKE: Object.freeze({ SAFE_DEPTH_M: 600, WARN_S: 4, MIN_GAP_S: 180, MAX_GAP_S: 420, RADIUS: 12, BASE_N: 3, MAX_N: 14, SHAKE_DECAY: 1.5, WEAK_MAX_HARD: 1.2 }),
 });
 
 /** Toxic/explosive gas: per-tile concentration 0..MAX in open air; sealed pockets until a wall breaks. */
@@ -197,12 +198,12 @@ export const ORE_HP_MUL = 1.5;
 /** Pickaxes: index = tier - 1. */
 export const PICKAXES = Object.freeze([
   // Tiers 1-3 are hand tools (free to swing); tiers 4-6 are powered drills that draw battery per block.
-  { tier: 1, name: 'Bronze Pickaxe', short: 'Bronze', cost: 0, damage: 1, swing: 0.30, color: '#c58a45' },
-  { tier: 2, name: 'Iron Pickaxe', short: 'Iron', cost: 50, damage: 2, swing: 0.27, color: '#8d9096' },
-  { tier: 3, name: 'Steel Pickaxe', short: 'Steel', cost: 700, damage: 3, swing: 0.24, color: '#b9c3cf' },
-  { tier: 4, name: 'Titanium Drill', short: 'Titanium', cost: 8000, damage: 5, swing: 0.21, color: '#d7dde8', powered: true },
-  { tier: 5, name: 'Tungsten Carbide Drill', short: 'Tungsten Carbide', cost: 75000, damage: 8, swing: 0.19, color: '#646a7a', powered: true },
-  { tier: 6, name: 'Diamond-Tipped Drill', short: 'Diamond-Tipped', cost: 560000, damage: 12, swing: 0.17, color: '#9ff4ff', powered: true },
+  { tier: 1, name: 'Bronze Pickaxe', short: 'Bronze', cost: 0, damage: 2, swing: 0.60, color: '#c58a45' },
+  { tier: 2, name: 'Iron Pickaxe', short: 'Iron', cost: 50, damage: 4, swing: 0.54, color: '#8d9096' },
+  { tier: 3, name: 'Steel Pickaxe', short: 'Steel', cost: 700, damage: 6, swing: 0.48, color: '#b9c3cf' },
+  { tier: 4, name: 'Titanium Drill', short: 'Titanium', cost: 8000, damage: 10, swing: 0.42, color: '#d7dde8', powered: true },
+  { tier: 5, name: 'Tungsten Carbide Drill', short: 'Tungsten Carbide', cost: 75000, damage: 16, swing: 0.38, color: '#646a7a', powered: true },
+  { tier: 6, name: 'Diamond-Tipped Drill', short: 'Diamond-Tipped', cost: 560000, damage: 24, swing: 0.34, color: '#9ff4ff', powered: true },
 ]);
 
 /** Non-pickaxe upgrades. Level 0 is starting gear. */
@@ -285,7 +286,7 @@ export const GEAR = Object.freeze({ HEAT_SUIT_RESIST: 0.8, AMBIENT_T0: 15, AMBIE
 
 export const PHYSICS = Object.freeze({
   GRAVITY: 650,
-  WALK_SPEED: 150,
+  WALK_SPEED: 105,
   GROUND_ACCEL: 1500,
   GROUND_FRICTION: 1700,
   AIR_ACCEL: 700,
@@ -300,7 +301,7 @@ export const PHYSICS = Object.freeze({
   /** Contact heat (°C): magma channels run MAGMA_T0 at the top of the mantle up to MAGMA_T1 at the bottom; core rock is CORE_T. */
   MAGMA_T0: 700, MAGMA_T1: 1300, CORE_T: 1700,
   /** Suit HP lost per second per °C above SAFE_T. */
-  HEAT_SAFE_T: 400, HEAT_DPS_PER_C: 0.02,
+  HEAT_SAFE_T: 60, HEAT_DPS_PER_C: 0.01, // damage grows linearly from 60 °C: 0.4 HP/s at 100 °C, ~2.9 at the bottom; magma/core contact ~13-20
   HARD_LANDING_DMG_PER_TILE: 18,
   LADDER_SPEED: 90,
   SUIT_HP: 100,
@@ -324,7 +325,7 @@ export const DYNAMITE = Object.freeze({
 
 export const MINING = Object.freeze({
   REACH: 44,
-  /** Multiplies every block's HP: topsoil with the starting pickaxe takes ~3 s (10 hits x 0.3 s). */
+  /** Multiplies every block's HP: topsoil with the starting pickaxe takes ~3 s (5 hits x 0.6 s). */
   HP_MULT: 5,
   HINT_COOLDOWN: 1.5,
   CRACK_STAGES: [0.25, 0.5, 0.75, 0.9],
