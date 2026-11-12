@@ -7,3 +7,5 @@
 # Local secrets / settings
 .env
 .claude/settings.local.json
+
+.superpowers/
