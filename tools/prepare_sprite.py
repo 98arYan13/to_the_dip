@@ -92,6 +92,9 @@ def main(argv=None):
     p.add_argument("--align", choices=["bottom", "keep"], default="bottom",
                    help="sprite mode: 'bottom' = feet on one ground line (walk/idle/attack); "
                         "'keep' = keep vertical motion from the raw image (jump/bob/fall)")
+    p.add_argument("--height", type=int, help="sprite mode: scale so frame --ref-frame is this many px tall "
+                                                  "(use one value for every animation of a character)")
+    p.add_argument("--ref-frame", type=int, default=0, help="0-based frame of standing height for --height")
     p.add_argument("--palette", help=".hex file (one RRGGBB per line); overrides --colors")
     p.add_argument("--colors", type=int, default=16)
     p.add_argument("--key", default="FF00FF", help="background color to remove; 'none' to keep")
@@ -132,6 +135,10 @@ def main(argv=None):
         crops = [rgba[b[1]:b[3], x0 + b[0]:x0 + b[2]] for (x0, _), b in zip(runs, boxes)]
         biggest = max(max(c.shape[0], c.shape[1]) for c in crops)
         scale = (a.size - 2 * a.pad) / biggest  # one factor for all frames keeps the character the same size
+        if a.height:  # same character size across animations: frame ref_frame becomes `height` px tall
+            scale = a.height / crops[a.ref_frame].shape[0]
+            if biggest * scale > a.size - a.pad:
+                sys.exit(f"--height {a.height} makes the largest frame {biggest * scale:.1f}px; doesn't fit {a.size}px")
         sheet = np.zeros((a.size, a.size * len(crops), 4), np.uint8)
         for i, c in enumerate(crops):
             s = shrink(c, round(c.shape[1] * scale), round(c.shape[0] * scale))

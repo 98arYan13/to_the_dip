@@ -52,6 +52,8 @@ export class Player {
     this.onGround = false; this.hitX = false; this.hitY = false; this.impactVX = 0; this.impactVY = 0;
     this.facing = 1;
     this.jetting = false;
+    this.onLadder = false;
+    this.hurtTimer = 0;
     this.mineState = MINE_IDLE;
     this.swingTimer = 0;
     this.swingPhase = 0;
@@ -113,6 +115,8 @@ export class Player {
     const jp = economy.jetpack;
     const w0 = physics.world; const ptx = Math.floor(this.cx / w0.T); const pty = Math.floor(this.cy / w0.T);
     const onLadder = w0.inBounds(ptx, pty) && w0.tileType[pty * w0.W + ptx] === TILE.LADDER;
+    this.onLadder = onLadder;
+    if (this.hurtTimer > 0) this.hurtTimer -= dt;
     this.jetting = !onLadder && input.isDown('jet') && energy.value > 0;
     if (this.jetting) {
       this.vy -= economy.stat('jetThrust', jp.thrust) * dt;
@@ -226,6 +230,7 @@ export class Player {
     const was = this.hp;
     if (this.god && hp < was) return; // god mode: damage has no effect
     this.hp =Math.max(0, Math.min(PHYSICS.SUIT_HP, hp));
+    if (this.hp < was) this.hurtTimer = 0.3; // drives the hurt animation
     if (this.hp !== was) this.d.bus.emit(EV.HP_CHANGED, this.hp);
     if (this.hp <= 0 && was > 0) this.d.bus.emit(EV.PLAYER_DEAD, 'suit');
   }

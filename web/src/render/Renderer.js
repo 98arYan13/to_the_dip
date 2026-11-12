@@ -287,7 +287,6 @@ export class Renderer {
 
   _drawPlayer(ctx, alpha, st) {
     const p = this.d.player;
-    const pick = this.d.economy.pickaxe;
     const x = Math.round(p.prevX + (p.x - p.prevX) * alpha);
     const y = Math.round(p.prevY + (p.y - p.prevY) * alpha);
     const f = p.facing;
@@ -296,6 +295,84 @@ export class Renderer {
     const step = p.onGround && Math.abs(p.vx) > 10 ? Math.sin(p.walkPhase) : 0;
     // jetpack
     r(-3, 9, 5, 11, '#6b7280'); r(-3, 9, 5, 2, '#9aa3b0'); r(-2, 20, 3, 3, '#3a3f48');
+    const art = this._playerArt();
+    if (art.ready()) {
+      // 32x32 cells, feet on row 31; frame order matches assets/characters/player_base/player_base.json.
+      // Body sheet has the head erased on look frames; the head is drawn separately, turned toward the mouse.
+      const frame = this._playerFrame(p, st);
+      const cx = Math.round(x + W / 2); const top = y + p.h - 31;
+      ctx.save();
+      ctx.translate(cx, top);
+      if (f < 0) ctx.scale(-1, 1);
+      // Sheet frames may be hi-res (e.g. 96px); they always fill a 32x32 world-px box.
+      const F = art.meta.frame || 32; const u = 32 / F;
+      ctx.drawImage(art.body, frame * F, 0, F, F, -16, 0, 32, 32);
+      const neck = art.meta.neck[frame];
+      if (neck) {
+        const { cell, pivot, angles } = art.meta;
+        const nx = neck[0] * u - 16; const ny = neck[1] * u;
+        const dx = (st.aimX - (cx + f * nx)) * f; const dy = st.aimY - (top + ny);
+        const lo = angles[0]; const hi = angles[angles.length - 1]; const step = angles[1] - lo;
+        const deg = Math.max(lo, Math.min(hi, Math.atan2(dy, Math.max(dx, 4)) * 180 / Math.PI));
+        const k = Math.round((deg - lo) / step);
+        ctx.drawImage(art.head, k * cell, 0, cell, cell, nx - pivot[0] * u, ny - pivot[1] * u, cell * u, cell * u);
+      }
+      ctx.restore();
+    } else this._drawPlayerBody(r, step);
+    return this._drawPlayerTool(ctx, p, x, y, f, W, st, r) + 1;
+  }
+
+  /** Lazy-loaded player images (web/public/player, made by tools/split_head.py + tools/make_pickaxe.py). */
+  _playerArt() {
+    if (this.pArt) return this.pArt;
+    const img = (src) => { const i = new Image(); i.src = `player/${src}`; return i; };
+    const ok = (i) => i.complete && i.naturalWidth > 0;
+    const a = {
+      body: img('player_body.png'), head: img('player_head.png'),
+      pick: img('pickaxe.png'), pickTint: img('pickaxe_tint.png'),
+      meta: null, tinted: new Map(),
+      ready: () => !!a.meta && ok(a.body) && ok(a.head),
+      pickReady: () => ok(a.pick) && ok(a.pickTint),
+    };
+    fetch('player/player_head.json').then((res) => res.json()).then((m) => { a.meta = m; }).catch(() => {});
+    this.pArt = a;
+    return a;
+  }
+
+  /** Pickaxe sprite with its metal head multiplied by the material colour (cached per colour). */
+  _pickSprite(color) {
+    const a = this._playerArt();
+    let c = a.tinted.get(color);
+    if (c) return c;
+    const w = a.pick.naturalWidth; const h = a.pick.naturalHeight;
+    const metal = document.createElement('canvas'); metal.width = w; metal.height = h;
+    const m = /** @type {CanvasRenderingContext2D} */ (metal.getContext('2d'));
+    m.drawImage(a.pickTint, 0, 0);
+    m.globalCompositeOperation = 'multiply'; m.fillStyle = color; m.fillRect(0, 0, w, h);
+    m.globalCompositeOperation = 'destination-in'; m.drawImage(a.pickTint, 0, 0);
+    c = document.createElement('canvas'); c.width = w; c.height = h;
+    const g = /** @type {CanvasRenderingContext2D} */ (c.getContext('2d'));
+    g.drawImage(a.pick, 0, 0); g.drawImage(metal, 0, 0);
+    a.tinted.set(color, c);
+    return c;
+  }
+
+  /** Sheet frame index for the player's current state. */
+  _playerFrame(p, st) {
+    const cyc = (from, n, t) => from + (Math.floor(t) % n + n) % n;
+    if (p.hurtTimer > 0) return cyc(20, 2, (0.3 - p.hurtTimer) * 10);
+    if (p.onLadder && !p.onGround) return cyc(18, 2, Math.abs(p.vy) > 1 ? this.time * 5 : 0);
+    if (p.mineState === 1) {
+      const down = st.aimY - (p.y + p.h / 2) > Math.abs(st.aimX - (p.x + p.w / 2));
+      return (down ? 10 : 6) + Math.min(3, Math.floor(p.swingPhase * 4));
+    }
+    if (!p.onGround) return p.vy < -40 ? 15 : p.vy < 40 ? 16 : 17;
+    if (Math.abs(p.vx) > 10) return cyc(2, 4, p.walkPhase * 2 / Math.PI);
+    return cyc(0, 2, this.time * 2.5);
+  }
+
+  /** Old code-drawn body, used until the sprite sheet loads. */
+  _drawPlayerBody(r, step) {
     // legs
     r(4, 20 - Math.max(0, step) * 2, 4, 8, '#2d3340'); r(10, 20 - Math.max(0, -step) * 2, 4, 8, '#2d3340');
     r(3, 26, 5, 2, '#1a1d24'); r(10, 26, 5, 2, '#1a1d24');
@@ -306,6 +383,10 @@ export class Renderer {
     r(4, 0, 11, 5, '#e8e2d0'); r(3, 4, 13, 1, '#cfc7b0');
     r(10, 5, 5, 3, '#1f6f80'); r(11, 5, 2, 1, '#8fe3f0');
     r(13, 1, 3, 3, '#fff3a0');
+  }
+
+  _drawPlayerTool(ctx, p, x, y, f, W, st, r) {
+    const pick = this.d.economy.pickaxe;
     // pickaxe
     const hx = x + W / 2 + f * 5; const hy = y + 14;
     const aim = Math.atan2(st.aimY - hy, st.aimX - hx);
@@ -315,9 +396,14 @@ export class Renderer {
     ctx.save();
     ctx.translate(hx, hy);
     ctx.rotate(ang);
-    ctx.fillStyle = '#6b4a2b'; ctx.fillRect(0, -1, 14, 2);
-    ctx.fillStyle = pick.color; ctx.fillRect(12, -6, 3, 12);
-    ctx.fillStyle = '#ffffff'; ctx.globalAlpha = 0.4; ctx.fillRect(12, -6, 1, 12); ctx.globalAlpha = 1;
+    if (this._playerArt().pickReady()) { // 3x sprite (tools/make_pickaxe.py), grip at (0, 22.5)
+      const s = this._pickSprite(pick.color);
+      ctx.drawImage(s, -1, -7.5, s.width / 3, s.height / 3);
+    }
+    else {
+      ctx.fillStyle = '#6b4a2b'; ctx.fillRect(0, -1, 14, 2);
+      ctx.fillStyle = pick.color; ctx.fillRect(12, -6, 3, 12);
+    }
     ctx.fillStyle = '#e9c9a6'; ctx.fillRect(-1, -2, 3, 4);
     ctx.restore();
     // jet flame

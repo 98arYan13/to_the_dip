@@ -34,6 +34,7 @@ Claude leads the art pipeline. The user only generates raw images in ChatGPT or 
 | Asset | --size | Mode | Godot node |
 |---|---|---|---|
 | Character / enemy | 32 | `--frames N` | AnimatedSprite2D |
+| Web-game player (3x) | 96 | `--frames N --pad 3 --height 84 --ref-frame i` | Canvas, 32 world px |
 | Boss | 64 | `--frames N` | AnimatedSprite2D |
 | Tileset | 16 | `--grid CxR` | TileSet + TileMapLayer |
 | Item / icon | 16 | `--frames 1` | Sprite2D / TextureRect |
@@ -41,6 +42,8 @@ Claude leads the art pipeline. The user only generates raw images in ChatGPT or 
 ## Common mistakes
 - Backslash paths to the `aseprite` MCP break its JSON. Always `D:/...`, `C:/...`.
 - Processing frames one by one: each gets a different scale. Process the whole strip in one call.
+- Animations of one character at different sizes: without `--height`, each strip is scaled to fit its own biggest frame. Always pass the same `--height` and a standing `--ref-frame` for every animation, and one shared `--palette`.
+- Frames touching each other in the raw image: `equal-split` cuts limbs and drags in pieces of neighbours. Separate the figures first, then process.
 - Asking for a full walk cycle in one image: AI breaks consistency. Ask for 2–4 key poses per image.
 - New chat without reference image: character drifts. Always attach the approved base sprite.
 - Writing processed files straight to `assets/`: only Aseprite exports go there; intermediates go to `art_source/work/`.
