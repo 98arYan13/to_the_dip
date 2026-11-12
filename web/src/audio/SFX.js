@@ -354,7 +354,7 @@ export class SFX {
 }
 
 /**
- * Depth-adaptive ambience: wind + birds (surface), drips + rumbles (caves),
+ * Depth-adaptive ambience: wind + birds (surface), rumbles (caves),
  * magma bubbling + tectonic groans (mantle).
  */
 export class Ambience {
@@ -362,7 +362,7 @@ export class Ambience {
   constructor(engine) {
     this.e = engine;
     this.started = false;
-    this.timers = { bird: 2, drip: 1, rumble: 6, bubble: 1, groan: 8 };
+    this.timers = { bird: 2, rumble: 6, bubble: 1, groan: 8 };
     this.depth = 0;
   }
 
@@ -397,7 +397,6 @@ export class Ambience {
     const tm = this.timers;
     for (const k of Object.keys(tm)) /** @type {any} */ (tm)[k] -= dt;
     if (surface && tm.bird <= 0) { tm.bird = 2 + Math.random() * 5; this._bird(); }
-    if (!surface && tm.drip <= 0) { tm.drip = 0.6 + Math.random() * 2.4; this._drip(); }
     if (!surface && tm.rumble <= 0) { tm.rumble = 7 + Math.random() * 10; this._rumble(); }
     if (mantle > 0 && tm.bubble <= 0) { tm.bubble = 0.2 + Math.random() * 0.8; this._bubble(mantle); }
     if (mantle > 0 && tm.groan <= 0) { tm.groan = 9 + Math.random() * 12; this._groan(); }
@@ -408,13 +407,6 @@ export class Ambience {
     const t = e.now; const f = 2600 + Math.random() * 1200;
     const n = 2 + Math.floor(Math.random() * 3);
     for (let k = 0; k < n; k++) e.osc(v, 'sine', f, f * 1.3, t + k * 0.12, 0.08, 0.05);
-    e.commit(v);
-  }
-
-  _drip() {
-    const e = this.e; const v = e.voice('ambience'); if (!v) return;
-    const f = 1400 + Math.random() * 900;
-    e.osc(v, 'sine', f, f * 0.5, e.now, 0.12, 0.09);
     e.commit(v);
   }
 

@@ -551,7 +551,7 @@ function boot() {
       audio.listenerX = player.cx; audio.listenerY = player.cy;
       sfx.setJet(player.jetting ? 1 : 0);
       audio.setDepth(onSurface ? 0 : g.depth01 + 0.02);
-      music.setDepth(g.depth01);
+      music.setLayer(onSurface ? 0 : band || -1); // cave air underground: keep current theme
       ambience.update(dt, g.depth01, onSurface);
     }
 
