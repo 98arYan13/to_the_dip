@@ -39,3 +39,20 @@ Tiles must tile seamlessly, straight-on front view, no perspective.
 Game item icon, 16x16 pixels scaled up, [item], centered.
 [STYLE BLOCK]
 ```
+
+## Web rig: paper-doll sheets (attach the approved reference)
+Shared rules block for every rig sheet (append after the piece list):
+```
+STRICT SIDE PROFILE: exact 90-degree side view facing RIGHT, like a classic 2D side-scrolling platformer sprite.
+No front view, no three-quarter view, no perspective, no top view.
+Every arm and leg piece is perfectly vertical, not tilted, not bent.
+Both ends of every limb piece are rounded and extend 2-3 pixels past the joint so pieces overlap when assembled.
+All pieces at the same pixel scale as each other.
+Pixel art, hard nearest-neighbor edges, limited 32-color palette, 1-pixel dark outline,
+simple cel shading with 2-3 tones per color, light from the upper left, no anti-aliasing, no gradients, no blur, no texture noise.
+Solid flat magenta background (#FF00FF). No text, no numbers, no labels, no watermark, no UI.
+No grid lines, no borders, no cell frames, no black lines between cells; the whole background is one flat magenta.
+```
+- **Body** (attach `assets/characters/player_base/player_base_hd.png`), 3x3 grid: head with neck (face on the RIGHT), torso in plain undershirt (no arms), hips in plain shorts, upper arm, forearm, fist (wrist at TOP), thigh, shin, bare foot (toes RIGHT). Give rough px sizes from `rig.json` (length x width) only as proportions. Save `art_source/raw/player_rig_parts_raw.png`.
+- **Outfit** (attach the body sheet), 4x2 grid, "draw ONLY the clothing that fits over those body pieces (no skin)": torso piece, upper sleeve, lower sleeve, glove, waist piece, thigh piece, shin piece, boot. Tintable outfits: "ONLY in neutral light grey shades (recolored in-game)". Save `art_source/raw/wear_<id>_raw.png`.
+- **Helmets** (no attachment needed), 2x2 grid, "draw ONLY the helmet, no head": say "each helmet fits a head about 20 px wide and 23 px tall on an 84-px character", put the visor/lamp on the RIGHT edge and the back on the LEFT, opaque visors (no transparency). Save `art_source/raw/helmets_raw.png`.

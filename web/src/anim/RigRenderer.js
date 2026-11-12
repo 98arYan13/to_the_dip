@@ -17,7 +17,7 @@ export function snapAngle(rad, stepDeg) {
 /** @param {import('./Rig.js').Rig} rig @param {any} outfit @param {{id:string, parts:any}[]} items @returns {DrawItem[]} */
 export function buildDrawList(rig, outfit, items) {
   /** @type {DrawItem[]} */ const list = [];
-  rig.bones.forEach((b, i) => list.push({ bone: i, layer: b.layer, kind: 'part', sprite: null, pivot: [0, 0], color: b.color, tint: false, rect: [0, b.length, b.width, 0] }));
+  rig.bones.forEach((b, i) => list.push({ bone: i, layer: b.layer, kind: 'part', sprite: b.sprite ?? null, pivot: b.pivot ?? [0, 0], color: b.color, tint: false, rect: [0, b.length, b.width, 0] }));
   for (const k of WEAR_KINDS) {
     const item = outfit[k] && items.find((it) => it.id === outfit[k]);
     if (!item) continue;

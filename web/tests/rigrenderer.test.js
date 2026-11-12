@@ -25,4 +25,10 @@ describe('RigRenderer helpers', () => {
     expect(idx(l, 'head', 'wear')).toBe(idx(l, 'head', 'part') + 1);
     expect(idx(l, 'handF', 'wear')).toBe(-1);
   });
+  it('bone sprite in draw list', () => {
+    const r = { ...rig, bones: rig.bones.map((b) => (b.name === 'torso' ? { ...b, sprite: 'parts/torso.png', pivot: [3, 4] } : b)) };
+    const l = buildDrawList(r, defaultOutfit(), items);
+    expect(l[idx(l, 'torso', 'part')]).toMatchObject({ sprite: 'parts/torso.png', pivot: [3, 4] });
+    expect(l[idx(l, 'head', 'part')].sprite).toBeNull();
+  });
 });

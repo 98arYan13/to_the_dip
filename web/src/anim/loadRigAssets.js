@@ -1,6 +1,6 @@
 /**
  * @module anim/loadRigAssets
- * Fetches rig.json, anims.json, wearables.json and wearable sprites. Resolves null (never throws) on any failure
+ * Fetches rig.json, anims.json, wearables.json, parts.json (bone sprites) and wearable sprites. Resolves null (never throws) on any failure
  * so the game can fall back to the old sheet.
  */
 import { loadRig } from './Rig.js';
@@ -13,12 +13,13 @@ export async function loadRigAssets(fetchFn = fetch, base = 'rig/') {
       if (!r.ok) throw new Error(`${n}: HTTP ${r.status}`);
       return r.json();
     };
-    const [rigData, clips, wear] = await Promise.all([get('rig.json'), get('anims.json'), get('wearables.json')]);
+    const [rigData, clips, wear, parts] = await Promise.all([get('rig.json'), get('anims.json'), get('wearables.json'), get('parts.json')]);
+    for (const b of rigData.bones) if (parts[b.name]) Object.assign(b, parts[b.name]);
     const rig = loadRig(rigData);
     const items = wear.items;
     /** @type {Map<string, HTMLImageElement>} */ const images = new Map();
     if (typeof Image !== 'undefined') {
-      const names = new Set();
+      const names = new Set(rig.bones.map((b) => b.sprite).filter(Boolean));
       for (const it of items) for (const b in it.parts) if (it.parts[b].sprite) names.add(it.parts[b].sprite);
       await Promise.all([...names].map((n) => new Promise((res, rej) => {
         const i = new Image(); i.onload = () => { images.set(n, i); res(0); }; i.onerror = () => rej(new Error(`sprite ${n}`)); i.src = base + n;

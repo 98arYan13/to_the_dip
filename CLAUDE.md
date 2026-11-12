@@ -10,7 +10,7 @@
 ## Pixel-art rules (do not change without asking)
 - Base resolution 320x180, stretch `viewport` + `integer`, texture filter Nearest, 2D pixel snap on.
 - Godot game: characters 32x32, tiles 16x16, one project palette (`art_source/palette/`).
-- Web game (`web/`): characters are drawn at 3x detail — 96x96 frames (character ~84px tall), shown in the same 32x32 world-px box, so hitbox/physics don't change. Palette `art_source/palette/player_base_hd.hex` (32 colors). Equipment/clothing layers for the player must match 96px frames. Process with `prepare_sprite.py --size 96 --pad 3 --height 84 --ref-frame <standing frame>`; head split for mouse-look: `tools/split_head.py`; pickaxe: `tools/make_pickaxe.py` (3x, tinted by material color in-game).
+- Web game (`web/`): characters are drawn at 3x detail — 96x96 frames (character ~84px tall), shown in the same 32x32 world-px box, so hitbox/physics don't change. Palette `art_source/palette/player_base_hd.hex` (44 colors: skin/brown + cool greys, orange, cyan, navy for suits). Equipment/clothing layers for the player must match 96px frames. Process with `prepare_sprite.py --size 96 --pad 3 --height 84 --ref-frame <standing frame>`; head split for mouse-look: `tools/split_head.py`; pickaxe: `tools/make_pickaxe.py` (3x, tinted by material color in-game).
 - Art pipeline: Claude writes prompt → user generates in ChatGPT/Gemini → `tools/prepare_sprite.py` → `aseprite` MCP → Godot. Follow the `making-pixel-art-assets` skill (`.claude/skills/`); user guide: `docs/ART_WORKFLOW.fa.md`.
 - Raw AI output goes to `art_source/raw/`; only Aseprite-exported sprite sheets go to `assets/`.
 

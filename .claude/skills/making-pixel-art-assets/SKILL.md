@@ -30,11 +30,21 @@ Claude leads the art pipeline. The user only generates raw images in ChatGPT or 
 6. **Godot.** `AnimatedSprite2D` + `SpriteFrames` from the sheet (frame size 32x32, fps from the table), filter Nearest is project default. Run via `godot` MCP; no errors in `get_debug_output`.
 7. **Hand-off.** Tell the user which file to touch up by hand, if anything looks off.
 
+## Web rig body parts and wearables (web/ skeletal player)
+The web player is a skeleton (`web/public/rig/rig.json`, 15 bones) drawn piece by piece, not a sprite sheet.
+- Source of truth: `art_source/characters/player_rig.aseprite`, 96x96, one layer per bone named exactly as in `rig.json`, every piece drawn in the rig's **rest pose** (arms/legs hang down, torso/head point up, feet point right). Layer `guide` (from `python tools/export_rig.py guide art_source/work/rig_guide.png`) shows each bone's box; it is never exported.
+- Export: `python tools/export_rig.py export art_source/characters/player_rig.aseprite` → `web/public/rig/parts/<bone>.png` + `parts.json` (sprite + pivot). It fails on off-palette pixels (`player_base_hd.hex`). An empty/missing layer keeps that bone's coloured rectangle.
+- Raw art: ask Gemini for a **paper-doll sheet** (template in `prompts.md`), never a posed character. Gemini ignores exact pixel sizes and draws pieces at different scales, so scale each piece to its own bone length (+2 px overlap at each joint), then map colours to the palette, then place it at the bone's rest position (`export_rig.rest_world`). Back limbs = the front piece darkened ~28% and re-mapped to the palette.
+- Aseprite MCP: `import_image` adds a NEW layer on top each call, so import layers bottom-to-top in `rig.json` `layer` order, then delete the default `Layer 1`.
+- Verify in `web/rig-editor.html` (big view; set the outfit selects to none to see the bare body), not in-game where the player is tiny.
+- Wearables (`wearables.json`, slots hat/shirt/pants/boots/gloves) use the same sprite+pivot format. `tint: true` items must be drawn in neutral light greys (recoloured in-game); special suits are `tint: false`.
+
 ## Quick reference
 | Asset | --size | Mode | Godot node |
 |---|---|---|---|
 | Character / enemy | 32 | `--frames N` | AnimatedSprite2D |
 | Web-game player (3x) | 96 | `--frames N --pad 3 --height 84 --ref-frame i` | Canvas, 32 world px |
+| Web rig body part / wearable | per bone | paper-doll sheet → `player_rig.aseprite` layer → `tools/export_rig.py export` | `RigRenderer` |
 | Boss | 64 | `--frames N` | AnimatedSprite2D |
 | Tileset | 16 | `--grid CxR` | TileSet + TileMapLayer |
 | Item / icon | 16 | `--frames 1` | Sprite2D / TextureRect |
@@ -48,3 +58,7 @@ Claude leads the art pipeline. The user only generates raw images in ChatGPT or 
 - New chat without reference image: character drifts. Always attach the approved base sprite.
 - Writing processed files straight to `assets/`: only Aseprite exports go there; intermediates go to `art_source/work/`.
 - Pixel art is judged at 1x and at game scale; never approve from the 1024px raw.
+- Gemini draws helmets/heads in three-quarter view unless the prompt spells out a strict 90° profile (front on the RIGHT edge, back on the LEFT, neck ring a flat band not an ellipse). A clean profile facing left is fine: mirror it.
+- "Armor", "plates", "gauntlets" make Gemini draw knight armour. For sci-fi suits say "hardsuit / exosuit" and list what NOT to draw.
+- Gemini adds black grid lines/cell frames when asked for a grid; always add the explicit "no grid lines, no borders, no cell frames" line. It also merges limb segments (whole arm instead of upper arm + forearm); cut them at the joint instead of re-rolling.
+- Gemini's magenta is near, not exact (#FE01FA): key with tolerance, never by exact colour.

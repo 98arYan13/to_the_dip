@@ -4,7 +4,7 @@
  */
 
 /**
- * @typedef {{name:string, parent:string|null, x:number, y:number, rest:number, length:number, width:number, layer:number, color:string, restRad:number}} BoneDef
+ * @typedef {{name:string, parent:string|null, x:number, y:number, rest:number, length:number, width:number, layer:number, color:string, restRad:number, sprite?:string, pivot?:[number,number]}} BoneDef
  * @typedef {{canvas:number, angleStep:number, bones:BoneDef[], index:Map<string,number>, parent:Int16Array, drawOrder:number[]}} Rig
  * @typedef {{angle:Float32Array, dx:Float32Array, dy:Float32Array}} Pose
  * @typedef {{x:Float32Array, y:Float32Array, a:Float32Array}} WorldPose

@@ -1,21 +1,484 @@
 {
-  "items": [
-    { "id": "helmet", "kind": "hat", "name": "Helmet", "parts": { "head": { "sprite": null, "pivot": [0, 0], "tint": true, "rect": [11, 12, 22] } } },
-    { "id": "shirt_basic", "kind": "shirt", "name": "Work shirt", "parts": {
-      "torso": { "sprite": null, "pivot": [0, 0], "tint": true, "rect": [0, 27, 17] },
-      "armF_upper": { "sprite": null, "pivot": [0, 0], "tint": true, "rect": [0, 13, 6] },
-      "armB_upper": { "sprite": null, "pivot": [0, 0], "tint": true, "rect": [0, 13, 6] } } },
-    { "id": "pants_basic", "kind": "pants", "name": "Work pants", "parts": {
-      "hips": { "sprite": null, "pivot": [0, 0], "tint": true, "rect": [0, 8, 13] },
-      "legF_thigh": { "sprite": null, "pivot": [0, 0], "tint": true, "rect": [0, 16, 7] },
-      "legF_shin": { "sprite": null, "pivot": [0, 0], "tint": true, "rect": [0, 13, 6] },
-      "legB_thigh": { "sprite": null, "pivot": [0, 0], "tint": true, "rect": [0, 16, 7] },
-      "legB_shin": { "sprite": null, "pivot": [0, 0], "tint": true, "rect": [0, 13, 6] } } },
-    { "id": "boots_basic", "kind": "boots", "name": "Boots", "parts": {
-      "footF": { "sprite": null, "pivot": [0, 0], "tint": true, "rect": [-2, 10, 6] },
-      "footB": { "sprite": null, "pivot": [0, 0], "tint": true, "rect": [-2, 10, 6] } } },
-    { "id": "gloves_basic", "kind": "gloves", "name": "Gloves", "parts": {
-      "handF": { "sprite": null, "pivot": [0, 0], "tint": true, "rect": [0, 5, 5] },
-      "handB": { "sprite": null, "pivot": [0, 0], "tint": true, "rect": [0, 5, 5] } } }
-  ]
+ "items": [
+  {
+   "id": "helmet_diver",
+   "kind": "hat",
+   "name": "Diving helmet",
+   "parts": {
+    "head": {
+     "sprite": "wear/helmet_diver/head.png",
+     "pivot": [
+      7,
+      15
+     ],
+     "tint": false
+    }
+   }
+  },
+  {
+   "id": "helmet_hard",
+   "kind": "hat",
+   "name": "Hardsuit helmet",
+   "parts": {
+    "head": {
+     "sprite": "wear/helmet_hard/head.png",
+     "pivot": [
+      7,
+      15
+     ],
+     "tint": false
+    }
+   }
+  },
+  {
+   "id": "helmet_space",
+   "kind": "hat",
+   "name": "Space helmet",
+   "parts": {
+    "head": {
+     "sprite": "wear/helmet_space/head.png",
+     "pivot": [
+      7,
+      15
+     ],
+     "tint": false
+    }
+   }
+  },
+  {
+   "id": "helmet",
+   "kind": "hat",
+   "name": "Hard hat",
+   "parts": {
+    "head": {
+     "sprite": "wear/helmet/head.png",
+     "pivot": [
+      -9,
+      15
+     ],
+     "tint": true
+    }
+   }
+  },
+  {
+   "id": "shirt_basic",
+   "kind": "shirt",
+   "name": "Work shirt",
+   "parts": {
+    "torso": {
+     "sprite": "wear/shirt_basic/torso.png",
+     "pivot": [
+      1,
+      11
+     ],
+     "tint": true
+    },
+    "armF_upper": {
+     "sprite": "wear/shirt_basic/armF_upper.png",
+     "pivot": [
+      3,
+      6
+     ],
+     "tint": true
+    },
+    "armF_lower": {
+     "sprite": "wear/shirt_basic/armF_lower.png",
+     "pivot": [
+      3,
+      7
+     ],
+     "tint": true
+    },
+    "armB_upper": {
+     "sprite": "wear/shirt_basic/armB_upper.png",
+     "pivot": [
+      3,
+      5
+     ],
+     "tint": true
+    },
+    "armB_lower": {
+     "sprite": "wear/shirt_basic/armB_lower.png",
+     "pivot": [
+      3,
+      5
+     ],
+     "tint": true
+    }
+   }
+  },
+  {
+   "id": "pants_basic",
+   "kind": "pants",
+   "name": "Work pants",
+   "parts": {
+    "legF_thigh": {
+     "sprite": "wear/pants_basic/legF_thigh.png",
+     "pivot": [
+      3,
+      9
+     ],
+     "tint": true
+    },
+    "legF_shin": {
+     "sprite": "wear/pants_basic/legF_shin.png",
+     "pivot": [
+      3,
+      5
+     ],
+     "tint": true
+    },
+    "legB_thigh": {
+     "sprite": "wear/pants_basic/legB_thigh.png",
+     "pivot": [
+      3,
+      9
+     ],
+     "tint": true
+    },
+    "legB_shin": {
+     "sprite": "wear/pants_basic/legB_shin.png",
+     "pivot": [
+      3,
+      5
+     ],
+     "tint": true
+    },
+    "hips": {
+     "sprite": "wear/pants_basic/hips.png",
+     "pivot": [
+      3,
+      11
+     ],
+     "tint": true
+    }
+   }
+  },
+  {
+   "id": "boots_basic",
+   "kind": "boots",
+   "name": "Work boots",
+   "parts": {
+    "footF": {
+     "sprite": "wear/boots_basic/footF.png",
+     "pivot": [
+      4,
+      4
+     ],
+     "tint": false
+    },
+    "footB": {
+     "sprite": "wear/boots_basic/footB.png",
+     "pivot": [
+      4,
+      4
+     ],
+     "tint": false
+    }
+   }
+  },
+  {
+   "id": "gloves_basic",
+   "kind": "gloves",
+   "name": "Work gloves",
+   "parts": {
+    "handF": {
+     "sprite": "wear/gloves_basic/handF.png",
+     "pivot": [
+      3,
+      7
+     ],
+     "tint": true
+    },
+    "handB": {
+     "sprite": "wear/gloves_basic/handB.png",
+     "pivot": [
+      3,
+      5
+     ],
+     "tint": true
+    }
+   }
+  },
+  {
+   "id": "shirt_heat",
+   "kind": "shirt",
+   "name": "Heat suit shirt",
+   "parts": {
+    "torso": {
+     "sprite": "wear/shirt_heat/torso.png",
+     "pivot": [
+      1,
+      11
+     ],
+     "tint": false
+    },
+    "armF_upper": {
+     "sprite": "wear/shirt_heat/armF_upper.png",
+     "pivot": [
+      3,
+      6
+     ],
+     "tint": false
+    },
+    "armF_lower": {
+     "sprite": "wear/shirt_heat/armF_lower.png",
+     "pivot": [
+      3,
+      7
+     ],
+     "tint": false
+    },
+    "armB_upper": {
+     "sprite": "wear/shirt_heat/armB_upper.png",
+     "pivot": [
+      3,
+      5
+     ],
+     "tint": false
+    },
+    "armB_lower": {
+     "sprite": "wear/shirt_heat/armB_lower.png",
+     "pivot": [
+      3,
+      5
+     ],
+     "tint": false
+    }
+   }
+  },
+  {
+   "id": "pants_heat",
+   "kind": "pants",
+   "name": "Heat suit pants",
+   "parts": {
+    "legF_thigh": {
+     "sprite": "wear/pants_heat/legF_thigh.png",
+     "pivot": [
+      3,
+      9
+     ],
+     "tint": false
+    },
+    "legF_shin": {
+     "sprite": "wear/pants_heat/legF_shin.png",
+     "pivot": [
+      3,
+      5
+     ],
+     "tint": false
+    },
+    "legB_thigh": {
+     "sprite": "wear/pants_heat/legB_thigh.png",
+     "pivot": [
+      3,
+      9
+     ],
+     "tint": false
+    },
+    "legB_shin": {
+     "sprite": "wear/pants_heat/legB_shin.png",
+     "pivot": [
+      3,
+      5
+     ],
+     "tint": false
+    },
+    "hips": {
+     "sprite": "wear/pants_heat/hips.png",
+     "pivot": [
+      3,
+      11
+     ],
+     "tint": false
+    }
+   }
+  },
+  {
+   "id": "boots_heat",
+   "kind": "boots",
+   "name": "Heat suit boots",
+   "parts": {
+    "footF": {
+     "sprite": "wear/boots_heat/footF.png",
+     "pivot": [
+      4,
+      4
+     ],
+     "tint": false
+    },
+    "footB": {
+     "sprite": "wear/boots_heat/footB.png",
+     "pivot": [
+      4,
+      4
+     ],
+     "tint": false
+    }
+   }
+  },
+  {
+   "id": "gloves_heat",
+   "kind": "gloves",
+   "name": "Heat suit gloves",
+   "parts": {
+    "handF": {
+     "sprite": "wear/gloves_heat/handF.png",
+     "pivot": [
+      3,
+      7
+     ],
+     "tint": false
+    },
+    "handB": {
+     "sprite": "wear/gloves_heat/handB.png",
+     "pivot": [
+      3,
+      5
+     ],
+     "tint": false
+    }
+   }
+  },
+  {
+   "id": "shirt_armor",
+   "kind": "shirt",
+   "name": "Hardsuit shirt",
+   "parts": {
+    "torso": {
+     "sprite": "wear/shirt_armor/torso.png",
+     "pivot": [
+      1,
+      11
+     ],
+     "tint": false
+    },
+    "armF_upper": {
+     "sprite": "wear/shirt_armor/armF_upper.png",
+     "pivot": [
+      3,
+      6
+     ],
+     "tint": false
+    },
+    "armF_lower": {
+     "sprite": "wear/shirt_armor/armF_lower.png",
+     "pivot": [
+      3,
+      7
+     ],
+     "tint": false
+    },
+    "armB_upper": {
+     "sprite": "wear/shirt_armor/armB_upper.png",
+     "pivot": [
+      3,
+      5
+     ],
+     "tint": false
+    },
+    "armB_lower": {
+     "sprite": "wear/shirt_armor/armB_lower.png",
+     "pivot": [
+      3,
+      5
+     ],
+     "tint": false
+    }
+   }
+  },
+  {
+   "id": "pants_armor",
+   "kind": "pants",
+   "name": "Hardsuit pants",
+   "parts": {
+    "legF_thigh": {
+     "sprite": "wear/pants_armor/legF_thigh.png",
+     "pivot": [
+      3,
+      9
+     ],
+     "tint": false
+    },
+    "legF_shin": {
+     "sprite": "wear/pants_armor/legF_shin.png",
+     "pivot": [
+      3,
+      5
+     ],
+     "tint": false
+    },
+    "legB_thigh": {
+     "sprite": "wear/pants_armor/legB_thigh.png",
+     "pivot": [
+      3,
+      9
+     ],
+     "tint": false
+    },
+    "legB_shin": {
+     "sprite": "wear/pants_armor/legB_shin.png",
+     "pivot": [
+      3,
+      5
+     ],
+     "tint": false
+    },
+    "hips": {
+     "sprite": "wear/pants_armor/hips.png",
+     "pivot": [
+      3,
+      11
+     ],
+     "tint": false
+    }
+   }
+  },
+  {
+   "id": "boots_armor",
+   "kind": "boots",
+   "name": "Hardsuit boots",
+   "parts": {
+    "footF": {
+     "sprite": "wear/boots_armor/footF.png",
+     "pivot": [
+      4,
+      4
+     ],
+     "tint": false
+    },
+    "footB": {
+     "sprite": "wear/boots_armor/footB.png",
+     "pivot": [
+      4,
+      4
+     ],
+     "tint": false
+    }
+   }
+  },
+  {
+   "id": "gloves_armor",
+   "kind": "gloves",
+   "name": "Hardsuit gloves",
+   "parts": {
+    "handF": {
+     "sprite": "wear/gloves_armor/handF.png",
+     "pivot": [
+      3,
+      7
+     ],
+     "tint": false
+    },
+    "handB": {
+     "sprite": "wear/gloves_armor/handB.png",
+     "pivot": [
+      3,
+      5
+     ],
+     "tint": false
+    }
+   }
+  }
+ ]
 }

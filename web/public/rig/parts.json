@@ -1,0 +1,107 @@
+{
+ "hips": {
+  "sprite": "parts/hips.png",
+  "pivot": [
+   2,
+   10
+  ]
+ },
+ "torso": {
+  "sprite": "parts/torso.png",
+  "pivot": [
+   0,
+   10
+  ]
+ },
+ "head": {
+  "sprite": "parts/head.png",
+  "pivot": [
+   3,
+   13
+  ]
+ },
+ "armB_upper": {
+  "sprite": "parts/armB_upper.png",
+  "pivot": [
+   2,
+   4
+  ]
+ },
+ "armB_lower": {
+  "sprite": "parts/armB_lower.png",
+  "pivot": [
+   2,
+   4
+  ]
+ },
+ "handB": {
+  "sprite": "parts/handB.png",
+  "pivot": [
+   2,
+   4
+  ]
+ },
+ "armF_upper": {
+  "sprite": "parts/armF_upper.png",
+  "pivot": [
+   2,
+   5
+  ]
+ },
+ "armF_lower": {
+  "sprite": "parts/armF_lower.png",
+  "pivot": [
+   2,
+   6
+  ]
+ },
+ "handF": {
+  "sprite": "parts/handF.png",
+  "pivot": [
+   2,
+   6
+  ]
+ },
+ "legB_thigh": {
+  "sprite": "parts/legB_thigh.png",
+  "pivot": [
+   2,
+   8
+  ]
+ },
+ "legB_shin": {
+  "sprite": "parts/legB_shin.png",
+  "pivot": [
+   2,
+   4
+  ]
+ },
+ "footB": {
+  "sprite": "parts/footB.png",
+  "pivot": [
+   3,
+   3
+  ]
+ },
+ "legF_thigh": {
+  "sprite": "parts/legF_thigh.png",
+  "pivot": [
+   2,
+   8
+  ]
+ },
+ "legF_shin": {
+  "sprite": "parts/legF_shin.png",
+  "pivot": [
+   2,
+   4
+  ]
+ },
+ "footF": {
+  "sprite": "parts/footF.png",
+  "pivot": [
+   3,
+   3
+  ]
+ }
+}
