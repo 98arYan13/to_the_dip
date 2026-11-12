@@ -68,3 +68,15 @@ describe('Save codec', () => {
     expect(() => migrate({ version: 1, seed: 1, settings: { x: 1 }, economy: { levels: { pickaxe: 1 } } })).toThrow(/not compatible/);
   });
 });
+
+describe('Save outfit', () => {
+  it('round-trips player.outfit and tolerates its absence', () => {
+    const w = new World(generateWorld(9));
+    const sys = new SaveSystem(memStorage());
+    const outfit = { hat: null, colors: { hat: '#112233' } };
+    sys.save({ seed: 9, player: { x: 1, y: 2, outfit }, economy: createEconomyState(), world: w });
+    expect(sys.load().data.player.outfit).toEqual(outfit);
+    sys.save({ seed: 9, player: { x: 1, y: 2 }, economy: createEconomyState(), world: w });
+    expect(sys.load().data.player.outfit).toBeUndefined();
+  });
+});

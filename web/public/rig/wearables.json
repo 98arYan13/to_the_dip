@@ -1,0 +1,21 @@
+{
+  "items": [
+    { "id": "helmet", "kind": "hat", "name": "Helmet", "parts": { "head": { "sprite": null, "pivot": [0, 0], "tint": true, "rect": [11, 12, 22] } } },
+    { "id": "shirt_basic", "kind": "shirt", "name": "Work shirt", "parts": {
+      "torso": { "sprite": null, "pivot": [0, 0], "tint": true, "rect": [0, 27, 17] },
+      "armF_upper": { "sprite": null, "pivot": [0, 0], "tint": true, "rect": [0, 13, 6] },
+      "armB_upper": { "sprite": null, "pivot": [0, 0], "tint": true, "rect": [0, 13, 6] } } },
+    { "id": "pants_basic", "kind": "pants", "name": "Work pants", "parts": {
+      "hips": { "sprite": null, "pivot": [0, 0], "tint": true, "rect": [0, 8, 13] },
+      "legF_thigh": { "sprite": null, "pivot": [0, 0], "tint": true, "rect": [0, 16, 7] },
+      "legF_shin": { "sprite": null, "pivot": [0, 0], "tint": true, "rect": [0, 13, 6] },
+      "legB_thigh": { "sprite": null, "pivot": [0, 0], "tint": true, "rect": [0, 16, 7] },
+      "legB_shin": { "sprite": null, "pivot": [0, 0], "tint": true, "rect": [0, 13, 6] } } },
+    { "id": "boots_basic", "kind": "boots", "name": "Boots", "parts": {
+      "footF": { "sprite": null, "pivot": [0, 0], "tint": true, "rect": [-2, 10, 6] },
+      "footB": { "sprite": null, "pivot": [0, 0], "tint": true, "rect": [-2, 10, 6] } } },
+    { "id": "gloves_basic", "kind": "gloves", "name": "Gloves", "parts": {
+      "handF": { "sprite": null, "pivot": [0, 0], "tint": true, "rect": [0, 5, 5] },
+      "handB": { "sprite": null, "pivot": [0, 0], "tint": true, "rect": [0, 5, 5] } } }
+  ]
+}

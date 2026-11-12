@@ -4,6 +4,7 @@
  */
 import { PHYSICS, WORLD, MINING, TILE, GEAR } from '../config.js';
 import { EV } from '../core/EventBus.js';
+import { defaultOutfit } from '../anim/Outfit.js';
 
 export const MINE_IDLE = 0;
 
@@ -61,6 +62,7 @@ export class Player {
     this.aimX = 0; this.aimY = 0;
     this.stepDist = 0;
     this.walkPhase = 0;
+    this.outfit = defaultOutfit();
     this.hp = PHYSICS.SUIT_HP;
     /** Set from settings. */
     this.fallMult = 1;
