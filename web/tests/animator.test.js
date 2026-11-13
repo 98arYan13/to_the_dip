@@ -65,3 +65,14 @@ describe('Animator', () => {
     }
   });
 });
+
+describe('climb animation', () => {
+  it('only cycles while actually moving on the ladder', () => {
+    const a = new Animator(rig, clips);
+    const hang = P({ onLadder: true, onGround: false, vy: 0 });
+    for (let i = 0; i < 60; i++) a.update(hang, 1 / 60, { time: 0, aimDown: false });
+    expect(a.climbDist).toBe(0);
+    for (let i = 0; i < 60; i++) a.update(P({ onLadder: true, onGround: false, vy: 90 }), 1 / 60, { time: 0, aimDown: false });
+    expect(a.climbDist).toBeCloseTo(90, 0);
+  });
+});

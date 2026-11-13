@@ -44,6 +44,12 @@ export function gripTarget(rig, world, pickAngle) {
   return /** @type {[number, number]} */ ([world.x[u] + r * Math.cos(pickAngle), world.y[u] + r * Math.sin(pickAngle)]);
 }
 
+/** World angle the pick points at when not mining: follows the front forearm (0.9 rad at the idle pose). */
+export function idleGripAngle(rig, world) {
+  const a = world.a[/** @type {number} */ (rig.index.get('handF'))] - 0.6;
+  return Math.atan2(Math.sin(a), Math.cos(a));
+}
+
 /** Rig px between the two hands along the pick handle (front hand at the butt, back hand toward the head). */
 export const HAND_GAP = 8;
 

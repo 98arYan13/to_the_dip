@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { createPose, solveWorld, boneTip } from '../src/anim/Rig.js';
-import { toRigSpace, solveTwoBone, headLook, gripTarget, applyOverlays, squashOffset, HAND_GAP } from '../src/anim/Overlays.js';
+import { toRigSpace, solveTwoBone, headLook, gripTarget, applyOverlays, squashOffset, HAND_GAP, idleGripAngle } from '../src/anim/Overlays.js';
+import { readFileSync } from 'node:fs';
+import { sampleClip } from '../src/anim/Clip.js';
 import { realRig } from './rig.test.js';
 
 const rig = realRig();
@@ -30,6 +32,13 @@ describe('Overlays', () => {
   it('toRigSpace mirrors when facing left', () => {
     expect(toRigSpace(10, 20, 16, 0, -1)[0]).toBeGreaterThan(48);
     expect(toRigSpace(20, 20, 16, 0, 1)[0]).toBe(12);
+  });
+  it('idle grip angle follows the arm pose (idle is 0.9 rad, jump differs)', () => {
+    const clips = JSON.parse(readFileSync(new URL('../public/rig/anims.json', import.meta.url), 'utf8'));
+    const c = clips.clips || clips;
+    const ang = (name) => { const p = createPose(rig); sampleClip(c[name], 0, rig, p); return idleGripAngle(rig, solveWorld(rig, p)); };
+    expect(ang('idle')).toBeCloseTo(0.9, 0);
+    expect(Math.abs(ang('jump') - ang('idle'))).toBeGreaterThan(0.5);
   });
   it('mining puts the hand on the grip', () => {
     const p = createPose(rig);

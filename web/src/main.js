@@ -27,7 +27,7 @@ import { Gas } from './systems/Hazards/Gas.js';
 import { Quake } from './systems/Hazards/Quake.js';
 import { CoreGoal } from './systems/CoreGoal.js';
 import { Collectibles } from './systems/Collectibles.js';
-import { placeLadder } from './systems/Items.js';
+import { placeLadder, pickUpLadder } from './systems/Items.js';
 import { placeChargeStation, nearStation, placeFieldCamp, nearFieldCamp } from './systems/Camp.js';
 import { dailySeed, dailyScore, dateKey } from './systems/Daily.js';
 import { coreChamber } from './world/Zones.js';
@@ -351,7 +351,7 @@ function boot() {
     g.warpTimer = -1;
     bus.emit(EV.TELEPORT_START);
     player.setHP(PHYSICS.SUIT_HP);
-    warpHome(`You died (${cause})! Cargo and consumables lost.`, 'bad');
+    warpHome(`You died (${cause})! Ores lost, the rest of your pack kept.`, 'bad');
   });
   bus.on(EV.RESCUE, () => {
     const lost = economy.applyRescueLoss();
@@ -409,7 +409,10 @@ function boot() {
       else if (dynamites.throw(player.cx, player.cy, g.aimX, g.aimY, true)) { economy.useConsumable('bigBomb'); bus.emit(EV.CONSUMABLE_USED, 'bigBomb'); }
     }
     if (input.wasPressed('slot4')) {
-      if (c.ladder <= 0) toast.show('No ladders — buy some at the Trading Post', 'warn');
+      const lx = Math.floor(g.aimX / T); const ly = Math.floor(g.aimY / T);
+      if (Math.hypot(g.aimX - player.cx, g.aimY - player.cy) <= 5 * T && pickUpLadder(world, bus, lx, ly)) {
+        economy.consumables.ladder++; bus.emit(EV.CONSUMABLES_CHANGED);
+      } else if (c.ladder <= 0) toast.show('No ladders — buy some at the Trading Post', 'warn');
       else if (Math.hypot(g.aimX - player.cx, g.aimY - player.cy) > 5 * T) toast.show('Too far to place', 'info');
       else if (placeLadder(world, bus, Math.floor(g.aimX / T), Math.floor(g.aimY / T))) economy.useConsumable('ladder');
       else toast.show('Ladders need open air next to rock', 'info');
@@ -447,7 +450,7 @@ function boot() {
       while (g.jetAcc >= 1) { g.jetAcc--; particles.jet(player.x + (player.facing > 0 ? 0 : player.w), player.y + player.h - 4); }
     }
     if (!underground) return;
-    const range = economy.radar.headlamp;
+    const range = economy.headlamp;
     g.dustAcc += dt * PARTICLES.BEAM_DUST_RATE;
     while (g.dustAcc >= 1) {
       g.dustAcc--;
@@ -511,7 +514,7 @@ function boot() {
     fluids.update(dt);
     gas.update(dt);
     lighting.update(dt, RADAR.RING_SPEED);
-    vis.update(dt, player.cx, player.cy, economy.radar.headlamp, Math.atan2(g.aimY - player.cy, g.aimX - player.cx));
+    vis.update(dt, player.cx, player.cy, economy.headlamp, Math.atan2(g.aimY - player.cy, g.aimX - player.cx));
 
     // Depth / layer
     const ptx = Math.max(0, Math.min(world.W - 1, Math.floor(player.cx / T)));
@@ -589,7 +592,7 @@ function boot() {
       renderer.hoverMineable = hover >= 0 && !isCampGround(hover % world.W, (hover / world.W) | 0) && canMine(world.tileType[hover], world.oreType[hover], economy.pickTier);
       bus.emit(EV.HOVER_TILE, hover);
     }
-    st.aimX = g.aimX; st.aimY = g.aimY; st.depth = g.depth01; st.headlamp = economy.radar.headlamp;
+    st.aimX = g.aimX; st.aimY = g.aimY; st.depth = g.depth01; st.headlamp = economy.headlamp;
     renderer.render(alpha, frameDt, st);
     minimap.draw(frameDt, Math.floor(player.cx / T), Math.floor(player.cy / T), vis, economy.pickTier);
     hud.setRadarCooldown(g.radarCd);

@@ -139,6 +139,8 @@ export class Lighting {
     // Player radial
     this._glow(this.playerSprite, s.playerX, s.playerY, LIGHTING.PLAYER_RADIUS, LIGHTING.PLAYER_INTENSITY * flicker, false);
 
+    this._glow(this.sprite(LIGHTING.CONE_COLOR), s.playerX, s.playerY - 8, LIGHTING.HELMET_RADIUS, 0.6 * flicker, false);
+
     // Headlamp cone with occlusion
     const range = s.headlamp;
     const half = LIGHTING.CONE_HALF_ANGLE;

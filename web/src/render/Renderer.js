@@ -12,7 +12,7 @@ import { loadRigAssets } from '../anim/loadRigAssets.js';
 import { Animator } from '../anim/Animator.js';
 import { RigRenderer, PAD as RIG_PAD } from '../anim/RigRenderer.js';
 import { sanitizeOutfit } from '../anim/Outfit.js';
-import { applyOverlays, toRigSpace } from '../anim/Overlays.js';
+import { applyOverlays, toRigSpace, idleGripAngle } from '../anim/Overlays.js';
 import { solveWorld } from '../anim/Rig.js';
 
 const T = WORLD.TILE_PX;
@@ -364,7 +364,7 @@ export class Renderer {
     const sh = rig.index.get('armF_upper');
     const mining = p.mineState === 1;
     const swing = mining ? swingOffset(p.swingPhase) : 0;
-    const angle = mining ? Math.atan2(my - w0.y[sh], mx - w0.x[sh]) + swing : 0.9;
+    const angle = mining ? Math.atan2(my - w0.y[sh], mx - w0.x[sh]) + swing : idleGripAngle(rig, w0);
     const world = applyOverlays(rig, pose, { look: [mx, my], mining, pickAngle: angle, landVY: this.animator.landVY, squashT: this.animator.squashT });
     const color = this.d.economy.pickaxe.color;
     const canvas = this.rigR.render(world, p.outfit, { sprite: this._playerArt().pickReady() ? this._pickSprite(color) : null, angle, color });

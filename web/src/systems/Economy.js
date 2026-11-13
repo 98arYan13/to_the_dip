@@ -3,7 +3,7 @@
  * Cargo, credits, upgrades and consumables. The rules are pure functions (unit-tested);
  * the Economy class wraps them with state and events.
  */
-import { ORES, PICKAXES, UPGRADES, CONSUMABLES, ECONOMY, BALANCE, ENERGY, CAMP_BUILDINGS, START_BUILDINGS, POWER, ORE, ITEM, TECH } from '../config.js';
+import { ORES, PICKAXES, UPGRADES, CONSUMABLES, ECONOMY, BALANCE, ENERGY, CAMP_BUILDINGS, START_BUILDINGS, POWER, ORE, ITEM, TECH, isOre } from '../config.js';
 
 const cents = (v) => Math.round(v * 100) / 100;
 import { EV } from '../core/EventBus.js';
@@ -168,7 +168,8 @@ export class Economy {
   /** State for a fresh map that keeps progress (cash, stash, tech, buildings, gear, power, consumables). */
   newMapState() {
     const s = this.toJSON();
-    return { ...s, cargo: s.cargo.map(() => 0), stations: [], fieldCamps: [], contracts: { active: [], done: s.contracts.done }, completed: false };
+    const consumables = { ...s.consumables, ladder: Math.max(s.consumables.ladder, CONSUMABLES.ladder.start) };
+    return { ...s, consumables, cargo: s.cargo.map(() => 0), stations: [], fieldCamps: [], contracts: { active: [], done: s.contracts.done }, completed: false };
   }
 
   /** Dev override: tier 1..6, or 0 for the owned tool. Not saved. */
@@ -178,6 +179,8 @@ export class Economy {
   get jetpack() { return UPGRADES.jetpack.levels[this.levels.jetpack]; }
   get rig() { return UPGRADES.rig.levels[this.levels.rig]; }
   get radar() { return UPGRADES.radar.levels[this.levels.radar]; }
+  /** Headlamp range (px): radar level, scaled by tech. */
+  get headlamp() { return this.stat('headlamp', this.radar.headlamp); }
   get capacity() { return this.stat('capacity', this.rig.capacity); }
   /** @param {string} name @param {number} base */
   get sellMul() { const l = this.buildings.shop || 0; return l ? CAMP_BUILDINGS.shop.levels[l - 1].effect.sellMul : 1; }
@@ -325,10 +328,8 @@ export class Economy {
 
   /** Death: the run's loot (cargo + consumables) is lost; credits, upgrades and stash are kept. */
   applyDeath() {
-    this.cargo.fill(0);
-    this.consumables = createEconomyState().consumables;
+    for (let o = 1; o < this.cargo.length; o++) if (isOre(o)) this.cargo[o] = 0; // materials & consumables are kept
     this.bus.emit(EV.CARGO_CHANGED);
-    this.bus.emit(EV.CONSUMABLES_CHANGED);
   }
 
   /** Apply emergency-rescue cargo loss. @returns {number} units lost */

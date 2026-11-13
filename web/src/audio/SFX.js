@@ -39,6 +39,7 @@ export class SFX {
     bus.on(EV.TELEPORT_START, () => this.teleport());
     bus.on(EV.LOW_ENERGY, () => this.lowEnergy());
     bus.on(EV.FOOTSTEP, (m) => this.footstep(m));
+    bus.on(EV.LADDER_STEP, () => this.ladderStep());
     bus.on(EV.SWING, () => this.swing());
     bus.on(EV.HARD_LANDING, (h) => this.impact(h.damage));
     bus.on(EV.SOLD, () => this.shopChime());
@@ -284,6 +285,14 @@ export class SFX {
       e.noiseBurst(v, 'white', 'highpass', 900 * p, 900 * p, 0.7, t, 0.03, 0.12 * g);
       e.osc(v, 'triangle', 140 * p, 90, t, 0.06, 0.18 * g);
     }
+    e.commit(v);
+  }
+
+  /** Wooden rung tick: short 300->220 Hz triangle. */
+  ladderStep() {
+    const e = this.e; if (!e.ready) return;
+    const v = e.voice('sfx'); if (!v) return;
+    e.osc(v, 'triangle', 300 * e.jp(), 220, e.now, 0.05, 0.14 * e.jg());
     e.commit(v);
   }
 

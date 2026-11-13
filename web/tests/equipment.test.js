@@ -43,7 +43,7 @@ describe('crafted equipment', () => {
     const world = { T: 32, W: 8, H: 8, inBounds: () => false, tileType: new Uint8Array(64) };
     const p = new Player({ economy: e, energy, bus: { emit() {} }, physics: { world, move() {} }, mining: { findTarget: () => -1 } });
     p.vy = 0;
-    p.update(1 / 60, { isDown: (k) => k === 'jet', padMoveX: 0 }, 0, 0);
+    p.update(1 / 60, { isDown: (k) => k === 'jet', wasPressed: () => false, padMoveX: 0 }, 0, 0);
     expect(p.jetting).toBe(false);
     expect(p.vy).toBeGreaterThan(0); // gravity only
     expect(energy.value).toBe(50);
@@ -51,10 +51,11 @@ describe('crafted equipment', () => {
 });
 
 describe('shop items', () => {
-  it('ladder is buyable on a fresh economy with $6', () => {
-    const e = mk(); e.credits = 6;
+  it('a fresh economy starts with 10 ladders and one costs $3', () => {
+    const e = mk(); e.credits = 3;
+    expect(e.consumables.ladder).toBe(10);
     expect(e.buyConsumable('ladder').ok).toBe(true);
-    expect(e.consumables.ladder).toBe(1);
+    expect(e.consumables.ladder).toBe(11);
   });
   it('teleporter is no longer sold', () => { expect(CONSUMABLES.teleporter).toBeUndefined(); });
   it('warp charges count stash + cargo and are used from cargo first', () => {

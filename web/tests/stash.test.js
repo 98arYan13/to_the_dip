@@ -24,10 +24,10 @@ describe('stash', () => {
     expect(e.pay({ ores: { [IRON]: 10 } })).toBe(false);
     expect(e.stash[IRON]).toBe(6); expect(e.cargo[IRON]).toBe(3);
   });
-  it('stash survives toJSON/load and death; cargo and consumables do not', () => {
+  it('stash survives toJSON/load and death; ore cargo does not, consumables are kept', () => {
     const e = mk(); e.stash[IRON] = 9; e.cargo[IRON] = 5; e.levels.pickaxe = 3; e.consumables.dynamite = 7; e.credits = 50;
     e.applyDeath();
-    expect(e.cargo[IRON]).toBe(0); expect(e.consumables.dynamite).toBe(createEconomyState().consumables.dynamite);
+    expect(e.cargo[IRON]).toBe(0); expect(e.consumables.dynamite).toBe(7);
     expect(e.levels.pickaxe).toBe(3); expect(e.stash[IRON]).toBe(9); expect(e.credits).toBe(50);
     const e2 = mk(); e2.load(e.toJSON()); expect(e2.stash[IRON]).toBe(9);
   });

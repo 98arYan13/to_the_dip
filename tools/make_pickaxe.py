@@ -16,6 +16,7 @@ from PIL import Image
 SCALE = 3
 W, H = 54, 45
 GRIP_Y = 22.5
+HEAD_SCALE = 0.8  # metal head size vs the original; handle length and grip are unchanged
 
 OUTLINE = (26, 22, 30)
 WOOD = [(196, 140, 84), (160, 108, 60), (122, 80, 44), (88, 56, 30)]  # light -> dark
@@ -44,14 +45,15 @@ def main(out_dir):
 
     # head: crescent = outer ellipse minus inner ellipse, tips curve back toward the handle
     cy = H / 2
-    outer = ((xs - 33) / 17) ** 2 + ((ys - cy) / 21) ** 2 <= 1
-    inner = ((xs - 24) / 17) ** 2 + ((ys - cy) / 24) ** 2 <= 1
+    HS = HEAD_SCALE
+    outer = ((xs - 33) / (17 * HS)) ** 2 + ((ys - cy) / (21 * HS)) ** 2 <= 1
+    inner = ((xs - (33 - 9 * HS)) / (17 * HS)) ** 2 + ((ys - cy) / (24 * HS)) ** 2 <= 1
     crescent = outer & ~inner & (xs > 28)
-    collar = (xs >= 36) & (xs <= 43) & (ys >= cy - 7) & (ys <= cy + 7)
+    collar = (xs >= 36) & (xs <= 43) & (ys >= cy - 7 * HS) & (ys <= cy + 7 * HS)
     metal = crescent | collar
     kind[metal] = 2
     # metal shading: lit from top-left, bright rim on the outer curve
-    d_out = 1 - (((xs - 33) / 17) ** 2 + ((ys - cy) / 21) ** 2)   # 0 at outer edge
+    d_out = 1 - (((xs - 33) / (17 * HS)) ** 2 + ((ys - cy) / (21 * HS)) ** 2)   # 0 at outer edge
     t = (ys / H) * 0.6 + np.clip(d_out, 0, 1) * 0.8
     lv = np.digitize(t, [0.25, 0.45, 0.65, 0.85])
     shade[metal] = lv[metal]

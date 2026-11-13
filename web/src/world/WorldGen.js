@@ -3,7 +3,7 @@
  * Pure, deterministic world generation: depth bands with noise-perturbed boundaries,
  * fBm caves, water pockets, decorative magma channels, fungi/moss, and ore veins via random walks.
  */
-import { WORLD, TILE, ORE, FLAG, MATERIALS, ORES, ORE_HP_MUL, MINING } from '../config.js';
+import { WORLD, TILE, ORE, FLAG, MATERIALS, ORES, ORE_HP_MUL, MINING, WORLD_RARITY } from '../config.js';
 import { RNG } from '../core/RNG.js';
 import { planZones, stampZone, stampCore } from './Zones.js';
 import { createNoise2D, fbm } from '../core/Noise.js';
@@ -131,14 +131,15 @@ export function generateWorld(seed, W = WORLD.W, H = WORLD.H) {
     for (let i = 0; i < n; i++) if (tileType[i] === hostBand) hostIdx.push(i);
     if (hostIdx.length === 0) continue;
     const hosted = [];
+    const wt = (ore) => ore.weight * (ore.price > WORLD_RARITY.RARE_PRICE ? WORLD_RARITY.RARE_WEIGHT_MUL : 1);
     let weightSum = 0;
     for (let o = 1; o < ORES.length; o++) {
       const ore = /** @type {any} */ (ORES[o]);
-      if (ore.hosts.includes(hostBand)) { hosted.push(ore); weightSum += ore.weight; }
+      if (ore.hosts.includes(hostBand)) { hosted.push(ore); weightSum += wt(ore); }
     }
     const frac = WORLD.BAND_ORE_FRACTION[hostBand] || 0;
     for (const ore of hosted) {
-      const target = Math.round(frac * hostIdx.length * ore.weight / weightSum);
+      const target = Math.round(frac * hostIdx.length * wt(ore) / weightSum);
       let placed = 0;
       let attempts = 0;
       const maxAttempts = Math.max(1, target) * WORLD.ORE_ATTEMPT_MULT;

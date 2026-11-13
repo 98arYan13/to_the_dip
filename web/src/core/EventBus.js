@@ -22,6 +22,7 @@ export const EV = Object.freeze({
   PLAYER_DEAD: 'player:dead',            // payload: cause string
   SWING: 'player:swing',
   RESCUE: 'energy:rescue',
+  LADDER_STEP: 'player:ladderStep',     // a rung climbed
   DEPTH_CHANGED: 'depth:changed',        // payload: {meters, layer}
   UPGRADE_BOUGHT: 'upgrade:bought',      // payload: {kind, level}
   CONSUMABLES_CHANGED: 'consumables:changed',

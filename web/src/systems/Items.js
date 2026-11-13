@@ -20,3 +20,12 @@ export function placeLadder(w, bus, x, y) {
   bus.emit(EV.TILE_CHANGED, i);
   return true;
 }
+
+/** Takes a placed ladder back down. @returns {boolean} removed */
+export function pickUpLadder(w, bus, x, y) {
+  if (!w.inBounds(x, y) || w.tileType[y * w.W + x] !== TILE.LADDER) return false;
+  const i = y * w.W + x;
+  w.tileType[i] = TILE.AIR; w.flags[i] |= FLAG.DIRTY;
+  bus.emit(EV.TILE_CHANGED, i);
+  return true;
+}

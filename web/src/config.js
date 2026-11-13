@@ -317,6 +317,9 @@ function withMaterials(list) {
 /** Ores and materials indexed by id; `kind` tells them apart. */
 export const ORES = Object.freeze(withMaterials(ORE_LIST.map((o) => o && { ...o, kind: 'ore' })));
 
+/** World generation: ores above RARE_PRICE per block spawn at RARE_WEIGHT_MUL of their weight (shortcut: Economy's balance model still uses the unscaled weight). */
+export const WORLD_RARITY = Object.freeze({ RARE_PRICE: 100, RARE_WEIGHT_MUL: 0.3 });
+
 /** True for mineable ores (never for materials or 0). @param {number} id */
 export const isOre = (id) => /** @type {any} */ (ORES[id])?.kind === 'ore';
 
@@ -409,6 +412,7 @@ export const TECH = Object.freeze([
   { id: 'padded_suit_2', era: 3, name: 'Padded Suit II', desc: 'Steel plates and plastic foam absorb big falls.', requires: ['padded_suit_1', 'oil_refining'], cost: tc(2400, { [I_.STEEL]: 4, [I_.PLASTIC]: 4 }), effect: { stat: 'fallDamage', mul: 0.6 } },
   { id: 'battery_2', era: 3, name: 'Battery Cell II', desc: 'Nickel-cobalt cells hold far more charge.', requires: ['battery_1', 'blast_furnace'], cost: tc(2300, { [O_.NICKEL]: 4, [O_.COBALT]: 3 }), effect: { stat: 'maxEnergy', add: 200 } },
   { id: 'deep_scanner', era: 3, name: 'Deep Scanner', desc: 'A stronger transmitter pushes radar pulses further.', requires: ['radio', 'blast_furnace'], cost: tc(1900, { [O_.SILVER]: 3, [I_.COPPER_WIRE]: 4 }), effect: { stat: 'radarRange', mul: 1.5 } },
+  { id: 'led_lamp', era: 3, name: 'LED Headlamp', desc: 'Efficient LEDs throw the headlamp beam 30% further.', requires: ['radio', 'blast_furnace'], cost: tc(1800, { [I_.COPPER_WIRE]: 4, [I_.SOLDER]: 3 }), effect: { stat: 'headlamp', mul: 1.3 } },
   { id: 'arc_furnace', era: 3, key: true, name: 'Arc Furnace', desc: 'An electric arc beyond 3000 °C smelts aluminium, titanium and tungsten.', requires: ['diesel_power'], cost: tc(7600, { [I_.STEEL]: 30, [I_.COPPER_WIRE]: 20 }) },
   // Era 4 — Electric
   { id: 'electronics', era: 4, name: 'Electronics', desc: 'Printed circuit boards and lithium-ion cells.', requires: ['arc_furnace'], cost: tc(32000, { [I_.ALUMINIUM]: 20, [I_.COPPER_WIRE]: 10, [O_.GOLD]: 4 }) },
@@ -442,7 +446,7 @@ export const TECH = Object.freeze([
 export const CONSUMABLES = Object.freeze({
   dynamite: { name: 'Dynamite', short: 'Dynamite', price: 15, slot: 1, start: 2 },
   cell: { name: 'Reserve Energy Cell', short: 'Cell', price: 10, slot: 3, start: 1, frac: 0.4 },
-  ladder: { name: 'Ladder', short: 'Ladder', price: 6, slot: 4, start: 0 },
+  ladder: { name: 'Ladder', short: 'Ladder', price: 3, slot: 4, start: 10 },
   bigBomb: { name: 'Big Bomb', short: 'Big Bomb', price: 60, slot: 5, start: 0, tech: 'big_bomb' },
   campKit: { name: 'Field Camp Kit', short: 'Camp', price: 120, slot: 6, start: 0 },
 });
@@ -486,6 +490,10 @@ export const PHYSICS = Object.freeze({
   HEAT_SAFE_T: 60, HEAT_DPS_PER_C: 0.01, // damage grows linearly from 60 °C: 0.4 HP/s at 100 °C, ~2.9 at the bottom; magma/core contact ~13-20
   HARD_LANDING_DMG_PER_TILE: 18,
   LADDER_SPEED: 90,
+  /** Px climbed per rung tick sound. */
+  LADDER_STEP_DIST: 12,
+  /** Standing jump apex (px): two 16px tiles plus 2px clearance. */
+  JUMP_H: 34,
   SUIT_HP: 100,
 });
 
@@ -544,7 +552,7 @@ export const ENERGY = Object.freeze({
   RADAR_COST: 8,
 });
 
-export const RADAR = Object.freeze({ COOLDOWN: 6, RING_SPEED: 520 });
+export const RADAR = Object.freeze({ COOLDOWN: 10, RING_SPEED: 520 });
 export const TELEPORT = Object.freeze({ CHANNEL_TIME: 0.9, VORTEX_RATE: 140 });
 
 export const CAMERA = Object.freeze({
@@ -569,7 +577,7 @@ export const RENDER = Object.freeze({
   ATLAS_COLS: 16,
   REVEAL_FADE: 2.5,
   REVEAL_INTERVAL: 4,
-  REVEAL_NEAR: 1.6,
+  REVEAL_NEAR: 2.5, // tiles revealed through walls around the player
   BACKWALL_BRIGHTNESS: 0.32,
   UNDERGROUND_BG: '#07070b',
   FOG_COLOR: '#000000',
@@ -594,6 +602,8 @@ export const LIGHTING = Object.freeze({
   CONE_HALF_ANGLE: 0.44,
   CONE_INNER_FRAC: 0.55,
   CONE_COLOR: '#fff1d6',
+  HELMET_RADIUS: 40, // small bright glow on the helmet
+
   CONE_OUTER_ALPHA: 0.55,
   CONE_WALL_BLEED: 34, // px past the wall face: the beam lights one full tile into rock
   FLICKER: 0.06,

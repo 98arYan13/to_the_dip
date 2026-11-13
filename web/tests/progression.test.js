@@ -9,9 +9,9 @@ import { rollContracts, acceptContract, turnIn } from '../src/systems/Contracts.
 import { Collectibles } from '../src/systems/Collectibles.js';
 import { CoreGoal } from '../src/systems/CoreGoal.js';
 import { dailySeed } from '../src/systems/Daily.js';
-import { canPlaceLadder, placeLadder } from '../src/systems/Items.js';
+import { canPlaceLadder, placeLadder, pickUpLadder } from '../src/systems/Items.js';
 import { Mining, canMine } from '../src/systems/Mining.js';
-import { ITEM, TILE, ORES, ZONES, WORLD, CAMP, CONTRACTS, CORE_GOAL, FLAG, GAS, PICKAXES, DYNAMITE } from '../src/config.js';
+import { ORE, ITEM, TILE, ORES, ZONES, WORLD, CAMP, CONTRACTS, CORE_GOAL, FLAG, GAS, PICKAXES, DYNAMITE } from '../src/config.js';
 
 const mk = () => new Economy(new EventBus(), createEconomyState());
 
@@ -224,9 +224,26 @@ describe('items', () => {
     const bedY = w.H - 1; expect(w.tileType[bedY * w.W + 10]).toBe(TILE.BEDROCK);
     m.blast(10, bedY - 1, 3); expect(w.tileType[bedY * w.W + 10]).toBe(TILE.BEDROCK);
   });
-  it('ladders and bombs are lost on death', () => {
-    const e = mk(); e.consumables.ladder = 3; e.consumables.bigBomb = 2; e.applyDeath();
-    expect(e.consumables.ladder).toBe(0); expect(e.consumables.bigBomb).toBe(0);
+  it('a placed ladder can be picked up again, other tiles cannot', () => {
+    const w = new World(generateWorld(1)); const bus = new EventBus();
+    const x = WORLD.BASE_CAMP.SPAWN_X; const y = WORLD.SURFACE_ROWS - 1; // open air above the surface, rock below
+    expect(placeLadder(w, bus, x, y)).toBe(true);
+    expect(pickUpLadder(w, bus, x, y)).toBe(true);
+    expect(w.tileType[y * w.W + x]).toBe(TILE.AIR);
+    expect(pickUpLadder(w, bus, x, WORLD.SURFACE_ROWS + 3)).toBe(false);
+  });
+  it('death loses ores but keeps materials and consumables', () => {
+    const e = mk(); e.consumables.ladder = 3; e.consumables.bigBomb = 2;
+    e.cargo[ORE.COAL] = 3; e.cargo[ITEM.STEEL] = 2; e.applyDeath();
+    expect(e.cargo[ORE.COAL]).toBe(0); expect(e.cargo[ITEM.STEEL]).toBe(2);
+    expect(e.consumables.ladder).toBe(3); expect(e.consumables.bigBomb).toBe(2);
+    expect(() => mk().applyDeath()).not.toThrow();
+  });
+  it('new map keeps at least 10 ladders and never reduces more', () => {
+    const e = mk(); e.consumables.ladder = 2;
+    expect(e.newMapState().consumables.ladder).toBe(10);
+    e.consumables.ladder = 25;
+    expect(e.newMapState().consumables.ladder).toBe(25);
   });
 });
 

@@ -38,6 +38,11 @@ export function canStandOn(type, boots) {
 }
 export const MINE_SWING = 1;
 
+/** Launch speed (px/s, positive) that peaks `heightPx` high under `gravity`. */
+export function jumpVelocity(heightPx, gravity) {
+  return Math.sqrt(2 * gravity * heightPx);
+}
+
 export class Player {
   /**
    * @param {{physics:import('../systems/Physics.js').Physics, mining:import('../systems/Mining.js').Mining,
@@ -119,6 +124,7 @@ export class Player {
     const onLadder = w0.inBounds(ptx, pty) && w0.tileType[pty * w0.W + ptx] === TILE.LADDER;
     this.onLadder = onLadder;
     if (this.hurtTimer > 0) this.hurtTimer -= dt;
+    if (this.onGround && !onLadder && input.wasPressed('jet')) this.vy = -jumpVelocity(PHYSICS.JUMP_H, PHYSICS.GRAVITY * this.fallMult);
     this.jetting = economy.hasJetpack && !onLadder && input.isDown('jet') && energy.value > 0;
     if (this.jetting) {
       this.vy -= economy.stat('jetThrust', jp.thrust) * dt;
@@ -131,6 +137,8 @@ export class Player {
     if (onLadder) {
       this.vy = (input.isDown('jet') ? -1 : input.isDown('down') ? 1 : 0) * PHYSICS.LADDER_SPEED;
       this.unbrakedFallPx = 0;
+      this.climbAcc = (this.climbAcc || 0) + Math.abs(this.vy) * dt;
+      if (this.climbAcc >= PHYSICS.LADDER_STEP_DIST) { this.climbAcc = 0; bus.emit(EV.LADDER_STEP); }
     }
 
     const yBefore = this.y;
