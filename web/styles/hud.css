@@ -128,3 +128,19 @@ kbd { font: inherit; font-size: 11px; background: #1b2630; border: 1px solid #39
 .dev { position: absolute; right: 12px; top: 300px; padding: 8px 12px; min-width: 240px; font-size: 12px; z-index: 7; }
 .dev b { color: var(--warn); letter-spacing: 2px; }
 .dev .srow span { width: auto; }
+
+/* Tech and Craft tabs */
+.era-tabs { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 10px; }
+.tech-wrap { display: flex; gap: 14px; align-items: flex-start; flex-wrap: wrap; }
+.tech-graph { position: relative; flex: none; margin: 4px 0 10px; }
+.tech-graph svg { position: absolute; left: 0; top: 0; pointer-events: none; }
+.tech-graph line { stroke: #3a5566; stroke-width: 1.5; }
+.tech-node { position: absolute; font: inherit; font-size: 11px; color: var(--text); background: #111a22; border: 1px solid #39505f; border-radius: 3px; cursor: pointer; padding: 0 6px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.tech-node.owned { border-color: var(--good); color: var(--good); }
+.tech-node.can { border-color: var(--warm); color: var(--warm); }
+.tech-node.locked { color: var(--muted); }
+.tech-node.sel, .tech-node:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.tech-panel { flex: 1; min-width: 220px; display: flex; flex-direction: column; gap: 6px; }
+.need { display: flex; justify-content: space-between; font-size: 12px; }
+.need.ok span, .up-stats .ok { color: var(--good); }
+.need.no span, .up-stats .no { color: var(--bad); }

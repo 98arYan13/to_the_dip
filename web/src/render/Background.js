@@ -3,7 +3,7 @@
  * Surface dusk sky, 3-layer parallax (mountains, hills, trees), drifting clouds, bird flocks,
  * floating pollen, and the Expedition Base Camp buildings with animated beacons.
  */
-import { SURFACE, WORLD, CAMERA } from '../config.js';
+import { SURFACE, WORLD, CAMERA, CAMP_BUILDINGS } from '../config.js';
 import { RNG } from '../core/RNG.js';
 import { createNoise2D, fbm } from '../core/Noise.js';
 import { createCanvas, get2D, hexToRgb } from './canvas.js';
@@ -184,6 +184,28 @@ export class Background {
     return calls;
   }
 
+  /** Placeholder processing buildings: box grows with level, dashed outline if unbuilt, dimmed if its first tech is missing. */
+  _drawBuildings(ctx, r) {
+    const ec = /** @type {any} */ (this).economy;
+    let calls = 0;
+    ctx.font = '7px monospace'; ctx.textBaseline = 'top';
+    for (const [id, tx] of Object.entries(WORLD.BASE_CAMP.BUILDING_SLOTS)) {
+      const b = /** @type {any} */ (CAMP_BUILDINGS)[id]; const lvl = ec.buildings[id] || 0;
+      const x = tx * T - T / 2 + 4; const w = 2 * T - 8; const h = 24 + 14 * lvl;
+      const tech = b.levels[0].tech;
+      ctx.globalAlpha = tech && !ec.tech.includes(tech) ? 0.4 : 1;
+      if (lvl) {
+        r(x, GROUND - h, w, h, '#4a4f5c'); r(x, GROUND - h, w, 4, '#6b7385');
+        r(x + 6, GROUND - h + 10, w - 12, 6, id === 'furnace' ? '#ff8a3a' : id === 'generator' ? '#ffd166' : '#3ff0ff');
+      } else {
+        ctx.strokeStyle = '#9aa4b5'; ctx.setLineDash([3, 3]); ctx.strokeRect(x + 0.5, GROUND - h + 0.5, w - 1, h - 1); ctx.setLineDash([]); calls++;
+      }
+      ctx.fillStyle = '#e8eef5'; ctx.fillText(`${b.name.toUpperCase()}${lvl ? ` ${lvl}` : ''}`, x + 2, GROUND - h - 9); calls++;
+      ctx.globalAlpha = 1;
+    }
+    return calls;
+  }
+
   /** @param {CanvasRenderingContext2D} ctx */
   _drawBaseCamp(ctx) {
     const bc = WORLD.BASE_CAMP;
@@ -203,6 +225,7 @@ export class Background {
     ctx.font = '7px monospace';
     ctx.textBaseline = 'top';
     ctx.fillText('TRADING POST', sx + 13, GROUND - 53); calls++;
+    if (this.economy) calls += this._drawBuildings(ctx, r);
     // Energy Recharge Station
     const ex = (bc.STATION_X - 0.5) * T;
     r(ex + 6, GROUND - 52, 36, 52, '#39414f');

@@ -2,18 +2,9 @@
  * @module systems/Camp
  * Upgradeable camp buildings and field charging stations. State lives in the economy (so it survives death).
  */
-import { CAMP, CAMP_BUILDINGS, WORLD, TILE } from '../config.js';
+import { CAMP, WORLD, TILE } from '../config.js';
 
-/** Buy the next level of a building (levels are strictly sequential). */
-export function upgradeBuilding(economy, id) {
-  const b = /** @type {any} */ (CAMP_BUILDINGS)[id];
-  if (!b) return { ok: false, reason: 'Unknown building' };
-  const lvl = economy.buildings[id] || 0;
-  if (lvl >= b.levels.length) return { ok: false, reason: 'Maxed out' };
-  if (!economy.pay(b.levels[lvl].cost)) return { ok: false, reason: 'Not enough cash or ore' };
-  economy.buildings[id] = lvl + 1;
-  return { ok: true };
-}
+export { upgradeBuilding } from './Crafting.js';
 
 /** Why a station can't go at tile (x, y), or null if it can. */
 export function stationBlocker(economy, world, x, y) {
@@ -39,4 +30,33 @@ export function placeChargeStation(economy, world, x, y) {
 export function nearStation(economy, px, py) {
   const T = WORLD.TILE_PX;
   return economy.stations.some((s) => Math.hypot((s.x + 0.5) * T - px, (s.y + 0.5) * T - py) < CAMP.STATION_RANGE * T);
+}
+
+/** Why a field camp can't go with its bottom-left at tile (x, y), or null if it can. */
+export function fieldCampBlocker(economy, world, x, y) {
+  const F = CAMP.FIELD_CAMP;
+  if (!(economy.consumables.campKit > 0)) return 'No camp kit';
+  if (economy.fieldCamps.length >= F.MAX) return 'Camp limit reached';
+  for (let dy = 0; dy < F.H; dy++) for (let dx = 0; dx < F.W; dx++) {
+    const tx = x + dx; const ty = y - dy;
+    if (!world.inBounds(tx, ty) || ty <= WORLD.SURFACE_ROWS + 1 || world.tileType[ty * world.W + tx] !== TILE.AIR) return 'Needs a 4×4 open space';
+  }
+  for (let dx = 0; dx < F.W; dx++) if (!world.isSolid(x + dx, y + 1)) return 'Needs solid floor';
+  if (economy.fieldCamps.some((c) => Math.hypot(c.x - x, c.y - y) < CAMP.STATION_MIN_GAP)) return 'Too close to another camp';
+  return null;
+}
+
+/** Spend a kit and pitch the camp. @returns {{ok:boolean, reason?:string}} */
+export function placeFieldCamp(economy, world, x, y) {
+  const reason = fieldCampBlocker(economy, world, x, y);
+  if (reason) return { ok: false, reason };
+  economy.useConsumable('campKit');
+  economy.fieldCamps.push({ x, y });
+  return { ok: true };
+}
+
+/** Is the player (px, py world px) within resting range of a field camp's centre? */
+export function nearFieldCamp(economy, px, py) {
+  const T = WORLD.TILE_PX; const F = CAMP.FIELD_CAMP;
+  return economy.fieldCamps.some((c) => Math.hypot((c.x + F.W / 2) * T - px, (c.y + 1 - F.H / 2) * T - py) < F.RANGE * T);
 }

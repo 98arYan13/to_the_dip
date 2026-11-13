@@ -3,11 +3,11 @@
  * Cargo, credits, upgrades and consumables. The rules are pure functions (unit-tested);
  * the Economy class wraps them with state and events.
  */
-import { ORES, PICKAXES, UPGRADES, CONSUMABLES, ECONOMY, BALANCE, ENERGY, CAMP_BUILDINGS } from '../config.js';
+import { ORES, PICKAXES, UPGRADES, CONSUMABLES, ECONOMY, BALANCE, ENERGY, CAMP_BUILDINGS, START_BUILDINGS, POWER, ORE, ITEM, TECH } from '../config.js';
 
 const cents = (v) => Math.round(v * 100) / 100;
 import { EV } from '../core/EventBus.js';
-import { techStat } from './Tech.js';
+import { techStat, isUnlocked, eraPickTier } from './Tech.js';
 
 /** Upgrade kinds in shop order. */
 export const UPGRADE_KINDS = Object.freeze(['pickaxe', 'rig', 'jetpack', 'radar']);
@@ -75,12 +75,6 @@ export function rescueLoss(cargo, frac = ENERGY.RESCUE_CARGO_LOSS) {
   return lost;
 }
 
-/** Cost of the next level, or -1 if maxed. */
-export function nextUpgradeCost(kind, level) {
-  const levels = upgradeLevels(kind);
-  return level + 1 < levels.length ? levels[level + 1].cost : -1;
-}
-
 /** Pickaxe tier → damage/swing record. */
 export function pickaxeForTier(tier) { return PICKAXES[Math.max(1, Math.min(PICKAXES.length, tier)) - 1]; }
 
@@ -105,10 +99,12 @@ export function expectedTripIncome(tier) {
   return capacity * BALANCE.PACKING_EFFICIENCY * weightedValuePerKg(tier, band);
 }
 
-/** Full trips at tier N needed to afford the tier N+1 pickaxe (Infinity at max tier). */
-export function tripsToAffordNext(tier) {
-  if (tier >= PICKAXES.length) return Infinity;
-  return PICKAXES[tier].cost / expectedTripIncome(tier);
+/** Trips of income a tech costs at its era: (cash + market value of its items) / expected trip income. */
+export function techTrips(techId) {
+  const t = /** @type {any} */ (TECH.find((x) => x.id === techId));
+  let v = t.cost.cash || 0;
+  for (const [o, n] of Object.entries(t.cost.ores || {})) v += n * /** @type {any} */ (ORES[+o]).price;
+  return v / expectedTripIncome(eraPickTier(t.era));
 }
 
 /** Fresh economy state. */
@@ -119,10 +115,14 @@ export function createEconomyState() {
   return {
     credits: ECONOMY.START_CREDITS,
     cargo: new Array(ORES.length).fill(0),
-    stash: new Array(ORES.length).fill(0),
+    stash: new Array(ORES.length).fill(0).map((_, o) => (o === ORE.COAL ? POWER.START_COAL : 0)),
     tech: /** @type {string[]} */ ([]),
-    buildings: /** @type {Record<string, number>} */ ({}),
+    buildings: /** @type {Record<string, number>} */ ({ ...START_BUILDINGS }),
+    /** Camp power pool (systems/Power.js). */
+    power: POWER.START,
     stations: /** @type {{x:number,y:number}[]} */ ([]),
+    /** Placed field camps (bottom-left tiles); kept on death, cleared on New Map. */
+    fieldCamps: /** @type {{x:number,y:number}[]} */ ([]),
     contracts: { active: /** @type {any[]} */ ([]), done: /** @type {string[]} */ ([]) },
     achievements: /** @type {string[]} */ ([]),
     collect: { ore: /** @type {Record<number,number>} */ ({}), maxDepth: 0 },
@@ -147,8 +147,10 @@ export class Economy {
     this.credits = s.credits;
     this.cargo = new Uint16Array(ORES.length);
     this.tech = [...(s.tech || [])];
-    this.buildings = { ...(s.buildings || {}) };
+    this.buildings = { ...START_BUILDINGS, ...(s.buildings || {}) };
+    this.power = s.power ?? 0;
     this.stations = (s.stations || []).map((p) => ({ ...p }));
+    this.fieldCamps = (s.fieldCamps || []).map((p) => ({ ...p }));
     this.contracts = { active: [...(s.contracts?.active || [])], done: [...(s.contracts?.done || [])] };
     this.achievements = [...(s.achievements || [])];
     this.collect = { ore: { ...(s.collect?.ore || {}) }, maxDepth: s.collect?.maxDepth || 0 };
@@ -160,7 +162,13 @@ export class Economy {
   }
 
   toJSON() {
-    return { credits: this.credits, cargo: Array.from(this.cargo), stash: Array.from(this.stash), tech: [...this.tech], buildings: { ...this.buildings }, stations: this.stations.map((p) => ({ ...p })), contracts: { active: [...this.contracts.active], done: [...this.contracts.done] }, achievements: [...this.achievements], collect: { ore: { ...this.collect.ore }, maxDepth: this.collect.maxDepth }, completed: this.completed, levels: { ...this.levels }, consumables: { ...this.consumables } };
+    return { credits: this.credits, cargo: Array.from(this.cargo), stash: Array.from(this.stash), tech: [...this.tech], buildings: { ...this.buildings }, power: this.power, stations: this.stations.map((p) => ({ ...p })), fieldCamps: this.fieldCamps.map((p) => ({ ...p })), contracts: { active: [...this.contracts.active], done: [...this.contracts.done] }, achievements: [...this.achievements], collect: { ore: { ...this.collect.ore }, maxDepth: this.collect.maxDepth }, completed: this.completed, levels: { ...this.levels }, consumables: { ...this.consumables } };
+  }
+
+  /** State for a fresh map that keeps progress (cash, stash, tech, buildings, gear, power, consumables). */
+  newMapState() {
+    const s = this.toJSON();
+    return { ...s, cargo: s.cargo.map(() => 0), stations: [], fieldCamps: [], contracts: { active: [], done: s.contracts.done }, completed: false };
   }
 
   /** Dev override: tier 1..6, or 0 for the owned tool. Not saved. */
@@ -173,9 +181,9 @@ export class Economy {
   get capacity() { return this.stat('capacity', this.rig.capacity); }
   /** @param {string} name @param {number} base */
   get sellMul() { const l = this.buildings.shop || 0; return l ? CAMP_BUILDINGS.shop.levels[l - 1].effect.sellMul : 1; }
-  get upgradeDiscount() { const l = this.buildings.workshop || 0; return l ? CAMP_BUILDINGS.workshop.levels[l - 1].effect.upgradeDiscount : 1; }
-  /** Upgrade price after workshop discount; -1 if maxed. @param {string} kind */
-  upgradeCost(kind) { const c = nextUpgradeCost(kind, this.levels[kind]); return c < 0 ? c : Math.round(c * this.upgradeDiscount); }
+  get hasJetpack() { return this.levels.jetpack > 0; }
+  /** Next level record of an equipment kind, or undefined if maxed. @param {string} kind */
+  nextUpgrade(kind) { return upgradeLevels(kind)[this.levels[kind] + 1]; }
   stat(name, base) { return techStat(this.tech, name, base); }
   get cargoWeight() { return cargoWeight(this.cargo); }
   /** W_total / C_max, 0..1. */
@@ -208,21 +216,22 @@ export class Economy {
     return { total, lines };
   }
 
-  /** @param {string} kind @returns {{ok:boolean, reason?:string}} */
-  canBuyUpgrade(kind) {
-    const cost = this.upgradeCost(kind);
-    if (cost < 0) return { ok: false, reason: 'Maxed out' };
-    if (this.credits < cost) return { ok: false, reason: `Need $${(cost - this.credits).toLocaleString('en-US')} more` };
+  /** Equipment is crafted from materials only, one level at a time. @param {string} kind @returns {{ok:boolean, reason?:string}} */
+  canCraftUpgrade(kind) {
+    const next = this.nextUpgrade(kind);
+    if (!next) return { ok: false, reason: 'Maxed out' };
+    if (!isUnlocked(this, next.tech)) return { ok: false, reason: `Requires ${TECH.find((t) => t.id === next.tech)?.name || next.tech}` };
+    if ((this.buildings.workshop || 0) < next.workshop) return { ok: false, reason: `Needs Workshop level ${next.workshop}` };
+    if (!this.canAfford({ ores: next.recipe })) return { ok: false, reason: 'Not enough materials' };
     return { ok: true };
   }
 
   /** @param {string} kind */
-  buyUpgrade(kind) {
-    const check = this.canBuyUpgrade(kind);
+  craftUpgrade(kind) {
+    const check = this.canCraftUpgrade(kind);
     if (!check.ok) { this.bus.emit(EV.PURCHASE_FAILED, check.reason); return check; }
-    this.credits = cents(this.credits - this.upgradeCost(kind));
+    this.pay({ ores: this.nextUpgrade(kind).recipe });
     this.levels[kind]++;
-    this.bus.emit(EV.CREDITS_CHANGED, this.credits);
     this.bus.emit(EV.UPGRADE_BOUGHT, { kind, level: this.levels[kind] });
     if (kind === 'rig') this.bus.emit(EV.CARGO_CHANGED);
     return check;
@@ -252,6 +261,19 @@ export class Economy {
     if (this.consumables[kind] <= 0) return false;
     this.consumables[kind]--;
     this.bus.emit(EV.CONSUMABLES_CHANGED);
+    return true;
+  }
+
+  /** Crafted Warp Charges carried or stored (the portable teleporter's ammo). */
+  get warpCharges() { return this.cargo[ITEM.WARP_CHARGE] + this.stash[ITEM.WARP_CHARGE]; }
+
+  /** Spend one warp charge, cargo first. @returns {boolean} */
+  useWarpCharge() {
+    const W = ITEM.WARP_CHARGE;
+    if (this.cargo[W] > 0) this.cargo[W]--;
+    else if (this.stash[W] > 0) this.stash[W]--;
+    else return false;
+    this.bus.emit(EV.CARGO_CHANGED);
     return true;
   }
 

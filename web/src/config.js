@@ -14,6 +14,36 @@ export const ORE = Object.freeze({
   NONE: 0, COAL: 1, IRON: 2, LEAD: 3, ZINC: 4, COPPER: 5, NICKEL: 6, LITHIUM: 7, TIN: 8, COBALT: 9, FOSSIL: 10,
   URANIUM: 11, LAPIS: 12, SILVER: 13, BLACK_OPAL: 14, PLATINUM: 15, GOLD: 16, METEORITE: 17, RHODIUM: 18, RUBY: 19, DIAMOND: 20,
   TUNGSTEN: 21, // appended last so saved oreType ids stay valid
+  BAUXITE: 22, ILMENITE: 23, OIL_SHALE: 24,
+});
+
+/** Processed material ids: share the ORES id space (cargo/stash/pay work unchanged) but are never generated. */
+export const ITEM = Object.freeze({
+  SOLDER: 25, BRONZE: 26, COPPER_WIRE: 27, WROUGHT_IRON: 28, STEEL: 29, STAINLESS: 30, ALUMINIUM: 31, TITANIUM: 32,
+  TUNGSTEN_CARBIDE: 33, FUEL: 34, PLASTIC: 35, CARBON_FIBER: 36, CIRCUIT: 37, LI_ION_CELL: 38, INDUSTRIAL_DIAMOND: 39,
+  ENRICHED_URANIUM: 40, EXOTIC_ALLOY: 41, WARP_CHARGE: 42,
+});
+
+/** Recipe inputs per material (one output each). Material kg/price are derived from these. */
+export const MATERIAL_INPUTS = Object.freeze({
+  [ITEM.SOLDER]: { [ORE.TIN]: 2, [ORE.LEAD]: 1 },
+  [ITEM.BRONZE]: { [ORE.COPPER]: 3, [ORE.TIN]: 1 },
+  [ITEM.COPPER_WIRE]: { [ORE.COPPER]: 2 },
+  [ITEM.WROUGHT_IRON]: { [ORE.IRON]: 2, [ORE.COAL]: 1 },
+  [ITEM.STEEL]: { [ORE.IRON]: 2, [ORE.COAL]: 2 },
+  [ITEM.STAINLESS]: { [ITEM.STEEL]: 2, [ORE.NICKEL]: 1 },
+  [ITEM.ALUMINIUM]: { [ORE.BAUXITE]: 4 },
+  [ITEM.TITANIUM]: { [ORE.ILMENITE]: 3, [ORE.COAL]: 1 },
+  [ITEM.TUNGSTEN_CARBIDE]: { [ORE.TUNGSTEN]: 2, [ORE.COAL]: 1 },
+  [ITEM.FUEL]: { [ORE.OIL_SHALE]: 2 },
+  [ITEM.PLASTIC]: { [ORE.OIL_SHALE]: 2 },
+  [ITEM.CARBON_FIBER]: { [ITEM.PLASTIC]: 3 },
+  [ITEM.CIRCUIT]: { [ITEM.COPPER_WIRE]: 2, [ORE.GOLD]: 1, [ITEM.PLASTIC]: 1 },
+  [ITEM.LI_ION_CELL]: { [ORE.LITHIUM]: 2, [ORE.COBALT]: 1, [ORE.NICKEL]: 1 },
+  [ITEM.INDUSTRIAL_DIAMOND]: { [ORE.DIAMOND]: 1 },
+  [ITEM.ENRICHED_URANIUM]: { [ORE.URANIUM]: 5 },
+  [ITEM.EXOTIC_ALLOY]: { [ORE.METEORITE]: 2, [ORE.RHODIUM]: 1, [ORE.PLATINUM]: 1 },
+  [ITEM.WARP_CHARGE]: { [ITEM.EXOTIC_ALLOY]: 1, [ITEM.ENRICHED_URANIUM]: 1 },
 });
 
 /** Bit flags (stored in World.flags). */
@@ -45,13 +75,70 @@ export const ZONES = Object.freeze({
 
 export const CORE_GOAL = Object.freeze({ HOLD_S: 20, REWARD_CASH: 100000, QUAKE_EVERY_S: 4 });
 
-export const CAMP = Object.freeze({ STATION_MIN_GAP: 12, MAX_STATIONS: 4, STATION_RANGE: 1.6, STATION_COST: { cash: 1500, ores: { 8: 2 } } });
+export const CAMP = Object.freeze({ STATION_MIN_GAP: 12, MAX_STATIONS: 4, STATION_RANGE: 1.6, STATION_COST: { ores: { 29: 4, 27: 2 } }, // 4 steel + 2 copper wire (ITEM ids)
+  /** Placed field camp: W x H open tiles with (x, y) the bottom-left; RANGE tiles from its centre to rest. */
+  FIELD_CAMP: Object.freeze({ W: 4, H: 4, MAX: 3, RANGE: 2 }) });
 
-/** Upgradeable camp buildings: level i+1 needs level i; effects are read by Economy. */
+/**
+ * Upgradeable camp buildings: level i+1 needs level i. levels[i] is level i+1: cost, tech (required tech id),
+ * needs (another building's minimum level). Processing buildings pay in materials; the Trading Post in cash.
+ */
 export const CAMP_BUILDINGS = Object.freeze({
   shop: { name: 'Trading Post', levels: [{ cost: { cash: 2000 }, effect: { sellMul: 1.1 } }, { cost: { cash: 15000 }, effect: { sellMul: 1.2 } }, { cost: { cash: 90000 }, effect: { sellMul: 1.3 } }] },
-  workshop: { name: 'Workshop', levels: [{ cost: { cash: 3000 }, effect: { upgradeDiscount: 0.95 } }, { cost: { cash: 25000 }, effect: { upgradeDiscount: 0.9 } }, { cost: { cash: 120000 }, effect: { upgradeDiscount: 0.85 } }] },
+  generator: { name: 'Generator', levels: [
+    { name: 'Coal Generator', cost: {} },
+    { name: 'Diesel Generator', cost: { ores: { [ITEM.STEEL]: 20, [ITEM.COPPER_WIRE]: 10 } }, tech: 'diesel_power' },
+    { name: 'Fission Reactor', cost: { ores: { [ITEM.STAINLESS]: 30, [ORE.LEAD]: 40, [ITEM.CIRCUIT]: 10 } }, tech: 'fission' },
+  ] },
+  furnace: { name: 'Furnace', levels: [
+    { name: 'Clay Kiln', cost: {} },
+    { name: 'Bloomery', cost: { ores: { [ORE.IRON]: 15, [ORE.COAL]: 10 } }, tech: 'bloomery' },
+    { name: 'Blast Furnace', cost: { ores: { [ITEM.WROUGHT_IRON]: 20, [ITEM.BRONZE]: 10 } }, tech: 'blast_furnace' },
+    { name: 'Arc Furnace', cost: { ores: { [ITEM.STEEL]: 30, [ITEM.COPPER_WIRE]: 20 } }, tech: 'arc_furnace', needs: { building: 'generator', level: 2 } },
+  ] },
+  refinery: { name: 'Refinery', levels: [
+    { name: 'Distillery', cost: { ores: { [ITEM.STEEL]: 20, [ITEM.SOLDER]: 10 } }, tech: 'oil_refining' },
+    { name: 'Carbonizer', cost: { ores: { [ITEM.STAINLESS]: 20, [ITEM.ALUMINIUM]: 10 } }, tech: 'carbon_fiber' },
+  ] },
+  lab: { name: 'Lab', levels: [
+    { name: 'Electronics Lab', cost: { ores: { [ITEM.ALUMINIUM]: 20, [ITEM.COPPER_WIRE]: 10 } }, tech: 'electronics' },
+    { name: 'Isotope Lab', cost: { ores: { [ITEM.STAINLESS]: 20, [ORE.LEAD]: 30, [ITEM.CIRCUIT]: 10 } }, tech: 'fission' },
+  ] },
+  workshop: { name: 'Workshop', levels: [
+    { name: 'Forge Bench', cost: {} },
+    { name: 'Machine Shop', cost: { ores: { [ITEM.STEEL]: 20, [ITEM.BRONZE]: 10 } }, tech: 'machining' },
+    { name: 'Precision Shop', cost: { ores: { [ITEM.TITANIUM]: 20, [ITEM.CIRCUIT]: 10 } }, tech: 'precision' },
+  ] },
 });
+
+/** Camp power pool: capacity per Generator level, fuels (power per unit, min Generator level), 1 power per 10 battery energy. */
+export const POWER = Object.freeze({
+  CAP: [200, 1000, 10000],
+  FUELS: [{ id: ORE.COAL, power: 10, gen: 1 }, { id: ITEM.FUEL, power: 40, gen: 2 }, { id: ITEM.ENRICHED_URANIUM, power: 500, gen: 3 }],
+  PER_ENERGY: 0.1,
+  START: 100,
+  START_COAL: 20,
+});
+
+/** Building levels owned on a fresh game. */
+export const START_BUILDINGS = Object.freeze({ generator: 1, furnace: 1, workshop: 1 });
+
+/** Where each material is made, and the tech that unlocks it. `in` is MATERIAL_INPUTS; power per craft. */
+const RECIPE_DEFS = [
+  ['SOLDER', 'furnace', 1, 'solder'], ['BRONZE', 'furnace', 2, 'bloomery'], ['COPPER_WIRE', 'furnace', 2, 'bloomery'],
+  ['WROUGHT_IRON', 'furnace', 2, 'bloomery'], ['STEEL', 'furnace', 3, 'blast_furnace', 5], ['STAINLESS', 'furnace', 3, 'blast_furnace'],
+  ['ALUMINIUM', 'furnace', 4, 'arc_furnace', 30], ['TITANIUM', 'furnace', 4, 'arc_furnace'], ['TUNGSTEN_CARBIDE', 'furnace', 4, 'arc_furnace'],
+  ['FUEL', 'refinery', 1, 'oil_refining'], ['PLASTIC', 'refinery', 1, 'oil_refining'], ['CARBON_FIBER', 'refinery', 2, 'carbon_fiber'],
+  ['CIRCUIT', 'lab', 1, 'electronics'], ['LI_ION_CELL', 'lab', 1, 'electronics'], ['INDUSTRIAL_DIAMOND', 'lab', 1, 'diamond_tooling'],
+  ['ENRICHED_URANIUM', 'lab', 2, 'fission'], ['EXOTIC_ALLOY', 'furnace', 4, 'exotic_materials'], ['WARP_CHARGE', 'lab', 2, 'warp_drive'],
+];
+
+/** @type {readonly {id:string, building:string, level:number, in:Record<number,number>, out:Record<number,number>, power:number, tech?:string}[]} */
+export const RECIPES = Object.freeze(RECIPE_DEFS.map(([key, building, level, tech, power]) => {
+  const out = /** @type {any} */ (ITEM)[key]; const inp = /** @type {any} */ (MATERIAL_INPUTS)[out];
+  // Default power: 1 per input unit.
+  return { id: String(key).toLowerCase(), building, level, in: inp, out: { [out]: 1 }, power: power ?? Object.values(inp).reduce((a, n) => a + n, 0), tech };
+}));
 
 export const CONTRACTS = Object.freeze({ MAX_ACTIVE: 3, OFFERS: 4, PREMIUM: 0.25 });
 
@@ -97,8 +184,10 @@ export const WORLD = Object.freeze({
   ORE_DEPTH_BIAS: 0.35,
   ORE_ATTEMPT_MULT: 20,
   BASE_CAMP: Object.freeze({ SPAWN_X: 29, SHOP_X: 24, STATION_X: 36, SHAFT_X: 31, INTERACT_RANGE: 2.2,
+    /** Centre tile of each processing building (2 tiles wide), clear of the shop, shaft and station. */
+    BUILDING_SLOTS: Object.freeze({ generator: 13, furnace: 16, refinery: 19, lab: 41, workshop: 44 }),
     /** Unbreakable foundation under the camp buildings: columns PAD_X0..PAD_X1, PAD_DEPTH rows deep. */
-    PAD_X0: 20, PAD_X1: 40, PAD_DEPTH: 3 }),
+    PAD_X0: 11, PAD_X1: 46, PAD_DEPTH: 3 }),
   TOP_LIMIT_PX: -200,
 });
 
@@ -144,7 +233,7 @@ export const MATERIALS = Object.freeze([
  * Ores indexed by ORE id. kg = cargo weight per block (ore + protective matrix), hard = H_mat,
  * perKg = value per kg of cargo, price = perKg * kg per block. weight = relative abundance within a host band.
  */
-export const ORES = Object.freeze([
+const ORE_LIST = [
   null,
   { id: 1, key: 'COAL', name: 'Coal', kg: 5.0, hard: 1.0, perKg: 0.14, price: 0.7, tier: 1, hosts: [1, 2], weight: 10, vein: [4, 8], glint: 0.0, pitch: 0,
     colors: { base: '#2a282d', light: '#55525d', spec: '#ffffff', dark: '#151416' }, glow: null, tile: 'iron-coal-copper-zinc_1' },
@@ -178,91 +267,184 @@ export const ORES = Object.freeze([
     colors: { base: '#a8b0b8', light: '#eaf3fb', spec: '#ffffff', dark: '#54585c' }, glow: '#bfe0ff', tile: 'sliver-black-opal-platinum-gold_2' },
   { id: 16, key: 'GOLD', name: 'Gold', kg: 2.2, hard: 3.0, perKg: 310.55, price: 683.21, tier: 4, hosts: [4, 5], weight: 2, vein: [1, 4], glint: 0.8, pitch: 1175,
     colors: { base: '#c8900c', light: '#ffd84a', spec: '#ffffff', dark: '#644806' }, glow: '#ffcc33', tile: 'sliver-black-opal-platinum-gold_3' },
-  { id: 17, key: 'METEORITE', name: 'Meteorite', kg: 7.0, hard: 7.5, perKg: 125.0, price: 875.0, tier: 5, hosts: [4, 5], weight: 2, vein: [1, 3], glint: 0.3, pitch: 420,
+  { id: 17, key: 'METEORITE', name: 'Meteorite', kg: 7.0, hard: 7.5, perKg: 125.0, price: 875.0, tier: 5, hosts: [4, 5], weight: 1.4, vein: [1, 3], glint: 0.3, pitch: 420,
     colors: { base: '#c0d8f0', light: '#ffffff', spec: '#ffffff', dark: '#606c78' }, glow: '#a0d0ff', tile: 'meteorit-rhodium-ruby-diamond_0' },
-  { id: 18, key: 'RHODIUM', name: 'Rhodium', kg: 1.8, hard: 6.5, perKg: 593.06, price: 1067.51, tier: 5, hosts: [5], weight: 2, vein: [1, 3], glint: 0.7, pitch: 1250,
+  { id: 18, key: 'RHODIUM', name: 'Rhodium', kg: 1.8, hard: 6.5, perKg: 593.06, price: 1067.51, tier: 5, hosts: [5], weight: 1.4, vein: [1, 3], glint: 0.7, pitch: 1250,
     colors: { base: '#3a2a2a', light: '#ff7a2a', spec: '#ffffff', dark: '#1d1515' }, glow: '#ff6a1a', tile: 'meteorit-rhodium-ruby-diamond_1' },
-  { id: 19, key: 'RUBY', name: 'Ruby & Emerald', kg: 0.6, hard: 8.0, perKg: 2600.0, price: 1560.0, tier: 5, hosts: [5], weight: 1, vein: [1, 2], glint: 0.95, pitch: 1400,
+  { id: 19, key: 'RUBY', name: 'Ruby & Emerald', kg: 0.6, hard: 8.0, perKg: 2600.0, price: 1560.0, tier: 5, hosts: [5], weight: 0.7, vein: [1, 2], glint: 0.95, pitch: 1400,
     colors: { base: '#c01a3a', light: '#3ae07a', spec: '#ffffff', dark: '#600d1d' }, glow: '#ff3a6a', tile: 'meteorit-rhodium-ruby-diamond_2' },
-  { id: 20, key: 'DIAMOND', name: 'Diamond', kg: 0.5, hard: 10.0, perKg: 5000.0, price: 2500.0, tier: 6, hosts: [5], weight: 0.5, vein: [1, 2], glint: 1.0, pitch: 1568,
+  { id: 20, key: 'DIAMOND', name: 'Diamond', kg: 0.5, hard: 10.0, perKg: 5000.0, price: 2500.0, tier: 6, hosts: [5], weight: 0.35, vein: [1, 2], glint: 1.0, pitch: 1568,
     colors: { base: '#7fe8ff', light: '#e8fdff', spec: '#ffffff', dark: '#3f747f' }, glow: '#8ff4ff', tile: 'meteorit-rhodium-ruby-diamond_3', crystal: true },
   // Heaviest ore in the game (dense wolframite/scheelite): tier 4 like gold/platinum, priced between them, found in granite-to-basalt veins.
   // Mining it with the Titanium Drill is what pays for the Tungsten Carbide Drill. No hand-drawn tile yet: procedural art.
   { id: 21, key: 'TUNGSTEN', name: 'Tungsten', kg: 5.0, hard: 7.0, perKg: 112.0, price: 560.0, tier: 4, hosts: [3, 4], weight: 2.5, vein: [2, 4], glint: 0.5, pitch: 1060,
     colors: { base: '#33313a', light: '#a68fc4', spec: '#ffffff', dark: '#18171c' }, glow: '#9a7aff', tile: null },
-]);
+  // Tech-redesign ores (procedural art). Bauxite ~ iron, oil shale ~ lead, ilmenite ~ cobalt.
+  { id: 22, key: 'BAUXITE', name: 'Bauxite', kg: 6.0, hard: 1.5, perKg: 0.18, price: 1.08, tier: 1, hosts: [1, 2], weight: 6, vein: [3, 7], glint: 0.1, pitch: 500,
+    colors: { base: '#b0603a', light: '#e0a070', spec: '#ffffff', dark: '#58301d' }, glow: null, tile: null },
+  { id: 23, key: 'ILMENITE', name: 'Ilmenite', kg: 3.0, hard: 3.0, perKg: 9.0, price: 27.0, tier: 3, hosts: [3, 4], weight: 4, vein: [2, 5], glint: 0.4, pitch: 720,
+    colors: { base: '#2e2a30', light: '#8a8494', spec: '#ffffff', dark: '#171518' }, glow: null, tile: null },
+  { id: 24, key: 'OIL_SHALE', name: 'Oil Shale', kg: 4.5, hard: 1.3, perKg: 0.9, price: 4.05, tier: 2, hosts: [2, 3], weight: 5, vein: [3, 6], glint: 0.1, pitch: 440,
+    colors: { base: '#3a3226', light: '#6e5e44', spec: '#ffffff', dark: '#1d1913' }, glow: null, tile: null },
+];
+
+/** [key, name, base, light, dark] per material, in ITEM id order (inputs always come before outputs). */
+const MATERIAL_DEFS = [
+  ['SOLDER', 'Solder', '#8c949c', '#d4dae0', '#464a4e'], ['BRONZE', 'Bronze', '#a0702c', '#e0a858', '#503816'],
+  ['COPPER_WIRE', 'Copper Wire', '#c06a30', '#f0a060', '#603518'], ['WROUGHT_IRON', 'Wrought Iron', '#4a4a50', '#8a8a94', '#252528'],
+  ['STEEL', 'Steel', '#7c8794', '#c4ced8', '#3e444a'], ['STAINLESS', 'Stainless Steel', '#a8b4c0', '#eef4fa', '#545a60'],
+  ['ALUMINIUM', 'Aluminium', '#b8c0c8', '#f4f8fc', '#5c6064'], ['TITANIUM', 'Titanium', '#8c94a8', '#d4dcf0', '#464a54'],
+  ['TUNGSTEN_CARBIDE', 'Tungsten Carbide', '#4c4a58', '#9a96b0', '#26252c'], ['FUEL', 'Fuel', '#a0802a', '#e8c860', '#504015'],
+  ['PLASTIC', 'Plastic', '#d0d8e0', '#ffffff', '#687078'], ['CARBON_FIBER', 'Carbon Fiber', '#26282c', '#5c6068', '#131416'],
+  ['CIRCUIT', 'Circuit Board', '#2a7a3a', '#6ae07a', '#153d1d'], ['LI_ION_CELL', 'Li-ion Cell', '#3a6ab0', '#80b0f0', '#1d3558'],
+  ['INDUSTRIAL_DIAMOND', 'Industrial Diamond', '#a0d0e0', '#f0fcff', '#507078'], ['ENRICHED_URANIUM', 'Enriched Uranium', '#4aba2a', '#b0ff6a', '#255d15'],
+  ['EXOTIC_ALLOY', 'Exotic Alloy', '#7a4ac0', '#c8a0ff', '#3d2560'], ['WARP_CHARGE', 'Warp Charge', '#2ac0d0', '#a0f8ff', '#156068'],
+];
+
+/** Appends materials: kg = 0.5 x input kg (rock matrix removed), price = 1.3 x input price (processing adds value). */
+function withMaterials(list) {
+  for (const [key, name, base, light, dark] of MATERIAL_DEFS) {
+    const id = /** @type {any} */ (ITEM)[key];
+    let inKg = 0; let inPrice = 0;
+    for (const [o, n] of Object.entries(/** @type {any} */ (MATERIAL_INPUTS)[id])) { inKg += n * list[+o].kg; inPrice += n * list[+o].price; }
+    const kg = 0.5 * inKg; const price = 1.3 * inPrice;
+    list[id] = { id, key, name, kind: 'material', kg, hard: 1, perKg: price / kg, price, tier: 0, hosts: [], weight: 0, vein: [1, 1], glint: 0, pitch: 0,
+      colors: { base, light, spec: '#ffffff', dark }, glow: null, tile: null };
+  }
+  return list;
+}
+
+/** Ores and materials indexed by id; `kind` tells them apart. */
+export const ORES = Object.freeze(withMaterials(ORE_LIST.map((o) => o && { ...o, kind: 'ore' })));
+
+/** True for mineable ores (never for materials or 0). @param {number} id */
+export const isOre = (id) => /** @type {any} */ (ORES[id])?.kind === 'ore';
 
 /** Ore tiles are tougher than plain host rock. */
 export const ORE_HP_MUL = 1.5;
 
-/** Pickaxes: index = tier - 1. */
+/** Pickaxes: index = tier - 1. Tiers 2+ are crafted in the Workshop: recipe (materials), tech, minimum workshop level. */
 export const PICKAXES = Object.freeze([
   // Tiers 1-3 are hand tools (free to swing); tiers 4-6 are powered drills that draw battery per block.
-  { tier: 1, name: 'Bronze Pickaxe', short: 'Bronze', cost: 0, damage: 2, swing: 0.60, color: '#c58a45' },
-  { tier: 2, name: 'Iron Pickaxe', short: 'Iron', cost: 50, damage: 4, swing: 0.54, color: '#8d9096' },
-  { tier: 3, name: 'Steel Pickaxe', short: 'Steel', cost: 700, damage: 6, swing: 0.48, color: '#b9c3cf' },
-  { tier: 4, name: 'Titanium Drill', short: 'Titanium', cost: 8000, damage: 10, swing: 0.42, color: '#d7dde8', powered: true },
-  { tier: 5, name: 'Tungsten Carbide Drill', short: 'Tungsten Carbide', cost: 75000, damage: 16, swing: 0.38, color: '#646a7a', powered: true },
-  { tier: 6, name: 'Diamond-Tipped Drill', short: 'Diamond-Tipped', cost: 560000, damage: 24, swing: 0.34, color: '#9ff4ff', powered: true },
+  { tier: 1, name: 'Bronze Pickaxe', short: 'Bronze', damage: 2, swing: 0.60, color: '#c58a45' },
+  { tier: 2, name: 'Iron Pickaxe', short: 'Iron', damage: 4, swing: 0.54, color: '#8d9096',
+    recipe: { [ITEM.WROUGHT_IRON]: 4 }, tech: 'ironworking', workshop: 1 },
+  { tier: 3, name: 'Steel Pickaxe', short: 'Steel', damage: 6, swing: 0.48, color: '#b9c3cf',
+    recipe: { [ITEM.STEEL]: 6 }, tech: 'steelmaking', workshop: 1 },
+  { tier: 4, name: 'Titanium Drill', short: 'Titanium', damage: 10, swing: 0.42, color: '#d7dde8', powered: true,
+    recipe: { [ITEM.TITANIUM]: 6, [ITEM.LI_ION_CELL]: 2, [ITEM.COPPER_WIRE]: 4 }, tech: 'titanium_drill', workshop: 2 },
+  { tier: 5, name: 'Tungsten Carbide Drill', short: 'Tungsten Carbide', damage: 16, swing: 0.38, color: '#646a7a', powered: true,
+    recipe: { [ITEM.TUNGSTEN_CARBIDE]: 6, [ITEM.TITANIUM]: 4, [ITEM.CIRCUIT]: 2 }, tech: 'tungsten_drill', workshop: 3 },
+  { tier: 6, name: 'Diamond-Tipped Drill', short: 'Diamond-Tipped', damage: 24, swing: 0.34, color: '#9ff4ff', powered: true,
+    recipe: { [ITEM.INDUSTRIAL_DIAMOND]: 4, [ITEM.TUNGSTEN_CARBIDE]: 6, [ITEM.CIRCUIT]: 4, [ITEM.LI_ION_CELL]: 2 }, tech: 'diamond_tooling', workshop: 3 },
 ]);
 
-/** Non-pickaxe upgrades. Level 0 is starting gear. */
+/** Non-pickaxe upgrades. Level 0 is starting gear (jetpack level 0 = none); later levels are crafted like pickaxes. */
 export const UPGRADES = Object.freeze({
   jetpack: { name: 'Jetpack', levels: [
-    { cost: 0, thrust: 1900, maxUp: 220, drain: 1 },
-    { cost: 150, thrust: 2300, maxUp: 280, drain: 0.85 },
-    { cost: 2000, thrust: 2800, maxUp: 340, drain: 0.7 },
-    { cost: 30000, thrust: 3400, maxUp: 420, drain: 0.55 },
+    { name: 'None', thrust: 0, maxUp: 0, drain: 0 },
+    { thrust: 1900, maxUp: 220, drain: 1, recipe: { [ITEM.ALUMINIUM]: 4, [ITEM.STEEL]: 2, [ITEM.COPPER_WIRE]: 2 }, tech: 'jetpack', workshop: 1 },
+    { thrust: 2300, maxUp: 280, drain: 0.85, recipe: { [ITEM.TITANIUM]: 4, [ITEM.LI_ION_CELL]: 2 }, tech: 'jetpack', workshop: 2 },
+    { thrust: 2800, maxUp: 340, drain: 0.7, recipe: { [ITEM.CARBON_FIBER]: 4, [ITEM.CIRCUIT]: 2 }, tech: 'carbon_fiber', workshop: 1 },
+    { thrust: 3400, maxUp: 420, drain: 0.55, recipe: { [ITEM.EXOTIC_ALLOY]: 2, [ITEM.CIRCUIT]: 2 }, tech: 'exotic_materials', workshop: 1 },
   ] },
   radar: { name: 'Radar', levels: [
-    { cost: 0, radius: 8, duration: 6, headlamp: 190 },
-    { cost: 120, radius: 12, duration: 9, headlamp: 240 },
-    { cost: 1500, radius: 16, duration: 12, headlamp: 290 },
-    { cost: 20000, radius: 22, duration: 16, headlamp: 350 },
+    { radius: 8, duration: 6, headlamp: 190 },
+    { radius: 12, duration: 9, headlamp: 240, recipe: { [ITEM.COPPER_WIRE]: 4, [ITEM.SOLDER]: 2 }, tech: 'radio', workshop: 1 },
+    { radius: 16, duration: 12, headlamp: 290, recipe: { [ITEM.CIRCUIT]: 2, [ITEM.ALUMINIUM]: 2 }, tech: 'precision', workshop: 1 },
+    { radius: 22, duration: 16, headlamp: 350, recipe: { [ITEM.CIRCUIT]: 4, [ITEM.INDUSTRIAL_DIAMOND]: 2 }, tech: 'diamond_tooling', workshop: 1 },
   ] },
   /** Backpack + battery tiers: capacity kg (C_max), max energy, drill efficiency (eta_rig). */
   rig: { name: 'Cargo & Battery Rig', levels: [
-    { cost: 0, name: 'Canvas Sack & Lead-Acid', zone: '0-100m', capacity: 35, maxEnergy: 100, eff: 1.0 },
-    { cost: 30, name: 'Reinforced Frame & NiCad', zone: '100-300m', capacity: 75, maxEnergy: 250, eff: 1.3 },
-    { cost: 420, name: 'Exo-Carrier & Li-Ion Pack', zone: '300-600m', capacity: 150, maxEnergy: 600, eff: 1.8 },
-    { cost: 4800, name: 'Hydraulic Rig & Micro-Fission', zone: '600-1,000m', capacity: 300, maxEnergy: 1500, eff: 2.5 },
-    { cost: 45000, name: 'Mag-Lev Pod & Isotope Core', zone: '1,000-1,500m', capacity: 600, maxEnergy: 4000, eff: 3.5 },
-    { cost: 336000, name: 'Quantum Warp Cargo & Plasma', zone: '1,500m+', capacity: 1200, maxEnergy: 10000, eff: 5.0 },
+    { name: 'Canvas Sack & Lead-Acid', zone: '0-100m', capacity: 35, maxEnergy: 100, eff: 1.0 },
+    { name: 'Reinforced Frame & NiCad', zone: '100-300m', capacity: 75, maxEnergy: 250, eff: 1.3,
+      recipe: { [ITEM.WROUGHT_IRON]: 4, [ORE.NICKEL]: 3 }, tech: 'ironworking', workshop: 1 },
+    { name: 'Steel Exo-Frame & NiMH', zone: '300-600m', capacity: 150, maxEnergy: 600, eff: 1.8,
+      recipe: { [ITEM.STEEL]: 6, [ORE.NICKEL]: 4, [ORE.COBALT]: 2 }, tech: 'steelmaking', workshop: 1 },
+    { name: 'Aluminium Rig & Li-ion', zone: '600-1,000m', capacity: 300, maxEnergy: 1500, eff: 2.5,
+      recipe: { [ITEM.ALUMINIUM]: 6, [ITEM.LI_ION_CELL]: 3 }, tech: 'precision', workshop: 1 },
+    { name: 'Carbon Pod & Isotope Core', zone: '1,000-1,500m', capacity: 600, maxEnergy: 4000, eff: 3.5,
+      recipe: { [ITEM.CARBON_FIBER]: 6, [ITEM.ENRICHED_URANIUM]: 2, [ITEM.CIRCUIT]: 2 }, tech: 'isotope_rig', workshop: 1 },
+    { name: 'Quantum Cargo & Plasma', zone: '1,500m+', capacity: 1200, maxEnergy: 10000, eff: 5.0,
+      recipe: { [ITEM.EXOTIC_ALLOY]: 4, [ITEM.CIRCUIT]: 4, [ITEM.ENRICHED_URANIUM]: 2 }, tech: 'warp_drive', workshop: 1 },
   ] },
 });
 
+/** Tech eras; an era is reached when the previous era's key tech is owned. */
+export const ERAS = Object.freeze([
+  { n: 1, name: 'Bronze Age' }, { n: 2, name: 'Iron Age' }, { n: 3, name: 'Industrial' },
+  { n: 4, name: 'Electric' }, { n: 5, name: 'Atomic' }, { n: 6, name: 'Space' },
+]);
+
+const O_ = ORE; const I_ = ITEM;
+/** Shorthand for a tech cost. @param {number} cash @param {Record<number, number>} ores */
+const tc = (cash, ores) => ({ cash, ores });
+
 /**
- * Tech tree (flat). Each node needs cash, rare ores (ids from ORES) and its prerequisites.
- * effect: {stat, add?, mul?} changes a derived stat (see systems/Tech.js); {unlock} is a flag checked by feature code.
+ * Era-based tech graph. requires = all must be owned (real logic); parent = UI placement only; key = reaching
+ * the next era. Rewards are found by reverse lookup (systems/Tech.js unlocksOf): every recipe, building level,
+ * equipment level or consumable with `tech: id`. effect: {stat, add?, mul?} changes a derived stat; {unlock} is a flag.
  */
 export const TECH = Object.freeze([
-  { id: 'battery_1', branch: 'suit', name: 'Battery Cell I', requires: [], cost: { cash: 600, ores: { 7: 3 } }, effect: { stat: 'maxEnergy', add: 50 } },
-  { id: 'battery_2', branch: 'suit', name: 'Battery Cell II', requires: ['battery_1'], cost: { cash: 6000, ores: { 9: 5 } }, effect: { stat: 'maxEnergy', add: 200 } },
-  { id: 'battery_3', branch: 'suit', name: 'Battery Cell III', requires: ['battery_2'], cost: { cash: 60000, ores: { 15: 5 } }, effect: { stat: 'maxEnergy', add: 800 } },
-  { id: 'padded_suit_1', branch: 'suit', name: 'Padded Suit I', requires: [], cost: { cash: 400, ores: { 5: 4 } }, effect: { stat: 'fallDamage', mul: 0.75 } },
-  { id: 'padded_suit_2', branch: 'suit', name: 'Padded Suit II', requires: ['padded_suit_1'], cost: { cash: 5000, ores: { 13: 3 } }, effect: { stat: 'fallDamage', mul: 0.6 } },
-  { id: 'heat_suit', branch: 'suit', name: 'Heat Suit', requires: ['padded_suit_2'], cost: { cash: 40000, ores: { 11: 4 } }, effect: { unlock: 'heat_suit' } },
-  { id: 'magma_boots', branch: 'suit', name: 'Magma Boots', requires: ['heat_suit'], cost: { cash: 90000, ores: { 21: 4 } }, effect: { unlock: 'magma_boots' } },
-  { id: 'gas_mask', branch: 'suit', name: 'Gas Mask', requires: [], cost: { cash: 3000, ores: { 12: 3 } }, effect: { unlock: 'gas_mask' } },
-  { id: 'jet_tank_1', branch: 'jet', name: 'Jet Tank I', requires: [], cost: { cash: 1000, ores: { 5: 4 } }, effect: { stat: 'jetDrain', mul: 0.8 } },
-  { id: 'jet_tank_2', branch: 'jet', name: 'Jet Tank II', requires: ['jet_tank_1'], cost: { cash: 11000, ores: { 14: 2 } }, effect: { stat: 'jetDrain', mul: 0.75 } },
-  { id: 'jet_thrust_1', branch: 'jet', name: 'Jet Thrusters', requires: ['jet_tank_1'], cost: { cash: 7000, ores: { 9: 4 } }, effect: { stat: 'jetThrust', mul: 1.2 } },
-  { id: 'stash_2', branch: 'camp', name: 'Bigger Stash', requires: [], cost: { cash: 2000, ores: { 2: 20 } }, effect: { stat: 'stashCap', add: 300 } },
-  { id: 'pack_1', branch: 'tools', name: 'Bigger Pack I', requires: [], cost: { cash: 800, ores: { 6: 4 } }, effect: { stat: 'capacity', add: 25 } },
-  { id: 'pack_2', branch: 'tools', name: 'Bigger Pack II', requires: ['pack_1'], cost: { cash: 9000, ores: { 16: 3 } }, effect: { stat: 'capacity', add: 75 } },
-  { id: 'charge_station', branch: 'camp', name: 'Field Charging Station', requires: ['battery_1'], cost: { cash: 8000, ores: { 8: 6 } }, effect: { unlock: 'charge_station' } },
-  { id: 'ladder_kit', branch: 'tools', name: 'Ladder Kit', requires: [], cost: { cash: 1200, ores: { 3: 4 } }, effect: { unlock: 'ladder_kit' } },
-  { id: 'big_bomb', branch: 'tools', name: 'Big Bomb Recipe', requires: [], cost: { cash: 6000, ores: { 11: 3 } }, effect: { unlock: 'big_bomb' } },
-  { id: 'deep_scanner', branch: 'tools', name: 'Deep Scanner', requires: [], cost: { cash: 7000, ores: { 13: 3 } }, effect: { stat: 'radarRange', mul: 1.5 } },
-  { id: 'contracts_terminal', branch: 'camp', name: 'Contracts Terminal', requires: [], cost: { cash: 2500, ores: { 4: 6 } }, effect: { unlock: 'contracts_terminal' } },
+  // Era 1 — Bronze Age
+  { id: 'bloomery', era: 1, key: true, name: 'Bloomery', desc: 'A clay chimney furnace hot enough to reduce iron ore to spongy wrought iron.', requires: [], cost: tc(37, { [O_.IRON]: 15, [O_.COAL]: 10 }) },
+  { id: 'solder', era: 1, name: 'Soldering', desc: 'Low-melting tin-lead alloy that joins metal parts.', requires: [], cost: tc(5, { [O_.LEAD]: 3, [O_.ZINC]: 2 }) },
+  { id: 'contracts_terminal', era: 1, name: 'Contracts Terminal', desc: 'Radio link to buyers who pay a premium for specific ores.', requires: [], cost: tc(1, { [O_.ZINC]: 6 }), effect: { unlock: 'contracts_terminal' } },
+  { id: 'stash_2', era: 1, name: 'Bigger Stash', desc: 'A proper storage shed at camp.', requires: [], cost: tc(10, { [O_.IRON]: 20 }), effect: { stat: 'stashCap', add: 300 } },
+  { id: 'padded_suit_1', era: 1, name: 'Padded Suit I', desc: 'Quilted padding softens hard landings.', requires: [], cost: tc(4, { [O_.ZINC]: 4 }), effect: { stat: 'fallDamage', mul: 0.75 } },
+  // Era 2 — Iron Age
+  { id: 'ironworking', era: 2, name: 'Ironworking', desc: 'Forging wrought iron into tools and frames.', requires: ['bloomery'], cost: tc(320, { [I_.WROUGHT_IRON]: 8 }) },
+  { id: 'radio', era: 2, name: 'Radio', desc: 'Copper coils and soldered joints make a simple ground radar.', requires: ['bloomery', 'solder'], cost: tc(140, { [I_.COPPER_WIRE]: 4, [I_.SOLDER]: 2 }) },
+  { id: 'pack_1', era: 2, name: 'Bigger Pack I', desc: 'An iron-framed pack carries more ore.', requires: ['bloomery'], cost: tc(330, { [O_.NICKEL]: 4, [I_.WROUGHT_IRON]: 2 }), effect: { stat: 'capacity', add: 25 } },
+  { id: 'battery_1', era: 2, name: 'Battery Cell I', desc: 'Extra lead-acid cells for the rig.', requires: ['bloomery'], cost: tc(260, { [O_.LEAD]: 6, [I_.COPPER_WIRE]: 2 }), effect: { stat: 'maxEnergy', add: 50 } },
+  { id: 'blast_furnace', era: 2, key: true, name: 'Blast Furnace', desc: 'Forced air and coke melt iron fully, the first step to steel.', requires: ['bloomery'], cost: tc(380, { [I_.WROUGHT_IRON]: 20, [I_.BRONZE]: 4, [O_.COAL]: 10 }) },
+  // Era 3 — Industrial
+  { id: 'steelmaking', era: 3, name: 'Steelmaking', desc: 'Controlled carbon content turns iron into hard steel.', requires: ['blast_furnace'], cost: tc(2000, { [I_.STEEL]: 6 }) },
+  { id: 'machining', era: 3, name: 'Machining', desc: 'Lathes and mills cut precise steel parts.', requires: ['blast_furnace'], cost: tc(2000, { [I_.STEEL]: 10, [I_.BRONZE]: 6 }) },
+  { id: 'oil_refining', era: 3, name: 'Oil Refining', desc: 'Heating oil shale distills fuel and the feedstock for plastics.', requires: ['blast_furnace'], cost: tc(2800, { [I_.STEEL]: 10, [I_.SOLDER]: 6, [O_.OIL_SHALE]: 10 }) },
+  { id: 'gas_mask', era: 3, parent: 'oil_refining', name: 'Gas Mask', desc: 'Plastic seals and a charcoal filter keep toxic gas out.', requires: ['oil_refining'], cost: tc(2000, { [I_.PLASTIC]: 2, [O_.COAL]: 4 }), effect: { unlock: 'gas_mask' } },
+  { id: 'big_bomb', era: 3, parent: 'oil_refining', name: 'Big Bomb Recipe', desc: 'Fuel oil and fertilizer (ANFO): a much bigger blast.', requires: ['oil_refining'], cost: tc(2400, { [I_.FUEL]: 4, [O_.COAL]: 4 }), effect: { unlock: 'big_bomb' } },
+  { id: 'diesel_power', era: 3, name: 'Diesel Power', desc: 'A diesel generator burns refined fuel for far more power.', requires: ['oil_refining'], cost: tc(2800, { [I_.STEEL]: 20, [I_.COPPER_WIRE]: 10, [I_.FUEL]: 10 }) },
+  { id: 'heat_suit', era: 3, name: 'Heat Suit', desc: 'Stainless mesh and insulation reflect deep-rock heat.', requires: ['blast_furnace'], cost: tc(3000, { [I_.STAINLESS]: 6, [I_.COPPER_WIRE]: 4 }), effect: { stat: 'heatResist', add: 0.5 } },
+  { id: 'padded_suit_2', era: 3, name: 'Padded Suit II', desc: 'Steel plates and plastic foam absorb big falls.', requires: ['padded_suit_1', 'oil_refining'], cost: tc(2400, { [I_.STEEL]: 4, [I_.PLASTIC]: 4 }), effect: { stat: 'fallDamage', mul: 0.6 } },
+  { id: 'battery_2', era: 3, name: 'Battery Cell II', desc: 'Nickel-cobalt cells hold far more charge.', requires: ['battery_1', 'blast_furnace'], cost: tc(2300, { [O_.NICKEL]: 4, [O_.COBALT]: 3 }), effect: { stat: 'maxEnergy', add: 200 } },
+  { id: 'deep_scanner', era: 3, name: 'Deep Scanner', desc: 'A stronger transmitter pushes radar pulses further.', requires: ['radio', 'blast_furnace'], cost: tc(1900, { [O_.SILVER]: 3, [I_.COPPER_WIRE]: 4 }), effect: { stat: 'radarRange', mul: 1.5 } },
+  { id: 'arc_furnace', era: 3, key: true, name: 'Arc Furnace', desc: 'An electric arc beyond 3000 °C smelts aluminium, titanium and tungsten.', requires: ['diesel_power'], cost: tc(7600, { [I_.STEEL]: 30, [I_.COPPER_WIRE]: 20 }) },
+  // Era 4 — Electric
+  { id: 'electronics', era: 4, name: 'Electronics', desc: 'Printed circuit boards and lithium-ion cells.', requires: ['arc_furnace'], cost: tc(32000, { [I_.ALUMINIUM]: 20, [I_.COPPER_WIRE]: 10, [O_.GOLD]: 4 }) },
+  { id: 'titanium_drill', era: 4, name: 'Titanium Drill', desc: 'A battery-powered drill with a titanium head.', requires: ['electronics', 'machining'], cost: tc(35000, { [I_.TITANIUM]: 6, [I_.LI_ION_CELL]: 2 }) },
+  { id: 'jetpack', era: 4, name: 'Jetpack', desc: 'Light aluminium thrusters fed by lithium cells.', requires: ['electronics'], cost: tc(35000, { [I_.ALUMINIUM]: 4, [I_.LI_ION_CELL]: 2, [I_.COPPER_WIRE]: 2 }) },
+  { id: 'jet_tank_1', era: 4, parent: 'jetpack', name: 'Jet Tank I', desc: 'Better nozzles waste less energy.', requires: ['jetpack'], cost: tc(26000, { [I_.ALUMINIUM]: 4, [I_.LI_ION_CELL]: 1 }), effect: { stat: 'jetDrain', mul: 0.8 } },
+  { id: 'jet_thrust_1', era: 4, parent: 'jetpack', name: 'Jet Thrusters', desc: 'Titanium combustion chambers take more thrust.', requires: ['jetpack'], cost: tc(24000, { [I_.TITANIUM]: 4, [I_.CIRCUIT]: 2 }), effect: { stat: 'jetThrust', mul: 1.2 } },
+  { id: 'charge_station', era: 4, name: 'Field Charging Station', desc: 'Portable chargers wired back to the camp generator.', requires: ['electronics'], cost: tc(35000, { [I_.LI_ION_CELL]: 4, [I_.COPPER_WIRE]: 6 }), effect: { unlock: 'charge_station' } },
+  { id: 'heat_suit_2', era: 4, name: 'Heat Suit II', desc: 'Aluminized layers and active cooling.', requires: ['heat_suit', 'electronics'], cost: tc(33000, { [I_.ALUMINIUM]: 8, [I_.STAINLESS]: 4, [I_.CIRCUIT]: 2 }), effect: { stat: 'heatResist', add: 0.3 } },
+  { id: 'precision', era: 4, name: 'Precision Machining', desc: 'CNC tools cut titanium to fine tolerances.', requires: ['electronics', 'machining'], cost: tc(24000, { [I_.TITANIUM]: 20, [I_.CIRCUIT]: 10 }) },
+  { id: 'battery_3', era: 4, name: 'Battery Cell III', desc: 'Lithium-ion packs with platinum contacts.', requires: ['battery_2', 'electronics'], cost: tc(25000, { [I_.LI_ION_CELL]: 4, [O_.PLATINUM]: 2 }), effect: { stat: 'maxEnergy', add: 800 } },
+  { id: 'pack_2', era: 4, name: 'Bigger Pack II', desc: 'Aluminium and titanium frame, same weight, more room.', requires: ['pack_1', 'arc_furnace'], cost: tc(26000, { [I_.ALUMINIUM]: 6, [I_.TITANIUM]: 4 }), effect: { stat: 'capacity', add: 75 } },
+  { id: 'fission', era: 4, key: true, name: 'Nuclear Fission', desc: 'Enriched uranium splits in a reactor for huge power.', requires: ['electronics', 'arc_furnace'], cost: tc(77000, { [I_.STAINLESS]: 30, [O_.LEAD]: 40, [I_.CIRCUIT]: 10, [O_.URANIUM]: 10 }) },
+  // Era 5 — Atomic
+  { id: 'carbon_fiber', era: 5, name: 'Carbon Fiber', desc: 'Carbonized plastic threads: stronger than steel, far lighter.', requires: ['fission'], cost: tc(890000, { [I_.STAINLESS]: 20, [I_.ALUMINIUM]: 10, [I_.PLASTIC]: 20 }) },
+  { id: 'tungsten_drill', era: 5, name: 'Tungsten Carbide Drill', desc: 'Carbide bits keep their edge in the hardest rock.', requires: ['precision', 'fission'], cost: tc(880000, { [I_.TUNGSTEN_CARBIDE]: 6, [I_.TITANIUM]: 4, [I_.CIRCUIT]: 2 }) },
+  { id: 'magma_boots', era: 5, name: 'Magma Boots', desc: 'Carbide soles and carbon-fiber shells let you walk on magma.', requires: ['heat_suit_2', 'carbon_fiber'], cost: tc(880000, { [I_.TUNGSTEN_CARBIDE]: 4, [I_.CARBON_FIBER]: 4 }), effect: { unlock: 'magma_boots' } },
+  { id: 'diamond_tooling', era: 5, name: 'Diamond Tooling', desc: 'Synthetic diamond grit for drill tips and sensors.', requires: ['tungsten_drill'], cost: tc(870000, { [O_.DIAMOND]: 4, [I_.TUNGSTEN_CARBIDE]: 6 }) },
+  { id: 'jet_tank_2', era: 5, parent: 'jetpack', name: 'Jet Tank II', desc: 'Carbon-fiber tanks store more propellant.', requires: ['jet_tank_1', 'carbon_fiber'], cost: tc(890000, { [I_.CARBON_FIBER]: 4, [I_.LI_ION_CELL]: 2 }), effect: { stat: 'jetDrain', mul: 0.75 } },
+  { id: 'isotope_rig', era: 5, name: 'Isotope Rig', desc: 'A radioisotope core powers a carbon-fiber pod.', requires: ['carbon_fiber', 'fission'], cost: tc(890000, { [I_.CARBON_FIBER]: 6, [I_.ENRICHED_URANIUM]: 2 }) },
+  { id: 'rocketry', era: 5, key: true, name: 'Rocketry', desc: 'Light airframes and liquid fuel reach orbit.', requires: ['carbon_fiber', 'fission'], cost: tc(1800000, { [I_.CARBON_FIBER]: 40, [I_.ALUMINIUM]: 40, [I_.CIRCUIT]: 20, [I_.FUEL]: 60 }) },
+  // Era 6 — Space (chain; nodes other than warp_drive and exotic_materials are placeholders until the space update)
+  { id: 'orbital_station', era: 6, name: 'Orbital Station', desc: 'A crewed station in low orbit.', requires: ['rocketry'], cost: tc(800000, { [I_.CARBON_FIBER]: 30, [I_.TITANIUM]: 30, [I_.CIRCUIT]: 20, [I_.LI_ION_CELL]: 10 }), effect: { unlock: 'coming_soon' } },
+  { id: 'lunar_landing', era: 6, name: 'Lunar Landing', desc: 'A lander that can reach the Moon and come back.', requires: ['orbital_station'], cost: tc(1200000, { [I_.ALUMINIUM]: 40, [I_.TITANIUM]: 20, [I_.FUEL]: 80, [I_.CIRCUIT]: 20 }), effect: { unlock: 'coming_soon' } },
+  { id: 'mars_mission', era: 6, name: 'Mars Mission', desc: 'Nuclear propulsion for the long trip to Mars.', requires: ['lunar_landing'], cost: tc(2000000, { [I_.CARBON_FIBER]: 40, [I_.ENRICHED_URANIUM]: 20, [I_.CIRCUIT]: 30, [I_.STAINLESS]: 20 }), effect: { unlock: 'coming_soon' } },
+  { id: 'exotic_materials', era: 6, name: 'Exotic Materials', desc: 'Alloys of meteoric iron and platinum-group metals.', requires: ['rocketry'], cost: tc(600000, { [O_.METEORITE]: 4, [O_.RHODIUM]: 2, [O_.PLATINUM]: 2 }) },
+  { id: 'warp_drive', era: 6, name: 'Warp Drive', desc: 'Folds space for an instant trip home: portable warp charges.', requires: ['mars_mission', 'exotic_materials'], cost: tc(3000000, { [I_.EXOTIC_ALLOY]: 10, [I_.ENRICHED_URANIUM]: 30, [I_.CIRCUIT]: 40 }) },
+  { id: 'interstellar', era: 6, name: 'Interstellar Travel', desc: 'Ships that can reach other stars.', requires: ['warp_drive'], cost: tc(5000000, { [I_.EXOTIC_ALLOY]: 20, [I_.ENRICHED_URANIUM]: 40, [I_.CARBON_FIBER]: 60 }), effect: { unlock: 'coming_soon' } },
 ]);
 
 export const CONSUMABLES = Object.freeze({
   dynamite: { name: 'Dynamite', short: 'Dynamite', price: 15, slot: 1, start: 2 },
-  teleporter: { name: 'Portable Teleporter', short: 'Warp', price: 40, slot: 2, start: 0 },
   cell: { name: 'Reserve Energy Cell', short: 'Cell', price: 10, slot: 3, start: 1, frac: 0.4 },
-  ladder: { name: 'Ladder', short: 'Ladder', price: 6, slot: 4, start: 0, tech: 'ladder_kit' },
+  ladder: { name: 'Ladder', short: 'Ladder', price: 6, slot: 4, start: 0 },
   bigBomb: { name: 'Big Bomb', short: 'Big Bomb', price: 60, slot: 5, start: 0, tech: 'big_bomb' },
+  campKit: { name: 'Field Camp Kit', short: 'Camp', price: 120, slot: 6, start: 0 },
 });
 
 export const ECONOMY = Object.freeze({
@@ -282,7 +464,7 @@ export const BALANCE = Object.freeze({
 });
 
 /** Protective gear (unlocked via TECH). */
-export const GEAR = Object.freeze({ HEAT_SUIT_RESIST: 0.8, AMBIENT_T0: 15, AMBIENT_T1: 350 });
+export const GEAR = Object.freeze({ AMBIENT_T0: 15, AMBIENT_T1: 350 }); // heat resist comes from TECH heat_suit / heat_suit_2
 
 export const PHYSICS = Object.freeze({
   GRAVITY: 650,
@@ -537,7 +719,7 @@ export const SAVE = Object.freeze({
   /** localStorage key holding the active slot number. */
   SLOT_KEY: 'jttdote.slot',
   SETTINGS_KEY: 'jttdote.settings',
-  VERSION: 4,
+  VERSION: 5,
   AUTOSAVE_SEC: 15,
   EXPLOSION_BLOCK_SEC: 1.5,
 });
@@ -564,6 +746,7 @@ export const KEYBINDS = Object.freeze({
   slot3: ['Digit3'],
   slot4: ['Digit4'],
   slot5: ['Digit5'],
+  slot6: ['Digit6'],
   down: ['KeyS', 'ArrowDown'],
   station: ['KeyG'],
   interact: ['KeyE'],

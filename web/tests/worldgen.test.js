@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { generateWorld } from '../src/world/WorldGen.js';
-import { WORLD, TILE, ORES, FLAG } from '../src/config.js';
+import { WORLD, TILE, ORES, FLAG, isOre } from '../src/config.js';
 
 const same = (a, b) => a.length === b.length && a.every((v, i) => v === b[i]);
 
@@ -40,7 +40,7 @@ describe('WorldGen', () => {
       counts[o]++;
       expect(ORES[o].hosts).toContain(a.tileType[i]);
     }
-    for (let o = 1; o < ORES.length; o++) expect(counts[o]).toBeGreaterThan(0);
+    for (let o = 1; o < ORES.length; o++) if (isOre(o)) expect(counts[o]).toBeGreaterThan(0);
   });
 
   it('orders bands by depth and sets solid flags', () => {

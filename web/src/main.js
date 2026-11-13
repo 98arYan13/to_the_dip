@@ -4,7 +4,7 @@
  * references injected here; nothing is global.
  */
 import {
-  WORLD, TILE, FLAG, MATERIALS, PHYSICS, CAMERA, MINING, ENERGY, RADAR, TELEPORT, CONSUMABLES, GAMEPAD,
+  WORLD, TILE, FLAG, CAMP_BUILDINGS, MATERIALS, PHYSICS, CAMERA, MINING, ENERGY, RADAR, TELEPORT, CONSUMABLES, GAMEPAD,
   PARTICLES, QUALITY, SAVE, SETTINGS_DEFAULT, PICKAXES,
 } from './config.js';
 import { EventBus, EV } from './core/EventBus.js';
@@ -28,7 +28,7 @@ import { Quake } from './systems/Hazards/Quake.js';
 import { CoreGoal } from './systems/CoreGoal.js';
 import { Collectibles } from './systems/Collectibles.js';
 import { placeLadder } from './systems/Items.js';
-import { placeChargeStation, nearStation } from './systems/Camp.js';
+import { placeChargeStation, nearStation, placeFieldCamp, nearFieldCamp } from './systems/Camp.js';
 import { dailySeed, dailyScore, dateKey } from './systems/Daily.js';
 import { coreChamber } from './world/Zones.js';
 import { Ending } from './ui/Ending.js';
@@ -91,7 +91,7 @@ function boot() {
   const loaded = saves.load();
   let seed = loaded.ok ? loaded.data.seed : slot === 0 ? dailySeed() : randomSeed();
   let world = loaded.ok ? new World(loaded.data.world) : World.generate(seed);
-  const economy = new Economy(bus, loaded.ok ? loaded.data.economy : createEconomyState());
+  const economy = new Economy(bus, loaded.ok ? loaded.data.economy : saves.takeCarry() || createEconomyState());
   const vis = new Visibility(world, bus);
   const physics = new Physics(world);
   const pickups = new PickupSystem(physics, bus);
@@ -133,6 +133,7 @@ function boot() {
   art.loadImages(() => chunks.markAllDirty());
   const camera = new Camera();
   const background = new Background();
+  background.economy = economy;
   const lighting = new Lighting();
   const postfx = new PostFX();
   const renderer = new Renderer(canvas, { world, art, chunks, vis, mining, particles, background, lighting, postfx, camera, player, dynamites, pickups, economy, energy });
@@ -173,6 +174,7 @@ function boot() {
     onSave: (n) => { switchSlot(n); saveGame(true); },
     onLoad: (n) => { saveGame(true); switchSlot(n); restart(); },
     onNew: (n) => { saveGame(true); switchSlot(n); saves.clear(); restart(); },
+    onNewMap: () => { saves.setCarry(economy.newMapState()); saves.clear(); restart(); },
     onClose: () => { input.clear(); canvas.focus(); },
   });
   const devPanel = new DevPanel(hudRoot, {
@@ -181,6 +183,7 @@ function boot() {
       if (a === 'gas') { for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) gas.spawn(tx + dx, ty + dy); }
       else if (a === 'quake') { quake.focus.x = tx; quake.focus.y = ty; quake.trigger(1); }
       else if (a === 'cash') { economy.credits += 100000; bus.emit(EV.CREDITS_CHANGED, economy.credits); }
+      else if (a === 'mats') { for (let o = 1; o < economy.stash.length; o++) economy.stash[o] += 50; bus.emit(EV.CARGO_CHANGED); }
       else if (a === 'core') { const c = coreChamber(world.W, world.H); player.placeAt((c.x + c.w / 2) * T, (c.y + c.h - 1) * T - player.h); camera.snap(player.cx, player.cy); }
       canvas.focus();
     },
@@ -373,6 +376,8 @@ function boot() {
       if (settings.open || saveMenu.open) return;
       if (shop.open) shop.close();
       else if (g.prompt === 'shop') { shop.show(); input.clear(); }
+      else if (g.prompt.startsWith('bld:')) { shop.show({ tab: 'craft', building: g.prompt.slice(4) }); input.clear(); }
+      else if (g.prompt === 'camp') { player.setHP(PHYSICS.SUIT_HP); shop.show({ only: 'stash' }); input.clear(); } // rest heals, not energy
     }
   });
 
@@ -395,12 +400,16 @@ function boot() {
       if (c.dynamite <= 0) toast.show('No dynamite — buy some at the Trading Post', 'warn');
       else if (dynamites.throw(player.cx, player.cy, g.aimX, g.aimY)) { economy.useConsumable('dynamite'); bus.emit(EV.CONSUMABLE_USED, 'dynamite'); }
     }
+    if (input.wasPressed('slot6')) {
+      const r = placeFieldCamp(economy, world, Math.floor(player.cx / T) - 1, Math.floor((player.feetY - 1) / T));
+      toast.show(r.ok ? 'Field camp pitched' : r.reason, r.ok ? 'good' : 'warn');
+    }
     if (input.wasPressed('slot5')) {
       if (c.bigBomb <= 0) toast.show('No big bombs — unlock the recipe in Tech, buy at the Trading Post', 'warn');
       else if (dynamites.throw(player.cx, player.cy, g.aimX, g.aimY, true)) { economy.useConsumable('bigBomb'); bus.emit(EV.CONSUMABLE_USED, 'bigBomb'); }
     }
     if (input.wasPressed('slot4')) {
-      if (c.ladder <= 0) toast.show('No ladders — unlock the kit in Tech, buy at the Trading Post', 'warn');
+      if (c.ladder <= 0) toast.show('No ladders — buy some at the Trading Post', 'warn');
       else if (Math.hypot(g.aimX - player.cx, g.aimY - player.cy) > 5 * T) toast.show('Too far to place', 'info');
       else if (placeLadder(world, bus, Math.floor(g.aimX / T), Math.floor(g.aimY / T))) economy.useConsumable('ladder');
       else toast.show('Ladders need open air next to rock', 'info');
@@ -411,10 +420,10 @@ function boot() {
       if (r.ok) { bus.emit(EV.CARGO_CHANGED); bus.emit(EV.CREDITS_CHANGED, economy.credits); }
     }
     if (input.wasPressed('slot2')) {
-      if (c.teleporter <= 0) toast.show('No teleporters — buy one at the Trading Post', 'warn');
+      if (economy.warpCharges <= 0) toast.show('No warp charges — craft them in the Isotope Lab', 'warn');
       else if (player.feetY <= SURFACE_PX + 2) toast.show('Already at the surface', 'info');
       else if (g.warpTimer < 0) {
-        economy.useConsumable('teleporter');
+        economy.useWarpCharge();
         g.warpTimer = TELEPORT.CHANNEL_TIME;
         bus.emit(EV.TELEPORT_START);
         bus.emit(EV.CONSUMABLE_USED, 'teleporter');
@@ -523,10 +532,13 @@ function boot() {
     const bc = WORLD.BASE_CAMP;
     const nearShop = onSurface && Math.abs(player.cx / T - (bc.SHOP_X + 0.5)) < bc.INTERACT_RANGE;
     const atStation = onSurface && Math.abs(player.cx / T - (bc.STATION_X + 0.5)) < bc.INTERACT_RANGE;
-    const prompt = nearShop ? 'shop' : atStation ? 'station' : '';
+    const atCamp = !onSurface && nearFieldCamp(economy, player.cx, player.cy);
+    let bld = ''; let bd = bc.INTERACT_RANGE;
+    if (onSurface) for (const [id, x] of Object.entries(bc.BUILDING_SLOTS)) { const d = Math.abs(player.cx / T - (x + 0.5)); if (d < bd) { bd = d; bld = id; } }
+    const prompt = nearShop ? 'shop' : atStation ? 'station' : bld ? `bld:${bld}` : atCamp ? 'camp' : '';
     if (prompt !== g.prompt) {
       g.prompt = prompt;
-      bus.emit(EV.PROMPT, prompt === 'shop' ? '[E] Open Trading Post terminal' : prompt === 'station' ? 'Recharging suit energy…' : null);
+      bus.emit(EV.PROMPT, prompt === 'shop' ? '[E] Open Trading Post terminal' : prompt === 'station' ? 'Recharging suit energy…' : prompt === 'camp' ? '[E] Rest at camp (heal, open stash)' : bld ? `[E] ${/** @type {any} */ (CAMP_BUILDINGS)[bld].name}` : null);
     }
     energy.depthM = meters;
     quake.focus.x = ptx; quake.focus.y = pty;

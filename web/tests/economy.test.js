@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { ORES, PICKAXES, BALANCE, ORE } from '../src/config.js';
 import {
-  expectedTripIncome, tripsToAffordNext, cargoWeight, canAddOre, loadSpeedMult, rescueLoss, cargoValue, Economy, createEconomyState,
+  expectedTripIncome, cargoWeight, canAddOre, loadSpeedMult, rescueLoss, cargoValue, Economy, createEconomyState,
 } from '../src/systems/Economy.js';
 import { EventBus } from '../src/core/EventBus.js';
 
@@ -20,18 +20,6 @@ describe('Economy balance', () => {
     for (let i = 1; i < prices.length; i++) expect(prices[i]).toBeGreaterThan(prices[i - 1]);
   });
 
-  it('pickaxe costs increase per tier', () => {
-    for (let i = 1; i < PICKAXES.length; i++) expect(PICKAXES[i].cost).toBeGreaterThan(PICKAXES[i - 1].cost);
-  });
-
-  it('3 to 5 full trips at tier N afford the tier N+1 pickaxe', () => {
-    for (let tier = 1; tier < PICKAXES.length; tier++) {
-      const trips = tripsToAffordNext(tier);
-      const msg = 'tier ' + tier + ' needs ' + trips.toFixed(2) + ' trips';
-      expect(trips, msg).toBeGreaterThanOrEqual(BALANCE.TRIPS_MIN);
-      expect(trips, msg).toBeLessThanOrEqual(BALANCE.TRIPS_MAX);
-    }
-  });
 
   it('expected value per trip rises with each tier', () => {
     for (let tier = 2; tier <= PICKAXES.length; tier++) {
@@ -60,17 +48,12 @@ describe('Cargo rules', () => {
     expect(rescueLoss([0, 4, 3, 1, 0, 0, 0, 0])).toEqual([0, 2, 2, 1, 0, 0, 0, 0]);
   });
 
-  it('sells, buys and refuses unaffordable upgrades', () => {
+  it('sells cargo for cash', () => {
     const e = new Economy(new EventBus(), createEconomyState());
     for (let k = 0; k < 10; k++) e.addOre(ORE.COAL); // only 7 × 5 kg fit in 35 kg
     expect(e.cargo[ORE.COAL]).toBe(7);
     expect(cargoValue(e.cargo)).toBe(4.9);
     expect(e.sellAll().total).toBe(4.9);
     expect(e.credits).toBe(4.9);
-    expect(e.buyUpgrade('pickaxe').ok).toBe(false);
-    e.credits = PICKAXES[1].cost;
-    expect(e.buyUpgrade('pickaxe').ok).toBe(true);
-    expect(e.pickTier).toBe(2);
-    expect(e.credits).toBe(0);
   });
 });

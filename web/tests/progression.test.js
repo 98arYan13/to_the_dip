@@ -4,14 +4,14 @@ import { EventBus, EV } from '../src/core/EventBus.js';
 import { World } from '../src/world/World.js';
 import { generateWorld } from '../src/world/WorldGen.js';
 import { planZones, coreChamber } from '../src/world/Zones.js';
-import { upgradeBuilding, placeChargeStation } from '../src/systems/Camp.js';
+import { upgradeBuilding, placeChargeStation, fieldCampBlocker, placeFieldCamp, nearFieldCamp } from '../src/systems/Camp.js';
 import { rollContracts, acceptContract, turnIn } from '../src/systems/Contracts.js';
 import { Collectibles } from '../src/systems/Collectibles.js';
 import { CoreGoal } from '../src/systems/CoreGoal.js';
 import { dailySeed } from '../src/systems/Daily.js';
 import { canPlaceLadder, placeLadder } from '../src/systems/Items.js';
 import { Mining, canMine } from '../src/systems/Mining.js';
-import { TILE, ORES, ZONES, WORLD, CAMP, CONTRACTS, CORE_GOAL, FLAG, GAS, PICKAXES, DYNAMITE } from '../src/config.js';
+import { ITEM, TILE, ORES, ZONES, WORLD, CAMP, CONTRACTS, CORE_GOAL, FLAG, GAS, PICKAXES, DYNAMITE } from '../src/config.js';
 
 const mk = () => new Economy(new EventBus(), createEconomyState());
 
@@ -58,9 +58,9 @@ describe('zones', () => {
 
 describe('camp', () => {
   const world = () => { const w = new World(generateWorld(1)); for (let x = 5; x < 40; x++) { w.tileType[60 * w.W + x] = TILE.GRANITE; w.flags[60 * w.W + x] |= FLAG.SOLID; w.clear(59 * w.W + x); } return w; };
-  const rich = (e) => { e.credits = 1e6; e.stash[8] = 50; e.tech.push('charge_station'); };
+  const rich = (e) => { e.credits = 1e6; e.stash[ITEM.STEEL] = 50; e.stash[ITEM.COPPER_WIRE] = 50; e.tech.push('charge_station'); };
   it('station needs tech and cost, a floor, and spacing; survives death', () => {
-    const w = world(); const e = mk(); e.credits = 1e6; e.stash[8] = 50;
+    const w = world(); const e = mk(); e.credits = 1e6; e.stash[ITEM.STEEL] = 50; e.stash[ITEM.COPPER_WIRE] = 50;
     expect(placeChargeStation(e, w, 10, 59).ok).toBe(false);
     rich(e);
     expect(placeChargeStation(e, w, 10, 59).ok).toBe(true);
@@ -76,8 +76,42 @@ describe('camp', () => {
     expect(upgradeBuilding(e, 'shop').ok).toBe(true);
     expect(e.buildings.shop).toBe(2);
     expect(e.sellMul).toBeGreaterThan(1.1);
-    upgradeBuilding(e, 'workshop');
-    expect(e.upgradeCost('pickaxe')).toBeLessThan(PICKAXES[1].cost);
+    expect(upgradeBuilding(e, 'workshop').reason).toMatch(/Requires/); // Workshop 2 needs machining, no cash discount any more
+    expect(e.buildings.workshop).toBe(1);
+  });
+});
+
+describe('field camp', () => {
+  /** Rows 56..59 open, granite floor at row 60, for x in 5..39. */
+  const cave = () => {
+    const w = new World(generateWorld(1));
+    for (let x = 5; x < 40; x++) {
+      w.tileType[60 * w.W + x] = TILE.GRANITE; w.flags[60 * w.W + x] |= FLAG.SOLID;
+      for (let y = 56; y < 60; y++) w.clear(y * w.W + x);
+    }
+    return w;
+  };
+  const kit = (e, n = 4) => { e.consumables.campKit = n; return e; };
+  it('needs a kit, a 4x4 open space, a solid floor and stays under the limit', () => {
+    const w = cave();
+    expect(fieldCampBlocker(mk(), w, 10, 59)).toBe('No camp kit');
+    const e = kit(mk());
+    expect(fieldCampBlocker(e, w, 10, 59)).toBe(null);
+    expect(fieldCampBlocker(e, w, 10, 58)).toBe('Needs a 4×4 open space'); // top row 55 is not cleared
+    w.clear(60 * w.W + 12); w.tileType[60 * w.W + 12] = TILE.AIR;
+    expect(fieldCampBlocker(e, w, 10, 59)).toBe('Needs solid floor');
+    e.fieldCamps.push({ x: 0, y: 0 }, { x: 0, y: 20 }, { x: 0, y: 40 });
+    expect(fieldCampBlocker(e, w, 20, 59)).toBe('Camp limit reached');
+  });
+  it('placing spends a kit and persists through save and death', () => {
+    const w = cave(); const e = kit(mk(), 1);
+    expect(placeFieldCamp(e, w, 10, 59).ok).toBe(true);
+    expect(e.consumables.campKit).toBe(0);
+    expect(nearFieldCamp(e, 12 * 32, 58 * 32)).toBe(true);
+    expect(nearFieldCamp(e, 30 * 32, 58 * 32)).toBe(false);
+    e.applyDeath();
+    const e2 = mk(); e2.load(e.toJSON());
+    expect(e2.fieldCamps).toEqual([{ x: 10, y: 59 }]);
   });
 });
 
@@ -223,7 +257,7 @@ describe('polish items', () => {
     const s = JSON.parse(serialize({ seed: 4, player: {}, economy: createEconomyState(), world: w }));
     s.version = 3; delete s.world.fluid; delete s.world.gas; delete s.economy.tech; delete s.economy.stash;
     const d = deserialize(JSON.stringify(s));
-    expect(d.version).toBe(4); expect(d.world.gas.length).toBe(w.W * w.H);
+    expect(d.version).toBe(5); expect(d.world.gas.length).toBe(w.W * w.H);
     const e = mk(); e.load(d.economy); expect(e.tech).toEqual([]); expect(e.stash[2]).toBe(0);
   });
 });

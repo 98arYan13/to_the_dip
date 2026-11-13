@@ -199,6 +199,12 @@ export class Renderer {
         }
       }
     }
+    for (const c of this.d.economy.fieldCamps) { // placeholder tent box until real art
+      const x0 = c.x * T; const y1 = (c.y + 1) * T;
+      ctx.fillStyle = '#5a4630'; ctx.fillRect(x0 + 6, y1 - 2 * T, 4 * T - 12, 2 * T);
+      ctx.fillStyle = '#c8873a'; ctx.fillRect(x0 + 10, y1 - 2 * T - 8, 4 * T - 20, 10);
+      ctx.fillStyle = `rgba(255,190,90,${0.5 + 0.2 * Math.sin(this.time * 3)})`; ctx.fillRect(x0 + 2 * T - 6, y1 - 18, 12, 12);
+    }
     for (const s of this.d.economy.stations) {
       ctx.fillStyle = '#2b3a4a'; ctx.fillRect(s.x * T + 8, s.y * T + 10, T - 16, T - 10);
       ctx.fillStyle = `rgba(90,220,255,${0.6 + 0.3 * Math.sin(this.time * 4)})`; ctx.fillRect(s.x * T + 12, s.y * T + 14, T - 24, 6);

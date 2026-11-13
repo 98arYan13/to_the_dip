@@ -3,7 +3,7 @@
  * Procedural pixel textures for every material, ore, crack stage and edge overlay,
  * baked once at startup into a single atlas canvas.
  */
-import { WORLD, TILE, ORE, FLAG, MATERIALS, ORES, RENDER, SURFACE } from '../config.js';
+import { WORLD, TILE, ORE, FLAG, MATERIALS, ORES, RENDER, SURFACE, isOre } from '../config.js';
 import { RNG, hash2 } from '../core/RNG.js';
 import { createNoise2D, fbm } from '../core/Noise.js';
 import { createCanvas, get2D, hexToRgb } from './canvas.js';
@@ -64,7 +64,7 @@ export class TileArt {
     /** @type {number[]} */ this.moss = [];
     /** @type {number[]} */ this.fungi = [];
     this.sparkle = 0;
-    const total = SOLID_TYPES.length * this.V + BAND_TYPES.length * this.V + (ORES.length - 1) * this.OV + 4 + 4 + 4 + this.V * 3 + 1;
+    const total = SOLID_TYPES.length * this.V + BAND_TYPES.length * this.V + ORES.filter((o, i) => isOre(i)).length * this.OV + 4 + 4 + 4 + this.V * 3 + 1;
     const rows = Math.ceil(total / this.cols);
     this.canvas = createCanvas(this.cols * T, rows * T);
     this.ctx = get2D(this.canvas);
@@ -124,6 +124,7 @@ export class TileArt {
     }
     for (let o = 1; o < ORES.length; o++) {
       this.ore[o] = [];
+      if (!isOre(o)) continue; // materials never sit in the world
       for (let v = 0; v < this.OV; v++) {
         const c = this._alloc();
         this._paintOre(o, v);

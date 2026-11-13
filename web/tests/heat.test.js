@@ -40,7 +40,7 @@ import { Player } from '../src/entities/Player.js';
 
 describe('burning', () => {
   it('heat drains the suit but only flinches about once a second', () => {
-    const p = new Player({ economy: { tech: [] }, bus: { emit() {} } });
+    const p = new Player({ economy: { tech: [], stat: (n, base) => base }, bus: { emit() {} } });
     const world = { W: 8, H: 8, inBounds: () => true, tileType: new Uint8Array(64).fill(TILE.CORE) };
     p.x = 40; p.y = 40; // inside the core-rock box
     let hurtFrames = 0;

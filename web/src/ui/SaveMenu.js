@@ -16,7 +16,7 @@ export class SaveMenu {
   /**
    * @param {HTMLElement} root
    * @param {any} storage
-   * @param {{active:()=>number, onSave:(n:number)=>void, onLoad:(n:number)=>void, onNew:(n:number)=>void, onClose:()=>void}} hooks
+   * @param {{active:()=>number, onSave:(n:number)=>void, onLoad:(n:number)=>void, onNew:(n:number)=>void, onNewMap:(n:number)=>void, onClose:()=>void}} hooks
    */
   constructor(root, storage, hooks) {
     this.storage = storage; this.hooks = hooks; this.open = false; this.armed = '';
@@ -40,6 +40,7 @@ export class SaveMenu {
       if (act === 'save') { this.hooks.onSave(n); this.render(); }
       else if (act === 'load') this.hooks.onLoad(n);
       else if (act === 'new') this.hooks.onNew(n);
+      else if (act === 'newmap') this.hooks.onNewMap(n);
     });
   }
 
@@ -60,7 +61,7 @@ export class SaveMenu {
         : 'Saved game';
       const btn = (act, label, danger) => `<button class="btn${danger ? ' danger' : ''}" data-act="${act}" data-slot="${n}">${this.armed === act + n ? 'Sure?' : label}</button>`;
       html += `<div class="up-row"><div><div class="up-name">Slot ${n}${n === active ? ' <span class="lvl">(active)</span>' : ''}</div><div class="up-stats">${info}</div></div>
-        <div class="up-buy">${btn('save', 'Save here', false)} ${has && n !== active ? btn('load', 'Load', false) : ''} ${btn('new', 'New game', true)}</div></div>`;
+        <div class="up-buy">${btn('save', 'Save here', false)} ${has && n !== active ? btn('load', 'Load', false) : ''} ${n === active && has ? btn('newmap', 'New map (keep progress)', false) : ''} ${btn('new', n === active ? 'Start over' : 'New game', true)}</div></div>`;
     }
     const best = dailyBests(this.storage)[dateKey()];
     const dHas = this._has(0);

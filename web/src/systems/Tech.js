@@ -1,8 +1,8 @@
 /**
  * @module systems/Tech
- * Flat tech table (config TECH). Owned ids live in economy.tech; stats are derived on read.
+ * Era-based tech graph (config TECH). Owned ids live in economy.tech; stats are derived on read.
  */
-import { TECH } from '../config.js';
+import { TECH, RECIPES, CAMP_BUILDINGS, PICKAXES, UPGRADES, CONSUMABLES, ERAS } from '../config.js';
 
 const byId = (id) => TECH.find((t) => t.id === id);
 
@@ -18,6 +18,9 @@ export function techStat(owned, name, base) {
 }
 
 export const hasTech = (economy, id) => economy.tech.includes(id);
+
+/** True if no tech is required or it is owned. @param {{tech:string[]}} ec @param {string} [techId] */
+export const isUnlocked = (ec, techId) => !techId || ec.tech.includes(techId);
 
 /** @param {{tech:string[], canAfford:Function}} economy */
 export function canUnlock(economy, id) {
@@ -38,3 +41,20 @@ export function unlockTech(economy, id) {
   economy.tech.push(id);
   return c;
 }
+
+/** Everything that names `techId` as its `tech` (reverse lookup). Equipment levels use economy.levels indices. */
+export function unlocksOf(techId) {
+  /** @type {{kind:string, id:string, level?:number}[]} */ const out = [];
+  for (const r of RECIPES) if (r.tech === techId) out.push({ kind: 'recipe', id: r.id });
+  for (const [id, b] of Object.entries(CAMP_BUILDINGS)) b.levels.forEach((l, i) => { if (/** @type {any} */ (l).tech === techId) out.push({ kind: 'building', id, level: i + 1 }); });
+  const equip = { pickaxe: PICKAXES, ...Object.fromEntries(Object.entries(UPGRADES).map(([k, u]) => [k, u.levels])) };
+  for (const [id, levels] of Object.entries(equip)) /** @type {any[]} */ (levels).forEach((l, i) => { if (l.tech === techId) out.push({ kind: 'equipment', id, level: i }); });
+  for (const [id, c] of Object.entries(CONSUMABLES)) if (/** @type {any} */ (c).tech === techId) out.push({ kind: 'consumable', id });
+  return out;
+}
+
+/** Highest era the player has reached: 1 + owned key techs. @param {{tech:string[]}} ec */
+export const eraReached = (ec) => Math.min(ERAS.length, 1 + TECH.filter((t) => t.key && ec.tech.includes(t.id)).length);
+
+/** Best pickaxe tier a player can own by an era (balance and data tests). */
+export const eraPickTier = (era) => [1, 2, 3, 4, 6, 6][Math.max(1, Math.min(6, era)) - 1];

@@ -2,7 +2,7 @@
  * @module systems/Contracts
  * Daily deterministic "bring N of ore X" offers from the camp terminal. Active/done lists live in the economy.
  */
-import { ORES, CONTRACTS } from '../config.js';
+import { ORES, CONTRACTS, isOre } from '../config.js';
 import { RNG, hash2 } from '../core/RNG.js';
 import { EV } from '../core/EventBus.js';
 
@@ -16,7 +16,7 @@ export const dayNumber = (date = new Date()) => Math.floor(date.getTime() / 8640
 export function rollContracts(seed, day, pickTier) {
   const rng = new RNG(hash2(seed >>> 0, day, 0xc0de) >>> 0);
   const pool = [];
-  for (let o = 1; o < ORES.length; o++) if (/** @type {any} */ (ORES[o]).tier <= pickTier) pool.push(o);
+  for (let o = 1; o < ORES.length; o++) if (isOre(o) && /** @type {any} */ (ORES[o]).tier <= pickTier) pool.push(o);
   const out = [];
   for (let n = 0; n < CONTRACTS.OFFERS; n++) {
     const ore = pool[rng.int(0, pool.length - 1)];

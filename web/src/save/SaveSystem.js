@@ -4,7 +4,7 @@
  * The world grid is RLE-compressed and base64-encoded per typed array, with an FNV-1a checksum.
  * The codec functions are pure and unit-tested.
  */
-import { SAVE, WORLD, FLAG } from '../config.js';
+import { SAVE, WORLD, FLAG, TECH, ITEM, START_BUILDINGS, POWER } from '../config.js';
 import { computeBandStarts, bandMaterialAt } from '../world/WorldGen.js';
 
 /** RLE as (count ≤ 255, value) byte pairs. @param {Uint8Array} bytes */
@@ -108,6 +108,7 @@ export function decodeWorld(e, seed) {
  * Migration pipeline: each step upgrades a save object by one version.
  * v1 → v2: settings moved out of the save; economy.levels gained `radar` and `cargo`.
  * v2 → v3: ore ids were remapped (20 ores) and suit/cargo became the rig; old worlds can't be converted.
+ * v4 → v5: tech redesign (migrateEconomyV5).
  * @param {any} save
  */
 export function migrate(save) {
@@ -118,6 +119,8 @@ export function migrate(save) {
       s = { ...s, version: 2 };
       delete s.settings;
       s.economy = { ...s.economy, levels: { radar: 0, cargo: 0, ...(s.economy?.levels || {}) } };
+    } else if (from === 4) {
+      s = { ...s, version: 5, economy: migrateEconomyV5(s.economy || {}) };
     } else if (from === 3) {
       s = { ...s, version: 4 }; // v4 adds optional world.fluid/gas and economy extras; absent fields default on load
     } else if (from === 2) {
@@ -125,6 +128,36 @@ export function migrate(save) {
     } else throw new Error(`No migration from v${from}`);
   }
   return s;
+}
+
+/** Old cash prices refunded by the v5 migration. */
+const V4_LADDER_KIT_CASH = 1200;
+const V4_WORKSHOP_CASH = [3000, 25000, 120000];
+
+/**
+ * v4 economy → v5: jetpack level +1 (level 0 is now "none"), ladder_kit dropped and refunded, old cash Workshop
+ * levels refunded and reset, start buildings and power added, teleporters → Warp Charges, tech ancestors granted.
+ * @param {any} ec
+ */
+export function migrateEconomyV5(ec) {
+  const e = { ...ec, levels: { ...(ec.levels || {}) }, consumables: { ...(ec.consumables || {}) }, stash: [...(ec.stash || [])] };
+  e.levels.jetpack = (e.levels.jetpack ?? 0) + 1;
+  let refund = 0;
+  const old = /** @type {string[]} */ (ec.tech || []);
+  if (old.includes('ladder_kit')) refund += V4_LADDER_KIT_CASH;
+  const ws = Math.min(V4_WORKSHOP_CASH.length, ec.buildings?.workshop || 0);
+  for (let i = 0; i < ws; i++) refund += V4_WORKSHOP_CASH[i];
+  e.credits = Math.round(((ec.credits || 0) + refund) * 100) / 100;
+  e.buildings = { ...(ec.buildings || {}), ...START_BUILDINGS };
+  e.power = ec.power ?? POWER.START;
+  const warp = e.consumables.teleporter || 0;
+  delete e.consumables.teleporter;
+  e.stash[ITEM.WARP_CHARGE] = (e.stash[ITEM.WARP_CHARGE] || 0) + warp;
+  const tech = new Set();
+  const grant = (id) => { const t = TECH.find((x) => x.id === id); if (!t || tech.has(id)) return; tech.add(id); t.requires.forEach(grant); };
+  old.forEach(grant);
+  e.tech = [...tech];
+  return e;
 }
 
 /**
@@ -188,6 +221,19 @@ export class SaveSystem {
     if (!raw) return { ok: false, error: null };
     try { return { ok: true, data: deserialize(raw) }; }
     catch (e) { return { ok: false, error: /** @type {Error} */ (e).message }; }
+  }
+
+  /** Stash an economy to start the next map in this slot with (New map, keep progress). */
+  setCarry(economyState) { try { this.storage.setItem(`${this.key}.carry`, JSON.stringify(economyState)); } catch { /* ignore */ } }
+
+  /** Take the carried economy once (removed when taken). @returns {any|null} */
+  takeCarry() {
+    try {
+      const raw = this.storage.getItem(`${this.key}.carry`);
+      if (!raw) return null;
+      this.storage.removeItem(`${this.key}.carry`);
+      return JSON.parse(raw);
+    } catch { return null; }
   }
 
   clear() { try { this.storage.removeItem(this.key); this.storage.removeItem(`${this.key}.meta`); } catch { /* ignore */ } }

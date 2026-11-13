@@ -4,7 +4,7 @@ import { generateWorld } from '../src/world/WorldGen.js';
 import { World } from '../src/world/World.js';
 import { Economy, createEconomyState } from '../src/systems/Economy.js';
 import { EventBus } from '../src/core/EventBus.js';
-import { FLAG, SAVE } from '../src/config.js';
+import { FLAG, SAVE, ITEM, TECH } from '../src/config.js';
 
 function memStorage() {
   const m = new Map();
@@ -78,5 +78,56 @@ describe('Save outfit', () => {
     expect(sys.load().data.player.outfit).toEqual(outfit);
     sys.save({ seed: 9, player: { x: 1, y: 2 }, economy: createEconomyState(), world: w });
     expect(sys.load().data.player.outfit).toBeUndefined();
+  });
+});
+
+describe('Save migration v4 -> v5', () => {
+  it('v4 save migrates to the new economy', () => {
+    const w = new World(generateWorld(5));
+    const s = JSON.parse(serialize({ seed: 5, player: {}, economy: {}, world: w }));
+    s.version = 4;
+    s.economy = {
+      credits: 0, cargo: new Array(22).fill(0), stash: new Array(22).fill(0),
+      tech: ['ladder_kit', 'heat_suit'], buildings: { workshop: 2 },
+      levels: { pickaxe: 2, rig: 1, jetpack: 3, radar: 1 }, consumables: { dynamite: 2, teleporter: 5 },
+    };
+    const d = deserialize(JSON.stringify(s));
+    expect(d.version).toBe(SAVE.VERSION);
+    const e = new Economy(new EventBus(), d.economy);
+    expect(e.levels.jetpack).toBe(4);
+    expect(e.levels.pickaxe).toBe(2);
+    expect(e.tech).not.toContain('ladder_kit');
+    expect(e.tech).toContain('heat_suit');
+    for (const r of TECH.find((t) => t.id === 'heat_suit').requires) expect(e.tech).toContain(r);
+    expect(e.tech).toContain('bloomery'); // ancestors all the way up
+    expect(e.credits).toBe(1200 + 3000 + 25000);
+    expect(e.buildings).toMatchObject({ workshop: 1, generator: 1, furnace: 1 });
+    expect(e.stash[ITEM.WARP_CHARGE]).toBe(5);
+    expect(e.consumables.teleporter).toBeUndefined();
+    expect(e.power).toBe(100);
+  });
+});
+
+describe('New map carry-over', () => {
+  it('newMapState keeps progress and clears the map-bound parts', () => {
+    const e = new Economy(new EventBus(), createEconomyState());
+    e.credits = 500; e.stash[ITEM.STEEL] = 7; e.tech.push('bloomery'); e.buildings.furnace = 2; e.levels.pickaxe = 1; e.power = 42;
+    e.cargo[2] = 3; e.stations.push({ x: 1, y: 2 }); e.fieldCamps.push({ x: 3, y: 4 });
+    e.contracts.active.push({ id: 'a', ore: 1, qty: 1, rewardCash: 1 }); e.contracts.done.push('b'); e.completed = true;
+    const n = e.newMapState();
+    expect(n.credits).toBe(500); expect(n.stash[ITEM.STEEL]).toBe(7); expect(n.tech).toEqual(['bloomery']);
+    expect(n.buildings.furnace).toBe(2); expect(n.levels.pickaxe).toBe(1); expect(n.power).toBe(42);
+    expect(n.cargo.every((v) => v === 0)).toBe(true);
+    expect(n.stations).toEqual([]); expect(n.fieldCamps).toEqual([]);
+    expect(n.contracts.active).toEqual([]); expect(n.contracts.done).toEqual(['b']);
+    expect(n.completed).toBe(false);
+    expect(e.cargo[2]).toBe(3); // the live economy is untouched
+  });
+  it('setCarry then takeCarry round-trips once', () => {
+    const sys = new SaveSystem(memStorage());
+    expect(sys.takeCarry()).toBe(null);
+    sys.setCarry({ credits: 9 });
+    expect(sys.takeCarry()).toEqual({ credits: 9 });
+    expect(sys.takeCarry()).toBe(null);
   });
 });

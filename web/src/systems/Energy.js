@@ -3,7 +3,8 @@
  * Rig battery: depth/load-scaled idle drain, per-block mining drain, jetpack drain,
  * station recharge, low-energy warning and emergency rescue trigger.
  */
-import { ENERGY, MATERIALS, ORES } from '../config.js';
+import { ENERGY, MATERIALS, ORES, POWER } from '../config.js';
+import { drawPower } from './Power.js';
 
 /** E_block = E_base * H_mat * (1 + D/500) / eta_rig */
 export function blockEnergy(hard, depthM, eff) {
@@ -50,8 +51,10 @@ export class Energy {
   update(dt, s) {
     if (s.atStation) {
       if (this.value < this.max) {
-        this.value = Math.min(this.max, this.value + ENERGY.STATION_RATE * this.max * dt);
-        if (this.value >= this.max) this.bus.emit(EV.STATION_FULL);
+        // Charging is paid from the camp power pool; an empty pool with no fuel charges nothing.
+        const want = Math.min(this.max - this.value, ENERGY.STATION_RATE * this.max * dt);
+        this.value = Math.min(this.max, this.value + drawPower(this.economy, want * POWER.PER_ENERGY) / POWER.PER_ENERGY);
+        if (this.value >= this.max - 1e-9) { this.value = this.max; this.bus.emit(EV.STATION_FULL); }
       }
     } else {
       // Depth heat/pressure only drains underground; the surface is free.

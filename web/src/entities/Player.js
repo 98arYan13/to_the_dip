@@ -119,7 +119,7 @@ export class Player {
     const onLadder = w0.inBounds(ptx, pty) && w0.tileType[pty * w0.W + ptx] === TILE.LADDER;
     this.onLadder = onLadder;
     if (this.hurtTimer > 0) this.hurtTimer -= dt;
-    this.jetting = !onLadder && input.isDown('jet') && energy.value > 0;
+    this.jetting = economy.hasJetpack && !onLadder && input.isDown('jet') && energy.value > 0;
     if (this.jetting) {
       this.vy -= economy.stat('jetThrust', jp.thrust) * dt;
       if (this.vy < -jp.maxUp * slow) this.vy = -jp.maxUp * slow;
@@ -223,7 +223,7 @@ export class Player {
       }
     }
     this.temp = Math.max(temp, ambientTemp(depth01));
-    this.burnAcc = (this.burnAcc || 0) + heatDps(this.temp, economy.tech.includes('heat_suit') ? GEAR.HEAT_SUIT_RESIST : 0) * dt;
+    this.burnAcc = (this.burnAcc || 0) + heatDps(this.temp, economy.stat('heatResist', 0)) * dt;
     this.burnFlinch = (this.burnFlinch || 0) - dt;
     if (this.burnAcc >= 1) {
       const d = Math.floor(this.burnAcc); this.burnAcc -= d;

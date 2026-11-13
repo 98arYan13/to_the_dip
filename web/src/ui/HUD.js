@@ -40,10 +40,11 @@ export class HUD {
       <div class="prompt hidden"></div>
       <div class="slots">
         <div class="slot" data-slot="dynamite"><kbd>1</kbd><span class="s-name">${CONSUMABLES.dynamite.short}</span><span class="s-count">×0</span></div>
-        <div class="slot" data-slot="teleporter"><kbd>2</kbd><span class="s-name">${CONSUMABLES.teleporter.short}</span><span class="s-count">×0</span></div>
+        <div class="slot" data-slot="warp"><kbd>2</kbd><span class="s-name">Warp</span><span class="s-count">×0</span></div>
         <div class="slot" data-slot="cell"><kbd>3</kbd><span class="s-name">${CONSUMABLES.cell.short}</span><span class="s-count">×0</span></div>
         <div class="slot" data-slot="ladder"><kbd>4</kbd><span class="s-name">${CONSUMABLES.ladder.short}</span><span class="s-count">×0</span></div>
         <div class="slot" data-slot="bigBomb"><kbd>5</kbd><span class="s-name">${CONSUMABLES.bigBomb.short}</span><span class="s-count">×0</span></div>
+        <div class="slot" data-slot="campKit"><kbd>6</kbd><span class="s-name">${CONSUMABLES.campKit.short}</span><span class="s-count">×0</span></div>
         <div class="slot radar-slot"><kbd>R</kbd><span class="s-name">Radar</span><span class="s-count r-cd">ready</span></div>
       </div>
       <div class="tooltip hidden"></div>`;
@@ -68,7 +69,7 @@ export class HUD {
     root.querySelectorAll('.slot[data-slot]').forEach((s) => { this.slotCounts[/** @type {HTMLElement} */ (s).dataset.slot] = s.querySelector('.s-count'); });
 
     bus.on(EV.ENERGY_CHANGED, () => this.refreshEnergy());
-    bus.on(EV.CARGO_CHANGED, () => this.refreshCargo());
+    bus.on(EV.CARGO_CHANGED, () => { this.refreshCargo(); this.refreshSlots(); });
     bus.on(EV.HP_CHANGED, (hp) => { this.el.hp.textContent = `${Math.round(hp)}`; this.el.hpFill.style.width = `${hp}%`; this.el.healthRow.classList.toggle('low', hp < 35); });
     bus.on(EV.UPGRADE_BOUGHT, () => { this.refreshPick(); this.refreshCargo(); this.refreshEnergy(); });
     bus.on(EV.CREDITS_CHANGED, () => this.refreshCredits());
@@ -109,7 +110,7 @@ export class HUD {
     const r = Math.round(t / 5) * 5;
     if (r === this._temp) return;
     this._temp = r;
-    this.el.temp.textContent = `${r} °C${this.d.economy.tech.includes('heat_suit') ? ' ♨' : ''}${this.d.economy.tech.includes('magma_boots') ? ' ▲' : ''}`;
+    this.el.temp.textContent = `${r} °C${this.d.economy.stat('heatResist', 0) > 0 ? ' ♨' : ''}${this.d.economy.tech.includes('magma_boots') ? ' ▲' : ''}`;
     this.el.temp.style.color = t >= PHYSICS.HEAT_SAFE_T * 0.8 ? '#ff5a4a' : '';
   }
 
@@ -123,7 +124,7 @@ export class HUD {
 
   refreshSlots() {
     const c = this.d.economy.consumables;
-    for (const k of Object.keys(this.slotCounts)) this.slotCounts[k].textContent = `×${c[k]}`;
+    for (const k of Object.keys(this.slotCounts)) this.slotCounts[k].textContent = `×${k === 'warp' ? this.d.economy.warpCharges : c[k]}`;
   }
 
   /** @param {number} cd seconds remaining */
