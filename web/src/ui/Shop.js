@@ -150,6 +150,9 @@ export class Shop {
       const list = eraTechs(v.era); const i = list.findIndex((t) => t.id === v.selected);
       v.selected = list[(i + (code === 'ArrowRight' || code === 'ArrowDown' ? 1 : -1) + list.length) % list.length].id;
     } else if (code === 'Enter' || code === 'NumpadEnter') {
+      // Other focused buttons (era tabs, Unlock) keep their own Enter = click.
+      const focus = /** @type {HTMLElement|null} */ (document.activeElement)?.dataset?.key;
+      if (focus && !focus.startsWith('techsel:')) return false;
       if (v.selected) this._onAction(`tech:${v.selected}`);
     } else return false;
     this.render();
