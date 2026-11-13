@@ -29,7 +29,7 @@ export function swingOffset(phase) {
 export class Renderer {
   /**
    * @param {HTMLCanvasElement} canvas
-   * @param {any} d dependencies {world, art, chunks, vis, mining, particles, background, lighting, postfx, camera, player, dynamites, pickups, economy, energy}
+   * @param {any} d dependencies {world, art, chunks, vis, mining, particles, background, lighting, postfx, camera, player, dynamites, fallingLadders, pickups, economy, energy}
    */
   constructor(canvas, d) {
     this.canvas = canvas;
@@ -213,6 +213,7 @@ export class Renderer {
     // Entities
     calls += this._drawPickups(ctx, alpha);
     calls += this._drawDynamites(ctx, alpha);
+    for (const f of this.d.fallingLadders.active) { this.d.art.drawLadder(ctx, f.x * T, Math.round(f.y)); calls += 2; }
     calls += this._drawPlayer(ctx, alpha, st, dt);
     calls += particles.draw(ctx, camL - 8, camT - 8, camL + vw + 8, camT + vh + 8, s, camL, camT);
 
@@ -367,7 +368,7 @@ export class Renderer {
     const angle = mining ? Math.atan2(my - w0.y[sh], mx - w0.x[sh]) + swing : idleGripAngle(rig, w0);
     const world = applyOverlays(rig, pose, { look: [mx, my], mining, pickAngle: angle, landVY: this.animator.landVY, squashT: this.animator.squashT });
     const color = this.d.economy.pickaxe.color;
-    const canvas = this.rigR.render(world, p.outfit, { sprite: this._playerArt().pickReady() ? this._pickSprite(color) : null, angle, color });
+    const canvas = this.rigR.render(world, p.outfit, { sprite: this._playerArt().pickReady() && !(p.onLadder && Math.abs(p.vy) > 1 && !mining) ? this._pickSprite(color) : null, angle, color }); // pick is stowed while climbing
     ctx.save();
     ctx.translate(cx, top);
     if (f < 0) ctx.scale(-1, 1);

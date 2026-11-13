@@ -456,6 +456,11 @@ export class TileArt {
     this.drawCalls++;
   }
 
+  drawLadder(ctx, dx, dy) {
+    ctx.fillStyle = '#8a5a2b'; ctx.fillRect(dx + 6, dy, 3, 32); ctx.fillRect(dx + 23, dy, 3, 32);
+    ctx.fillStyle = '#b98046'; for (let k = 3; k < 32; k += 8) ctx.fillRect(dx + 6, dy + k, 20, 3);
+  }
+
   /**
    * Draw one tile (used by chunk rebuilds).
    * @param {CanvasRenderingContext2D} ctx
@@ -467,14 +472,11 @@ export class TileArt {
     const h = hash2(x, y, w.seed);
     const v = h % this.V;
     if (t === TILE.AIR || t === TILE.WATER || t === TILE.LADDER) {
-      if (y < WORLD.SURFACE_ROWS) return;
+      if (y < WORLD.SURFACE_ROWS) { if (t === TILE.LADDER) this.drawLadder(ctx, dx, dy); return; } // ladder dropped in the sky
       const b = w.band[i] || TILE.SOIL;
       this.blit(ctx, this.back[b][v], dx, dy);
       if (t === TILE.WATER) this.blit(ctx, this.mat[TILE.WATER][v], dx, dy);
-      if (t === TILE.LADDER) {
-        ctx.fillStyle = '#8a5a2b'; ctx.fillRect(dx + 6, dy, 3, 32); ctx.fillRect(dx + 23, dy, 3, 32);
-        ctx.fillStyle = '#b98046'; for (let k = 3; k < 32; k += 8) ctx.fillRect(dx + 6, dy + k, 20, 3);
-      }
+      if (t === TILE.LADDER) this.drawLadder(ctx, dx, dy);
       if (w.isSolid(x, y - 1)) this.blit(ctx, this.ao[0], dx, dy);
       if (w.isSolid(x + 1, y)) this.blit(ctx, this.ao[1], dx, dy);
       if (w.isSolid(x, y + 1)) this.blit(ctx, this.ao[2], dx, dy);

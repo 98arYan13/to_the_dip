@@ -27,7 +27,7 @@ import { Gas } from './systems/Hazards/Gas.js';
 import { Quake } from './systems/Hazards/Quake.js';
 import { CoreGoal } from './systems/CoreGoal.js';
 import { Collectibles } from './systems/Collectibles.js';
-import { placeLadder, pickUpLadder } from './systems/Items.js';
+import { FallingLadders, pickUpLadder } from './systems/Items.js';
 import { placeChargeStation, nearStation, placeFieldCamp, nearFieldCamp } from './systems/Camp.js';
 import { dailySeed, dailyScore, dateKey } from './systems/Daily.js';
 import { coreChamber } from './world/Zones.js';
@@ -100,6 +100,7 @@ function boot() {
   const energy = new Energy(bus, economy);
   const player = new Player({ physics, mining, energy, economy, bus });
   const dynamites = new DynamiteSystem(physics, mining, bus);
+  const fallingLadders = new FallingLadders(world, bus);
   const collapse = new Collapse(world, bus);
   collapse.markAll();
   const fluids = new Fluids(world, bus);
@@ -136,7 +137,7 @@ function boot() {
   background.economy = economy;
   const lighting = new Lighting();
   const postfx = new PostFX();
-  const renderer = new Renderer(canvas, { world, art, chunks, vis, mining, particles, background, lighting, postfx, camera, player, dynamites, pickups, economy, energy });
+  const renderer = new Renderer(canvas, { world, art, chunks, vis, mining, particles, background, lighting, postfx, camera, player, dynamites, fallingLadders, pickups, economy, energy });
   camera.snap(player.cx, player.cy);
 
   // ---------- Audio ----------
@@ -414,8 +415,8 @@ function boot() {
         economy.consumables.ladder++; bus.emit(EV.CONSUMABLES_CHANGED);
       } else if (c.ladder <= 0) toast.show('No ladders — buy some at the Trading Post', 'warn');
       else if (Math.hypot(g.aimX - player.cx, g.aimY - player.cy) > 5 * T) toast.show('Too far to place', 'info');
-      else if (placeLadder(world, bus, Math.floor(g.aimX / T), Math.floor(g.aimY / T))) economy.useConsumable('ladder');
-      else toast.show('Ladders need open air next to rock', 'info');
+      else if (fallingLadders.drop( Math.floor(g.aimX / T), Math.floor(g.aimY / T))) economy.useConsumable('ladder');
+      else toast.show('Ladders need an open air tile', 'info');
     }
     if (input.wasPressed('station')) {
       const r = placeChargeStation(economy, world, Math.floor(player.cx / T), Math.floor((player.feetY - 1) / T));
@@ -508,6 +509,7 @@ function boot() {
 
     pickups.update(dt, player);
     dynamites.update(dt, PHYSICS.GRAVITY);
+    fallingLadders.update(dt, PHYSICS.GRAVITY * player.fallMult, PHYSICS.MAX_FALL * Math.sqrt(player.fallMult)); // same fall speed as the player
     particles.update(dt);
     mining.update(dt);
     collapse.update(dt);

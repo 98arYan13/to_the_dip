@@ -121,7 +121,10 @@ export class Player {
     // Jetpack + gravity
     const jp = economy.jetpack;
     const w0 = physics.world; const ptx = Math.floor(this.cx / w0.T); const pty = Math.floor(this.cy / w0.T);
-    const onLadder = w0.inBounds(ptx, pty) && w0.tileType[pty * w0.W + ptx] === TILE.LADDER;
+    // Centre OR feet cell: at the top rung the centre leaves the ladder first, which would strand the feet below the ledge.
+    const ftY = Math.floor((this.feetY - 1) / w0.T);
+    const isLadder = (ty) => w0.inBounds(ptx, ty) && w0.tileType[ty * w0.W + ptx] === TILE.LADDER;
+    const onLadder = isLadder(pty) || isLadder(ftY);
     this.onLadder = onLadder;
     if (this.hurtTimer > 0) this.hurtTimer -= dt;
     if (this.onGround && !onLadder && input.wasPressed('jet')) this.vy = -jumpVelocity(PHYSICS.JUMP_H, PHYSICS.GRAVITY * this.fallMult);

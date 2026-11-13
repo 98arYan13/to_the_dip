@@ -9,9 +9,9 @@ import { rollContracts, acceptContract, turnIn } from '../src/systems/Contracts.
 import { Collectibles } from '../src/systems/Collectibles.js';
 import { CoreGoal } from '../src/systems/CoreGoal.js';
 import { dailySeed } from '../src/systems/Daily.js';
-import { canPlaceLadder, placeLadder, pickUpLadder } from '../src/systems/Items.js';
+import { canPlaceLadder, placeLadder, pickUpLadder, FallingLadders } from '../src/systems/Items.js';
 import { Mining, canMine } from '../src/systems/Mining.js';
-import { ORE, ITEM, TILE, ORES, ZONES, WORLD, CAMP, CONTRACTS, CORE_GOAL, FLAG, GAS, PICKAXES, DYNAMITE } from '../src/config.js';
+import { ORE, ITEM, TILE, ORES, ZONES, WORLD, CAMP, CONTRACTS, CORE_GOAL, FLAG, GAS, PICKAXES, DYNAMITE, PHYSICS } from '../src/config.js';
 
 const mk = () => new Economy(new EventBus(), createEconomyState());
 
@@ -203,12 +203,26 @@ describe('items', () => {
     for (let y = 45; y < 55; y++) w.clear(y * w.W + 15);
     return w;
   };
-  it('ladders place only on air beside rock or another ladder', () => {
-    const w = world(); const bus = new EventBus();
-    expect(canPlaceLadder(w, 12, 50)).toBe(false); // solid
-    expect(placeLadder(w, bus, 15, 50)).toBe(true);
-    expect(w.tileType[50 * w.W + 15]).toBe(TILE.LADDER);
-    expect(canPlaceLadder(w, 30, 30)).toBe(false); // floating in open air
+  it('a ladder placed in open air falls until something solid or another ladder is below it', () => {
+    const w = world(); const bus = new EventBus(); const at = (y) => w.tileType[y * w.W + 15];
+    expect(placeLadder(w, bus, 12, 50)).toBe(false); // solid tile
+    expect(placeLadder(w, bus, 15, 46)).toBe(true);
+    expect(at(46)).toBe(TILE.AIR); expect(at(54)).toBe(TILE.LADDER); // rests on the floor at row 55
+    expect(placeLadder(w, bus, 15, 46)).toBe(true);
+    expect(at(53)).toBe(TILE.LADDER); // stacks on the ladder below
+    expect(canPlaceLadder(w, 12, 50)).toBe(false);
+  });
+  it('a dropped ladder falls at player fall speed and lands on the floor, stacking on earlier ladders', () => {
+    const w = world(); const bus = new EventBus(); const f = new FallingLadders(w, bus); const at = (y) => w.tileType[y * w.W + 15];
+    expect(f.drop(12, 50)).toBe(false); // solid tile
+    expect(f.drop(15, 46)).toBe(true);
+    f.update(1 / 60, PHYSICS.GRAVITY, PHYSICS.MAX_FALL);
+    expect(f.active.length).toBe(1); expect(at(54)).toBe(TILE.AIR); // still in the air after one frame
+    let t = 0; while (f.active.length && t++ < 600) f.update(1 / 60, PHYSICS.GRAVITY, PHYSICS.MAX_FALL);
+    expect(at(46)).toBe(TILE.AIR); expect(at(54)).toBe(TILE.LADDER);
+    expect(t / 60).toBeCloseTo(Math.sqrt(2 * 8 * 32 / PHYSICS.GRAVITY), 0); // ~0.9 s for 8 tiles
+    f.drop(15, 46); t = 0; while (f.active.length && t++ < 600) f.update(1 / 60, PHYSICS.GRAVITY, PHYSICS.MAX_FALL);
+    expect(at(53)).toBe(TILE.LADDER);
   });
   it('a big bomb clears more than a normal one and still spares bedrock and the camp', () => {
     const count = (r) => {

@@ -16,7 +16,7 @@ const TAU = Math.PI * 2;
  */
 export function selectClip(p, ctx) {
   if (p.hurtTimer > 0) return 'hurt';
-  if (p.onLadder && !p.onGround) return 'climb';
+  if (p.onLadder && !p.onGround) return Math.abs(p.vy) > 1 ? 'climb' : 'idle'; // standing still on a ladder looks normal
   if (p.mineState === 1) return ctx.aimDown ? 'mine_down' : 'mine_side';
   if (!p.onGround) return p.jetting ? 'jet' : p.vy < -40 ? 'jump' : 'fall';
   if (ctx.landing) return 'land';

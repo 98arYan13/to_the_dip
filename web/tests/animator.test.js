@@ -11,7 +11,8 @@ const C = (o = {}) => ({ aimDown: false, landing: false, ...o });
 describe('selectClip', () => {
   const rows = [
     [P({ hurtTimer: 1, mineState: 1 }), C(), 'hurt'],
-    [P({ onLadder: true, onGround: false }), C(), 'climb'],
+    [P({ onLadder: true, onGround: false, vy: -90 }), C(), 'climb'],
+    [P({ onLadder: true, onGround: false }), C(), 'idle'],
     [P({ mineState: 1 }), C(), 'mine_side'],
     [P({ mineState: 1 }), C({ aimDown: true }), 'mine_down'],
     [P({ mineState: 1, onGround: false }), C(), 'mine_side'],

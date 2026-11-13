@@ -236,7 +236,7 @@ export class Shop {
     const desc = {
       dynamite: 'Thrown explosive, 2.5 s fuse, 3×3 blast. Breaks rock up to your pickaxe tier + 1.',
       cell: `Instantly restores ${CONSUMABLES.cell.frac * 100}% of battery energy.`,
-      ladder: 'Place on open air next to rock (aim + key). Climb with W / S.',
+      ladder: 'Place on open air (aim + key); it falls to the ground below. Climb with W / S.',
       campKit: 'Pitch underground in a cleared 4×4 space with a solid floor. Rest there to heal and reach your stash.',
       bigBomb: `Thrown explosive with a ${DYNAMITE.BIG_RADIUS * 2 + 1}×${DYNAMITE.BIG_RADIUS * 2 + 1} blast.`,
     };
