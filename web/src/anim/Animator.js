@@ -5,13 +5,13 @@
 import { createPose } from './Rig.js';
 import { sampleClip, blendPose, clipEnded } from './Clip.js';
 
-export const CLIP_NAMES = ['idle', 'walk', 'jump', 'fall', 'land', 'mine_side', 'mine_down', 'climb', 'hurt', 'jet'];
+export const CLIP_NAMES = ['idle', 'walk', 'walk_back', 'jump', 'fall', 'land', 'mine_side', 'mine_down', 'climb', 'hurt', 'jet'];
 const FADE = 0.1;
 const TAU = Math.PI * 2;
 
 /**
  * Priority: hurt > ladder > mine > air > land > walk > idle.
- * @param {{hurtTimer:number, onLadder:boolean, onGround:boolean, mineState:number, vy:number, vx:number, jetting:boolean}} p
+ * @param {{hurtTimer:number, onLadder:boolean, onGround:boolean, mineState:number, vy:number, vx:number, jetting:boolean, facing?:number}} p
  * @param {{aimDown:boolean, landing:boolean}} ctx
  */
 export function selectClip(p, ctx) {
@@ -20,7 +20,8 @@ export function selectClip(p, ctx) {
   if (p.mineState === 1) return ctx.aimDown ? 'mine_down' : 'mine_side';
   if (!p.onGround) return p.jetting ? 'jet' : p.vy < -40 ? 'jump' : 'fall';
   if (ctx.landing) return 'land';
-  return Math.abs(p.vx) > 10 ? 'walk' : 'idle';
+  if (Math.abs(p.vx) <= 10) return 'idle';
+  return p.vx * (p.facing || 1) < 0 ? 'walk_back' : 'walk'; // moving against the aim direction = backpedal
 }
 
 export class Animator {
@@ -60,7 +61,7 @@ export class Animator {
 
     const c = this.clips[name];
     let t;
-    if (name === 'walk') t = ((p.walkPhase / TAU) % 1) * c.duration;
+    if (name === 'walk' || name === 'walk_back') t = ((p.walkPhase / TAU) % 1) * c.duration;
     else if (name.startsWith('mine_')) t = p.swingPhase * c.duration;
     else if (name === 'climb') { this.climbDist += Math.abs(p.vy) * dt; t = (this.climbDist / 24) * c.duration; }
     else if (name === 'idle' || name === 'jet') t = ctx.time;

@@ -368,7 +368,7 @@ export class Renderer {
     const angle = mining ? Math.atan2(my - w0.y[sh], mx - w0.x[sh]) + swing : idleGripAngle(rig, w0);
     const world = applyOverlays(rig, pose, { look: [mx, my], mining, pickAngle: angle, landVY: this.animator.landVY, squashT: this.animator.squashT });
     const color = this.d.economy.pickaxe.color;
-    const canvas = this.rigR.render(world, p.outfit, { sprite: this._playerArt().pickReady() && !(p.onLadder && Math.abs(p.vy) > 1 && !mining) ? this._pickSprite(color) : null, angle, color }); // pick is stowed while climbing
+    const canvas = this.rigR.render(world, p.outfit, { sprite: this._playerArt().pickReady() && !(p.onLadder && Math.abs(p.vy) > 1 && !mining) ? this._pickSprite(color) : null, angle, color });  // pick is stowed while climbing
     ctx.save();
     ctx.translate(cx, top);
     if (f < 0) ctx.scale(-1, 1);

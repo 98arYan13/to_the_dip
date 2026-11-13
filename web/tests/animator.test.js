@@ -13,6 +13,8 @@ describe('selectClip', () => {
     [P({ hurtTimer: 1, mineState: 1 }), C(), 'hurt'],
     [P({ onLadder: true, onGround: false, vy: -90 }), C(), 'climb'],
     [P({ onLadder: true, onGround: false }), C(), 'idle'],
+    [P({ vx: -50, facing: 1 }), C(), 'walk_back'],
+    [P({ vx: -50, facing: -1 }), C(), 'walk'],
     [P({ mineState: 1 }), C(), 'mine_side'],
     [P({ mineState: 1 }), C({ aimDown: true }), 'mine_down'],
     [P({ mineState: 1, onGround: false }), C(), 'mine_side'],
