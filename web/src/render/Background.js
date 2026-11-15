@@ -11,6 +11,8 @@ import { createCanvas, get2D, hexToRgb } from './canvas.js';
 const T = WORLD.TILE_PX;
 const GROUND = WORLD.SURFACE_ROWS * T;
 const LAYER_W = 1024;
+/** Height of the stone/steel foundation drawn under camp buildings (world px). */
+const PAD_H = 5;
 
 export class Background {
   constructor(seed = 7) {
@@ -209,7 +211,7 @@ export class Background {
       if (img) {
         // Unbuilt: faint ghost of the building. Label sits above the sprite.
         if (!lvl) ctx.globalAlpha *= 0.3;
-        const ih = this._drawCampSprite(ctx, img, (tx + 0.5) * T); calls++;
+        const ih = this._drawCampSprite(ctx, img, (tx + 0.5) * T, lvl ? (lvl >= 2 ? 2 : 1) : 0); calls++;
         ctx.globalAlpha = tech && !ec.tech.includes(tech) ? 0.4 : 1;
         ctx.fillStyle = '#e8eef5'; ctx.fillText(`${b.name.toUpperCase()}${lvl ? ` ${lvl}` : ''}`, x + 2, GROUND - ih - 9); calls++;
         ctx.globalAlpha = 1;
@@ -228,11 +230,35 @@ export class Background {
   }
 
   /** Draws a camp sprite at 1.5 world px per art px, centred on cx, standing on the ground. Returns its height. */
-  _drawCampSprite(ctx, img, cx) {
+  _drawCampSprite(ctx, img, cx, pad = 0) {
     const w = img.naturalWidth * 1.5; const h = img.naturalHeight * 1.5;
+    const ph = pad ? PAD_H : 0;
+    if (pad) this._drawPad(ctx, Math.round(cx - w / 2) - 4, Math.round(w) + 8, pad === 2);
     ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(img, Math.round(cx - w / 2), GROUND - h, w, h);
-    return h;
+    ctx.drawImage(img, Math.round(cx - w / 2), GROUND - ph - h, w, h);
+    return h + ph;
+  }
+
+  /** Foundation under a building: stone paving (low levels) or a riveted steel pad (high levels). */
+  _drawPad(ctx, x, w, metal) {
+    const y = GROUND - PAD_H;
+    ctx.fillStyle = '#1a1d24'; ctx.fillRect(x - 1, y - 1, w + 2, PAD_H + 1);
+    if (metal) {
+      ctx.fillStyle = '#5d6676'; ctx.fillRect(x, y, w, PAD_H);
+      ctx.fillStyle = '#8a94a6'; ctx.fillRect(x, y, w, 1);
+      ctx.fillStyle = '#3d4350'; ctx.fillRect(x, y + PAD_H - 1, w, 1);
+      for (let px = x + 3; px < x + w - 2; px += 12) { ctx.fillStyle = '#b8c0cc'; ctx.fillRect(px, y + 2, 1, 1); }
+      for (let px = x; px < x + w; px += 6) { ctx.fillStyle = (px - x) % 12 ? '#1a1d24' : '#e0b030'; ctx.fillRect(px, y + PAD_H - 1, 3, 1); } // hazard edge
+    } else {
+      for (let px = x, k = 0; px < x + w; k++) { // irregular cobbles in two rows
+        const cw = 5 + ((k * 7) % 4);
+        const top = k % 2 ? '#8b8478' : '#9d968a';
+        ctx.fillStyle = top; ctx.fillRect(px, y, Math.min(cw, x + w - px) - 1, 2);
+        ctx.fillStyle = k % 3 ? '#77706a' : '#6a645d'; ctx.fillRect(px + 2, y + 3, Math.min(cw, x + w - px - 2) - 1, PAD_H - 3);
+        px += cw;
+      }
+      ctx.fillStyle = '#b3ac9f'; ctx.fillRect(x, y, w, 1);
+    }
   }
 
   /** @param {CanvasRenderingContext2D} ctx */
@@ -241,8 +267,9 @@ export class Background {
     let calls = 0;
     const r = (x, y, w, h, c) => { ctx.fillStyle = c; ctx.fillRect(x, y, w, h); calls++; };
     if (this.campArt.shop && this.campArt.station) {
-      this._drawCampSprite(ctx, this.campArt.shop, (bc.SHOP_X + 0.5) * T);
-      this._drawCampSprite(ctx, this.campArt.station, (bc.STATION_X + 0.5) * T);
+      const shopLvl = /** @type {any} */ (this).economy?.buildings?.shop || 0; // Trading Post upgrades are 1-based on top of the base shop
+      this._drawCampSprite(ctx, this.campArt.shop, (bc.SHOP_X + 0.5) * T, shopLvl >= 1 ? 2 : 1);
+      this._drawCampSprite(ctx, this.campArt.station, (bc.STATION_X + 0.5) * T, 2);
       calls += 2;
       if (this.economy) calls += this._drawBuildings(ctx, r);
       return calls + this._drawRig(ctx);
