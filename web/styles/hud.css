@@ -55,6 +55,8 @@ body.reduced-flashing .energy.low .fill { animation: none; }
 .slots { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); display: flex; gap: 6px; pointer-events: none; }
 .slot { background: var(--bg); border: 1px solid var(--edge); border-radius: var(--radius); padding: 6px 10px; display: flex; gap: 6px; align-items: center; font-size: 12px; }
 .slot .s-count { color: var(--warm); }
+.s-icon { height: 24px; image-rendering: pixelated; }
+.up-icon { height: 32px; image-rendering: pixelated; vertical-align: middle; margin-right: 6px; }
 kbd { font: inherit; font-size: 11px; background: #1b2630; border: 1px solid #39505f; border-bottom-width: 2px; border-radius: 3px; padding: 0 5px; color: #fff; }
 
 .prompt { position: absolute; left: 50%; bottom: 58px; transform: translateX(-50%); background: var(--bg); border: 1px solid var(--warm); color: var(--warm); padding: 6px 14px; border-radius: var(--radius); pointer-events: none; }

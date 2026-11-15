@@ -58,6 +58,8 @@ export class Renderer {
     this.rigA = null; this.animator = null; this.rigR = null; this.onRigReady = null;
     /** Backpack sprites by look tier (rig level 0 → 0, 1-2 → 1, 3+ → 2). */
     this.packImgs = [1, 2, 3].map((n) => { const i = new Image(); i.src = `rig/wear/backpack/pack${n}.png`; return i; });
+    /** Field camp tent and field charging station sprites (placeholder boxes until loaded). */
+    this.propImgs = Object.fromEntries(['tent', 'charger'].map((n) => { const i = new Image(); i.src = `camp/${n}.png`; return [n, i]; }));
     loadRigAssets().then((a) => {
       if (!a) return;
       this.rigA = a;
@@ -201,13 +203,23 @@ export class Renderer {
         }
       }
     }
-    for (const c of this.d.economy.fieldCamps) { // placeholder tent box until real art
+    const tent = this.propImgs.tent; const charger = this.propImgs.charger;
+    ctx.imageSmoothingEnabled = false;
+    for (const c of this.d.economy.fieldCamps) {
       const x0 = c.x * T; const y1 = (c.y + 1) * T;
+      if (tent.naturalWidth) { // 1.5 world px per art px, centred on the 4-tile camp
+        const w = tent.naturalWidth * 1.5; const h = tent.naturalHeight * 1.5;
+        ctx.drawImage(tent, Math.round(x0 + 2 * T - w / 2), y1 - h, w, h); continue;
+      }
       ctx.fillStyle = '#5a4630'; ctx.fillRect(x0 + 6, y1 - 2 * T, 4 * T - 12, 2 * T);
       ctx.fillStyle = '#c8873a'; ctx.fillRect(x0 + 10, y1 - 2 * T - 8, 4 * T - 20, 10);
       ctx.fillStyle = `rgba(255,190,90,${0.5 + 0.2 * Math.sin(this.time * 3)})`; ctx.fillRect(x0 + 2 * T - 6, y1 - 18, 12, 12);
     }
     for (const s of this.d.economy.stations) {
+      if (charger.naturalWidth) {
+        const w = charger.naturalWidth * 1.5; const h = charger.naturalHeight * 1.5;
+        ctx.drawImage(charger, Math.round((s.x + 0.5) * T - w / 2), (s.y + 1) * T - h, w, h); continue;
+      }
       ctx.fillStyle = '#2b3a4a'; ctx.fillRect(s.x * T + 8, s.y * T + 10, T - 16, T - 10);
       ctx.fillStyle = `rgba(90,220,255,${0.6 + 0.3 * Math.sin(this.time * 4)})`; ctx.fillRect(s.x * T + 12, s.y * T + 14, T - 24, 6);
     }

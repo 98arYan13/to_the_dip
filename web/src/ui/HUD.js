@@ -39,13 +39,13 @@ export class HUD {
       </div>
       <div class="prompt hidden"></div>
       <div class="slots">
-        <div class="slot" data-slot="dynamite"><kbd>1</kbd><span class="s-name">${CONSUMABLES.dynamite.short}</span><span class="s-count">×0</span></div>
-        <div class="slot" data-slot="warp"><kbd>2</kbd><span class="s-name">Warp</span><span class="s-count">×0</span></div>
-        <div class="slot" data-slot="cell"><kbd>3</kbd><span class="s-name">${CONSUMABLES.cell.short}</span><span class="s-count">×0</span></div>
-        <div class="slot" data-slot="ladder"><kbd>4</kbd><span class="s-name">${CONSUMABLES.ladder.short}</span><span class="s-count">×0</span></div>
-        <div class="slot" data-slot="bigBomb"><kbd>5</kbd><span class="s-name">${CONSUMABLES.bigBomb.short}</span><span class="s-count">×0</span></div>
-        <div class="slot" data-slot="campKit"><kbd>6</kbd><span class="s-name">${CONSUMABLES.campKit.short}</span><span class="s-count">×0</span></div>
-        <div class="slot radar-slot"><kbd>R</kbd><span class="s-name">Radar</span><span class="s-count r-cd">ready</span></div>
+        <div class="slot" data-slot="dynamite"><kbd>1</kbd><img class="s-icon" src="icons/dynamite.png" alt=""><span class="s-name">${CONSUMABLES.dynamite.short}</span><span class="s-count">×0</span></div>
+        <div class="slot" data-slot="warp"><kbd>2</kbd><img class="s-icon" src="icons/warp.png" alt=""><span class="s-name">Warp</span><span class="s-count">×0</span></div>
+        <div class="slot" data-slot="cell"><kbd>3</kbd><img class="s-icon" src="icons/cell.png" alt=""><span class="s-name">${CONSUMABLES.cell.short}</span><span class="s-count">×0</span></div>
+        <div class="slot" data-slot="ladder"><kbd>4</kbd><img class="s-icon" src="icons/ladder.png" alt=""><span class="s-name">${CONSUMABLES.ladder.short}</span><span class="s-count">×0</span></div>
+        <div class="slot" data-slot="bigBomb"><kbd>5</kbd><img class="s-icon" src="icons/bigBomb.png" alt=""><span class="s-name">${CONSUMABLES.bigBomb.short}</span><span class="s-count">×0</span></div>
+        <div class="slot" data-slot="campKit"><kbd>6</kbd><img class="s-icon" src="icons/campKit.png" alt=""><span class="s-name">${CONSUMABLES.campKit.short}</span><span class="s-count">×0</span></div>
+        <div class="slot radar-slot"><kbd>R</kbd><img class="s-icon" src="icons/radar.png" alt=""><span class="s-name">Radar</span><span class="s-count r-cd">ready</span></div>
       </div>
       <div class="tooltip hidden"></div>`;
     const q = (s) => /** @type {HTMLElement} */ (root.querySelector(s));
