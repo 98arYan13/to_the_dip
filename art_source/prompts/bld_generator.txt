@@ -1,0 +1,14 @@
+3 power-generator buildings for a mining camp, upgrade levels, left to right, each taller and more advanced than the previous:
+1) Coal Generator: small brick and timber shed with a coal hopper, a squat smokestack and a glowing orange firebox door;
+2) Diesel Generator: corrugated steel shed with a big green-grey diesel engine block, exhaust pipes and yellow warning lights;
+3) Fission Reactor: concrete and steel reactor building with a small cooling tower, radiation sign shape (no text) and glowing cyan core windows.
+Widths roughly equal (each about 1.8 times as wide as the smallest one is tall).
+STRICT FRONT ELEVATION: flat straight-on front view of a 2D side-scrolling game building, like a classic platformer background prop.
+No perspective, no three-quarter view, no top view, no ground, no shadows on the floor, no people.
+Each building stands on an invisible flat ground line; all buildings share the same ground line, in one horizontal row, left to right.
+Gritty frontier mining-camp style, muted earthy colors with small glowing accents.
+Pixel art, hard nearest-neighbor edges, limited 24-color palette, 1-pixel dark outline,
+simple cel shading with 2-3 tones per color, light from the upper left, no anti-aliasing, no gradients, no blur, no texture noise.
+Solid flat magenta background (#FF00FF). No text, no letters, no numbers, no labels, no watermark, no UI.
+No grid lines, no borders, no cell frames; the whole background is one flat magenta.
+All objects at the same pixel scale, each one separated from its neighbours by wide empty magenta space.

@@ -42,6 +42,8 @@ body.reduced-flashing .energy.low .fill { animation: none; }
 
 .right { position: absolute; right: 12px; top: 12px; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
 .minimap { width: 140px; height: 180px; image-rendering: pixelated; border: 1px solid var(--edge); border-radius: var(--radius); background: #000; display: block; }
+.minimap { cursor: zoom-in; }
+.minimap.big { position: fixed; right: 12px; top: 12px; width: min(480px, calc(100vw - 24px)); height: auto; aspect-ratio: 480 / 560; max-height: calc(100vh - 24px); z-index: 7; cursor: zoom-out; box-shadow: 0 0 0 2px #0008; }
 .buttons { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; max-width: 220px; }
 
 .btn { font: inherit; font-size: 12px; color: var(--text); background: #0f1a22; border: 1px solid var(--edge); border-radius: 3px; padding: 4px 9px; cursor: pointer; }

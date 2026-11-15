@@ -19,6 +19,10 @@ export class Minimap {
     this.canvas.width = UI.MINIMAP_W;
     this.canvas.height = UI.MINIMAP_H;
     parent.appendChild(this.canvas);
+    /** Enlarged view (click the minimap to toggle). */
+    this.big = false;
+    this.canvas.title = 'Click to enlarge';
+    this.canvas.addEventListener('click', () => this.toggleBig());
     this.ctx = /** @type {CanvasRenderingContext2D} */ (this.canvas.getContext('2d'));
     this.ctx.imageSmoothingEnabled = false;
     this.buf = createCanvas(WORLD.W, WORLD.H);
@@ -33,6 +37,16 @@ export class Minimap {
     this.world = null;
     bus.on(EV.TILE_CHANGED, (i) => this.updateTile(i));
     bus.on(EV.TILE_DISCOVERED, (i) => this.updateTile(i));
+  }
+
+  /** Switch between the corner minimap and the enlarged one. */
+  toggleBig(big = !this.big) {
+    this.big = big;
+    this.canvas.width = big ? UI.MINIMAP_BIG_W : UI.MINIMAP_W;
+    this.canvas.height = big ? UI.MINIMAP_BIG_H : UI.MINIMAP_H;
+    this.canvas.classList.toggle('big', big);
+    this.canvas.title = big ? 'Click to shrink' : 'Click to enlarge';
+    this.ctx.imageSmoothingEnabled = false;
   }
 
   /** @param {import('../world/World.js').World} world */
@@ -76,15 +90,16 @@ export class Minimap {
     const w = this.world; if (!w) return;
     this.time += dt;
     if (this.dirty) { this.bctx.putImageData(this.img, 0, 0); this.dirty = false; }
-    const s = UI.MINIMAP_SCALE;
-    const vw = UI.MINIMAP_W / s; const vh = UI.MINIMAP_H / s;
+    const s = this.big ? UI.MINIMAP_BIG_SCALE : UI.MINIMAP_SCALE;
+    const W = this.canvas.width; const H = this.canvas.height;
+    const vw = W / s; const vh = H / s;
     let sx = Math.round(ptx - vw / 2); let sy = Math.round(pty - vh / 2);
     sx = Math.max(0, Math.min(w.W - vw, sx));
     sy = Math.max(-4, Math.min(w.H - vh, sy));
     const ctx = this.ctx;
     ctx.fillStyle = '#000';
-    ctx.fillRect(0, 0, UI.MINIMAP_W, UI.MINIMAP_H);
-    ctx.drawImage(/** @type {any} */ (this.buf), sx, Math.max(0, sy), vw, vh - Math.max(0, -sy), 0, Math.max(0, -sy) * s, UI.MINIMAP_W, UI.MINIMAP_H - Math.max(0, -sy) * s);
+    ctx.fillRect(0, 0, W, H);
+    ctx.drawImage(/** @type {any} */ (this.buf), sx, Math.max(0, sy), vw, vh - Math.max(0, -sy), 0, Math.max(0, -sy) * s, W, H - Math.max(0, -sy) * s);
     // radar dots
     for (let k = 0; k < vis.radarCount; k++) {
       const i = vis.radarList[k];
@@ -100,7 +115,7 @@ export class Minimap {
     ctx.globalAlpha = 1;
     // base camp beacon
     const by = (WORLD.SURFACE_ROWS - 1 - sy) * s;
-    if (by >= 0 && by < UI.MINIMAP_H) {
+    if (by >= 0 && by < H) {
       ctx.fillStyle = Math.sin(this.time * 4) > 0 ? SURFACE.BEACON_SHOP : '#663';
       ctx.fillRect((WORLD.BASE_CAMP.SHOP_X - sx) * s - 1, by - 1, 3, 3);
       ctx.fillStyle = SURFACE.BEACON_STATION;

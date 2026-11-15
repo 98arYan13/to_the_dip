@@ -38,6 +38,20 @@ export function rgbStr(r, g, b, a = 1) {
  * Bake a radial light sprite (colour → transparent).
  * @param {string} color @param {number} size
  */
+/**
+ * Radial sprite from explicit stops, for hand-tuned light falloffs (colour can shift along the radius).
+ * @param {number} size @param {[number, string, number][]} stops [t 0..1, hex colour, alpha]
+ */
+export function makeGradientSprite(size, stops) {
+  const c = createCanvas(size, size);
+  const g = get2D(c);
+  const grad = g.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+  for (const [t, hex, a] of stops) { const [r, gg, b] = hexToRgb(hex); grad.addColorStop(t, rgbStr(r, gg, b, a)); }
+  g.fillStyle = grad;
+  g.fillRect(0, 0, size, size);
+  return c;
+}
+
 export function makeRadialSprite(color, size, coreStop = 0.0) {
   const c = createCanvas(size, size);
   const g = get2D(c);

@@ -8,6 +8,7 @@ import { MATERIALS, WORLD, CAMERA, RENDER, ORES, FLAG, TILE, DYNAMITE, ENERGY, P
 import { hash2 } from '../core/RNG.js';
 import { requiredTier } from '../systems/Mining.js';
 import { hexToRgb } from './canvas.js';
+import { viewScale } from './Camera.js';
 import { loadRigAssets } from '../anim/loadRigAssets.js';
 import { Animator } from '../anim/Animator.js';
 import { RigRenderer, PAD as RIG_PAD } from '../anim/RigRenderer.js';
@@ -79,13 +80,21 @@ export class Renderer {
     this.canvas.style.height = cssH + 'px';
     this.canvas.width = Math.max(1, Math.round(cssW * dpr));
     this.canvas.height = Math.max(1, Math.round(cssH * dpr));
-    this.scale = Math.max(1, Math.round(this.canvas.height / CAMERA.VIEW_HEIGHT_TARGET));
+    this.scale = viewScale(this.canvas.height, CAMERA.ZOOM_LEVELS[this.zoomIndex ?? CAMERA.ZOOM_DEFAULT]);
     this.viewW = this.canvas.width / this.scale;
     this.viewH = this.canvas.height / this.scale;
     this.ctx.imageSmoothingEnabled = false;
     this.d.camera.viewW = this.viewW; this.d.camera.viewH = this.viewH;
     this.d.lighting.resize(this.viewW, this.viewH);
     this.d.postfx.resize(this.canvas.width, this.canvas.height);
+  }
+
+  /** Step the zoom level (+1 in, -1 out); returns the new multiplier. */
+  zoomBy(step) {
+    const n = CAMERA.ZOOM_LEVELS.length;
+    this.zoomIndex = Math.max(0, Math.min(n - 1, (this.zoomIndex ?? CAMERA.ZOOM_DEFAULT) + step));
+    this.resize();
+    return CAMERA.ZOOM_LEVELS[this.zoomIndex];
   }
 
   /** @param {import('../world/World.js').World} world */

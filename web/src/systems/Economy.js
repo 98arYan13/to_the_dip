@@ -3,7 +3,7 @@
  * Cargo, credits, upgrades and consumables. The rules are pure functions (unit-tested);
  * the Economy class wraps them with state and events.
  */
-import { ORES, PICKAXES, UPGRADES, CONSUMABLES, ECONOMY, BALANCE, ENERGY, CAMP_BUILDINGS, START_BUILDINGS, POWER, ORE, ITEM, TECH, isOre } from '../config.js';
+import { ORES, PICKAXES, UPGRADES, CONSUMABLES, ECONOMY, BALANCE, ENERGY, CAMP_BUILDINGS, START_BUILDINGS, POWER, ORE, ITEM, TECH, RENDER, WORLD, isOre } from '../config.js';
 
 const cents = (v) => Math.round(v * 100) / 100;
 import { EV } from '../core/EventBus.js';
@@ -180,7 +180,8 @@ export class Economy {
   get rig() { return UPGRADES.rig.levels[this.levels.rig]; }
   get radar() { return UPGRADES.radar.levels[this.levels.radar]; }
   /** Headlamp range (px): radar level, scaled by tech. */
-  get headlamp() { return this.stat('headlamp', this.radar.headlamp); }
+  /** Headlamp range in px: 2 tiles at base, capped at RENDER.HEADLAMP_MAX_TILES even with the LED tech. */
+  get headlamp() { return Math.min(this.stat('headlamp', this.radar.headlamp), RENDER.HEADLAMP_MAX_TILES * WORLD.TILE_PX); }
   get capacity() { return this.stat('capacity', this.rig.capacity); }
   /** @param {string} name @param {number} base */
   get sellMul() { const l = this.buildings.shop || 0; return l ? CAMP_BUILDINGS.shop.levels[l - 1].effect.sellMul : 1; }

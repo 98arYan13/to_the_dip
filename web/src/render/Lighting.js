@@ -5,7 +5,7 @@
  * Composited with `multiply`; emissives also go to a bloom buffer composited with `lighter`.
  */
 import { LIGHTING, WORLD, FLAG, ORES, TILE } from '../config.js';
-import { createCanvas, get2D, makeRadialSprite, rgbStr } from './canvas.js';
+import { createCanvas, get2D, makeRadialSprite, makeGradientSprite, rgbStr } from './canvas.js';
 import { hash2 } from '../core/RNG.js';
 import { P_GLOW } from './Particles.js';
 
@@ -27,8 +27,13 @@ export class Lighting {
     this.bloomCtx = get2D(this.bloomCanvas);
     /** @type {Map<string, any>} */
     this.sprites = new Map();
-    this.coneSprite = makeRadialSprite(LIGHTING.CONE_COLOR, LIGHTING.SPRITE_SIZE * 2, 0.15);
-    this.playerSprite = this.sprite(LIGHTING.PLAYER_COLOR);
+    const S = LIGHTING.SPRITE_SIZE;
+    // Beam: white-hot at the lens, cooling to a warm cream and fading over a long smooth tail.
+    this.coneSprite = makeGradientSprite(S * 2, [[0, '#ffffff', 1], [0.1, '#fff8ea', 0.88], [0.3, '#fff1d6', 0.66], [0.52, '#ffe6bc', 0.42], [0.72, '#ffd9a2', 0.2], [0.88, '#ffd29a', 0.06], [1, '#ffcf92', 0]]);
+    // Aura: soft amber core easing out through orange into a faint ember rim (no hard edge).
+    this.playerSprite = makeGradientSprite(S * 2, [[0, '#ffd6a8', 0.8], [0.2, '#ffb878', 0.55], [0.45, '#ff9858', 0.26], [0.72, '#d86a36', 0.08], [1, '#b04a20', 0]]);
+    // Lens glint on the helmet lamp (also feeds bloom).
+    this.lensSprite = makeGradientSprite(S, [[0, '#ffffff', 1], [0.2, '#fff4dc', 0.7], [0.5, '#ffd9a0', 0.2], [1, '#ffd9a0', 0]]);
     this.ambient = [];
     for (let k = 0; k < LIGHTING.AMBIENT_STEPS; k++) {
       const t = k / (LIGHTING.AMBIENT_STEPS - 1);
@@ -136,10 +141,11 @@ export class Lighting {
     e.globalCompositeOperation = 'lighter';
 
     const flicker = 1 - LIGHTING.FLICKER * (0.5 + 0.5 * Math.sin(s.time * LIGHTING.FLICKER_FREQ) * Math.sin(s.time * 7.3));
-    // Player radial
-    this._glow(this.playerSprite, s.playerX, s.playerY, LIGHTING.PLAYER_RADIUS, LIGHTING.PLAYER_INTENSITY * flicker, false);
-
-    this._glow(this.sprite(LIGHTING.CONE_COLOR), s.playerX, s.playerY - 8, LIGHTING.HELMET_RADIUS, 0.6 * flicker, false);
+    // Player aura: grows with the headlamp so the lit area matches what the lamp reveals (PLAYER_RADIUS at
+    // the 6-tile max), and breathes slowly so it feels like a living flame rather than a flat disc.
+    const breathe = 1 + LIGHTING.AURA_BREATHE * Math.sin(s.time * 1.7);
+    const glowR = LIGHTING.PLAYER_RADIUS * Math.min(1, (s.headlamp + T) / (6 * T + T)) * breathe;
+    this._glow(this.playerSprite, s.playerX, s.playerY, glowR, LIGHTING.PLAYER_INTENSITY * flicker, false);
 
     // Headlamp cone with occlusion
     const range = s.headlamp;
@@ -147,7 +153,7 @@ export class Lighting {
     const n = this.rays;
     const start = s.aimAngle - half;
     const step = (half * 2) / (n - 1);
-    const ox = s.playerX; const oy = s.playerY;
+    const ox = s.playerX; const oy = s.playerY - LIGHTING.LAMP_HEAD_DY; // apex at the helmet lamp
     this.coneStart = start; this.coneStep = step; this.coneCount = n; this.coneOX = ox; this.coneOY = oy;
     const pts = this.pts;
     for (let k = 0; k < n; k++) {
@@ -157,22 +163,27 @@ export class Lighting {
       this.rayDist[k] = d;
       pts[k * 2] = ox + dx * d; pts[k * 2 + 1] = oy + dy * d;
     }
-    const innerFrom = Math.floor(n * (1 - LIGHTING.CONE_INNER_FRAC) / 2);
-    const innerTo = n - 1 - innerFrom;
-    for (let pass = 0; pass < 2; pass++) {
-      const k0 = pass === 0 ? 0 : innerFrom;
-      const k1 = pass === 0 ? n - 1 : innerTo;
+    // Wide beam: the full-width cone carries most of the light; a couple of slightly narrower slices only soften
+    // its side edges. Every slice runs the full length, so the base stays wide. Along the length the light comes
+    // from the cone sprite's gradient, which reaches zero exactly at the range: bright at the lamp, gently dimmer
+    // further out, no rim at the end.
+    const R = range;
+    for (const [frac, alpha] of LIGHTING.CONE_FEATHER) {
+      const cut = Math.floor((n - 1) * (1 - frac) / 2);
       l.save();
       l.beginPath();
       l.moveTo(ox, oy);
-      for (let k = k0; k <= k1; k++) l.lineTo(pts[k * 2], pts[k * 2 + 1]);
+      for (let k = cut; k <= n - 1 - cut; k++) l.lineTo(pts[k * 2], pts[k * 2 + 1]);
       l.closePath();
       l.clip();
-      l.globalAlpha = (pass === 0 ? LIGHTING.CONE_OUTER_ALPHA : 1 - LIGHTING.CONE_OUTER_ALPHA) * flicker;
-      l.drawImage(this.coneSprite, ox - range, oy - range, range * 2, range * 2);
+      l.globalAlpha = alpha * flicker;
+      l.drawImage(this.coneSprite, ox - R, oy - R, R * 2, R * 2);
       l.restore();
       this.drawCalls++;
     }
+    // Lamp lens: a small hot glint where the beam starts, mirrored into the bloom buffer.
+    const lx = ox + Math.cos(s.aimAngle) * 4; const ly = oy + Math.sin(s.aimAngle) * 3;
+    this._glow(this.lensSprite, lx, ly, LIGHTING.HELMET_RADIUS, 0.8 * flicker, true);
 
     // Tile emissives
     const pulse = s.time;

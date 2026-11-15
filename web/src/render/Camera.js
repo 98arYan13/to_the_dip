@@ -5,6 +5,15 @@
 import { CAMERA, WORLD } from '../config.js';
 import { createNoise2D } from '../core/Noise.js';
 
+/**
+ * Screen px per world px: the integer base scale for this canvas height times the zoom multiplier.
+ * @param {number} canvasH backing-store height @param {number} zoom
+ */
+export function viewScale(canvasH, zoom) {
+  const base = Math.max(1, Math.round(canvasH / CAMERA.VIEW_HEIGHT_TARGET));
+  return Math.max(0.5, base * zoom);
+}
+
 export class Camera {
   constructor() {
     /** Centre position in world px. */

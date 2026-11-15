@@ -352,10 +352,10 @@ export const UPGRADES = Object.freeze({
     { thrust: 3400, maxUp: 420, drain: 0.55, recipe: { [ITEM.EXOTIC_ALLOY]: 2, [ITEM.CIRCUIT]: 2 }, tech: 'exotic_materials', workshop: 1 },
   ] },
   radar: { name: 'Radar', levels: [
-    { radius: 8, duration: 6, headlamp: 190 },
-    { radius: 12, duration: 9, headlamp: 240, recipe: { [ITEM.COPPER_WIRE]: 4, [ITEM.SOLDER]: 2 }, tech: 'radio', workshop: 1 },
-    { radius: 16, duration: 12, headlamp: 290, recipe: { [ITEM.CIRCUIT]: 2, [ITEM.ALUMINIUM]: 2 }, tech: 'precision', workshop: 1 },
-    { radius: 22, duration: 16, headlamp: 350, recipe: { [ITEM.CIRCUIT]: 4, [ITEM.INDUSTRIAL_DIAMOND]: 2 }, tech: 'diamond_tooling', workshop: 1 },
+    { radius: 8, duration: 6, headlamp: 64 },
+    { radius: 12, duration: 9, headlamp: 107, recipe: { [ITEM.COPPER_WIRE]: 4, [ITEM.SOLDER]: 2 }, tech: 'radio', workshop: 1 },
+    { radius: 16, duration: 12, headlamp: 149, recipe: { [ITEM.CIRCUIT]: 2, [ITEM.ALUMINIUM]: 2 }, tech: 'precision', workshop: 1 },
+    { radius: 22, duration: 16, headlamp: 192, recipe: { [ITEM.CIRCUIT]: 4, [ITEM.INDUSTRIAL_DIAMOND]: 2 }, tech: 'diamond_tooling', workshop: 1 },
   ] },
   /** Backpack + battery tiers: capacity kg (C_max), max energy, drill efficiency (eta_rig). */
   rig: { name: 'Cargo & Battery Rig', levels: [
@@ -568,6 +568,9 @@ export const CAMERA = Object.freeze({
   LOOK_AHEAD: 0.18,
   TOP_MARGIN: 170,
   VIEW_HEIGHT_TARGET: 540,
+  /** Zoom multipliers on the base pixel scale (mouse wheel / +/- keys); index ZOOM_DEFAULT is 1x. */
+  ZOOM_LEVELS: Object.freeze([0.5, 0.75, 1, 1.5, 2]),
+  ZOOM_DEFAULT: 2,
 });
 
 export const RENDER = Object.freeze({
@@ -577,7 +580,10 @@ export const RENDER = Object.freeze({
   ATLAS_COLS: 16,
   REVEAL_FADE: 2.5,
   REVEAL_INTERVAL: 4,
-  REVEAL_NEAR: 2.5, // tiles revealed through walls around the player
+  REVEAL_NEAR: 1.5, // tiles revealed through walls around the player
+  REVEAL_FULL_FRAC: 0.5, // inside this fraction of the headlamp range tiles reveal fully; beyond it they fade toward REVEAL_EDGE_ALPHA
+  REVEAL_EDGE_ALPHA: 0.25,
+  HEADLAMP_MAX_TILES: 6,
   BACKWALL_BRIGHTNESS: 0.32,
   UNDERGROUND_BG: '#07070b',
   FOG_COLOR: '#000000',
@@ -596,17 +602,19 @@ export const QUALITY = Object.freeze({
 });
 
 export const LIGHTING = Object.freeze({
-  PLAYER_RADIUS: 150,
+  PLAYER_RADIUS: 220, // warm glow radius at the max (6-tile) headlamp; scales down with the lamp level
   PLAYER_COLOR: '#ffb070',
   PLAYER_INTENSITY: 1.0,
-  CONE_HALF_ANGLE: 0.44,
-  CONE_INNER_FRAC: 0.55,
+  CONE_HALF_ANGLE: 0.2618, // 15 deg each side: a 30 deg wide headlamp beam
   CONE_COLOR: '#fff1d6',
   HELMET_RADIUS: 40, // small bright glow on the helmet
 
-  CONE_OUTER_ALPHA: 0.55,
+  /** Beam feather: [fraction of the cone width, alpha] slices from widest to narrowest (alphas add up near 1). */
+  CONE_FEATHER: Object.freeze([[1, 0.55], [0.85, 0.25], [0.7, 0.2]]),
+  LAMP_HEAD_DY: 9, // px above the player centre where the beam starts (helmet lamp)
+  AURA_BREATHE: 0.035, // slow +-3.5% swell of the player aura
   CONE_WALL_BLEED: 34, // px past the wall face: the beam lights one full tile into rock
-  FLICKER: 0.06,
+  FLICKER: 0.04,
   FLICKER_FREQ: 13,
   AMBIENT_SURFACE: [226, 206, 188],
   AMBIENT_DEEP: [24, 22, 30],
@@ -763,6 +771,8 @@ export const KEYBINDS = Object.freeze({
   pause: ['Escape'],
   debug: ['F3'],
   dev: ['F4'],
+  zoomIn: ['Equal', 'NumpadAdd'],
+  zoomOut: ['Minus', 'NumpadSubtract'],
 });
 
 export const GAMEPAD = Object.freeze({
@@ -778,6 +788,10 @@ export const UI = Object.freeze({
   MINIMAP_W: 140,
   MINIMAP_H: 180,
   MINIMAP_SCALE: 2,
+  /** Enlarged minimap (click to toggle), canvas px. */
+  MINIMAP_BIG_W: 480,
+  MINIMAP_BIG_H: 560,
+  MINIMAP_BIG_SCALE: 3,
   PLAYER_BLINK: 0.5,
   DEBUG_GRAPH_W: 200,
   DEBUG_GRAPH_H: 60,

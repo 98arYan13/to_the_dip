@@ -7,7 +7,7 @@ import { KEYBINDS, SETTINGS_DEFAULT } from '../config.js';
 
 const LABELS = {
   left: 'Walk left', right: 'Walk right', jet: 'Jetpack', mine: 'Mine (hold)', radar: 'Radar',
-  slot1: 'Dynamite', slot2: 'Teleporter', slot3: 'Energy cell', interact: 'Base camp terminal', pause: 'Pause / settings', debug: 'Debug overlay',
+  slot1: 'Dynamite', slot2: 'Teleporter', slot3: 'Energy cell', interact: 'Base camp terminal', pause: 'Pause / settings', debug: 'Debug overlay', zoomIn: 'Zoom in', zoomOut: 'Zoom out',
 };
 
 /** @param {string} code */

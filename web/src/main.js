@@ -149,6 +149,9 @@ function boot() {
 
   // ---------- UI ----------
   const input = new Input(window, canvas);
+  /** Zoom in (+1) / out (-1): wheel or +/- keys; the camera re-clamps to the new view size. */
+  const setZoom = (step) => { renderer.zoomBy(step); camera.update(0, player.cx, player.cy); };
+  canvas.addEventListener('wheel', (e) => { if (!g.started) return; e.preventDefault(); setZoom(e.deltaY < 0 ? 1 : -1); }, { passive: false });
   const hud = new HUD(hudRoot, bus, {
     economy, energy, getWorld: () => world,
     onSave: () => saveGame(true),
@@ -368,8 +371,10 @@ function boot() {
     if (!g.started) return;
     if (a === 'debug') debug.toggle();
     else if (a === 'dev') devPanel.toggle();
+    else if (a === 'zoomIn' || a === 'zoomOut') setZoom(a === 'zoomIn' ? 1 : -1);
     else if (a === 'pause') {
-      if (shop.open) shop.close();
+      if (minimap.big) minimap.toggleBig(false);
+      else if (shop.open) shop.close();
       else if (saveMenu.open) saveMenu.close();
       else if (settings.open) settings.close();
       else openSettings();

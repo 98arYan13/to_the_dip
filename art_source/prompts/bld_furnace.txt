@@ -1,0 +1,15 @@
+4 smelting furnace buildings for a mining camp, upgrade levels, left to right, each taller and more advanced than the previous:
+1) Clay Kiln: a small rounded clay beehive kiln with a glowing orange opening;
+2) Bloomery: a stone and clay shaft furnace with leather bellows and a wooden frame;
+3) Blast Furnace: a tall riveted iron blast furnace tower with a hot-blast stove, pipes and molten orange tap hole;
+4) Arc Furnace: an industrial steel electric arc furnace with three thick graphite electrodes on top, power cables and white-blue arc glow.
+All about the same width.
+STRICT FRONT ELEVATION: flat straight-on front view of a 2D side-scrolling game building, like a classic platformer background prop.
+No perspective, no three-quarter view, no top view, no ground, no shadows on the floor, no people.
+Each building stands on an invisible flat ground line; all buildings share the same ground line, in one horizontal row, left to right.
+Gritty frontier mining-camp style, muted earthy colors with small glowing accents.
+Pixel art, hard nearest-neighbor edges, limited 24-color palette, 1-pixel dark outline,
+simple cel shading with 2-3 tones per color, light from the upper left, no anti-aliasing, no gradients, no blur, no texture noise.
+Solid flat magenta background (#FF00FF). No text, no letters, no numbers, no labels, no watermark, no UI.
+No grid lines, no borders, no cell frames; the whole background is one flat magenta.
+All objects at the same pixel scale, each one separated from its neighbours by wide empty magenta space.

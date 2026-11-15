@@ -21,6 +21,8 @@ export class Visibility {
     const n = world.W * world.H;
     /** Reveal alpha per tile, 0 = black fog, 1 = fully visible. */
     this.alpha = new Float32Array(n);
+    /** Alpha each tile fades toward: 1 once discovered, less for tiles only glimpsed at the edge of the headlamp. */
+    this.target = new Float32Array(n);
     this.fading = new Int32Array(n);
     this.fadingCount = 0;
     this.radarTimer = new Float32Array(n);
@@ -28,7 +30,23 @@ export class Visibility {
     this.radarList = new Int32Array(n);
     this.radarCount = 0;
     this.frame = 0;
-    for (let i = 0; i < n; i++) if (world.flags[i] & FLAG.DISCOVERED) this.alpha[i] = 1;
+    for (let i = 0; i < n; i++) if (world.flags[i] & FLAG.DISCOVERED) this.alpha[i] = this.target[i] = 1;
+  }
+
+  /** Partially reveal a dark tile (headlamp edge): it fades up to `a` and stays there; a = 1 discovers it. */
+  glimpse(i, a) {
+    if (a >= 1) { this.reveal(i); return; }
+    if (this.target[i] >= a) return;
+    if (this.alpha[i] >= this.target[i] && this.alpha[i] < a) this.fading[this.fadingCount++] = i;
+    this.target[i] = a;
+  }
+
+  /** Reveal alpha for a tile `distTiles` from the player with a headlamp reaching `rangeTiles`. */
+  static lampAlpha(distTiles, rangeTiles) {
+    const full = rangeTiles * RENDER.REVEAL_FULL_FRAC;
+    if (distTiles <= Math.max(full, RENDER.REVEAL_NEAR)) return 1;
+    const t = Math.min(1, (distTiles - full) / Math.max(0.001, rangeTiles - full));
+    return 1 - (1 - RENDER.REVEAL_EDGE_ALPHA) * t;
   }
 
   isDiscovered(i) { return (this.world.flags[i] & FLAG.DISCOVERED) !== 0; }
@@ -39,7 +57,8 @@ export class Visibility {
     const f = this.world.flags;
     if (f[i] & FLAG.DISCOVERED) return;
     f[i] |= FLAG.DISCOVERED;
-    if (this.alpha[i] < 1) this.fading[this.fadingCount++] = i;
+    if (this.alpha[i] >= this.target[i] && this.alpha[i] < 1) this.fading[this.fadingCount++] = i; // not already queued
+    this.target[i] = 1;
     this.bus.emit(EV.TILE_DISCOVERED, i);
   }
 
@@ -63,7 +82,8 @@ export class Visibility {
     // Line-of-sight reveal, throttled.
     if ((this.frame++ % RENDER.REVEAL_INTERVAL) === 0) {
       const T = w.T;
-      const r = Math.ceil(rangePx / T);
+      const rt = rangePx / T;
+      const r = Math.ceil(rt);
       const ptx = Math.floor(px / T);
       const pty = Math.floor(py / T);
       const near2 = RENDER.REVEAL_NEAR * RENDER.REVEAL_NEAR;
@@ -82,8 +102,10 @@ export class Visibility {
           const cx = x * T + T * 0.5 - px;
           const cy = y * T + T * 0.5 - py;
           const dist = Math.sqrt(cx * cx + cy * cy);
+          const a = Visibility.lampAlpha(dist / T, rt);
+          if (this.target[i] >= a) continue;
           w.raycast(px, py, cx / dist, cy / dist, dist);
-          if (w.lastHit === -1 || w.lastHit === i) this.reveal(i);
+          if (w.lastHit === -1 || w.lastHit === i) this.glimpse(i, a);
         }
       }
       if (aimAngle !== undefined) this._beam(px, py, rangePx, aimAngle);
@@ -94,8 +116,8 @@ export class Visibility {
     for (let k = this.fadingCount - 1; k >= 0; k--) {
       const i = this.fading[k];
       const a = this.alpha[i] + fade;
-      if (a >= 1) {
-        this.alpha[i] = 1;
+      if (a >= this.target[i]) {
+        this.alpha[i] = this.target[i];
         this.fading[k] = this.fading[--this.fadingCount];
       } else this.alpha[i] = a;
     }
@@ -128,9 +150,9 @@ export class Visibility {
       const dx = Math.cos(a); const dy = Math.sin(a);
       const d = w.raycast(px, py, dx, dy, rangePx);
       if (w.lastHit < 0) continue;
-      this.reveal(w.lastHit);
+      this.glimpse(w.lastHit, Visibility.lampAlpha(d / T, rangePx / T));
       const x = Math.floor((px + dx * (d + T)) / T); const y = Math.floor((py + dy * (d + T)) / T);
-      if (w.inBounds(x, y)) this.reveal(y * w.W + x);
+      if (w.inBounds(x, y)) this.glimpse(y * w.W + x, Visibility.lampAlpha((d + T) / T, rangePx / T));
     }
   }
 

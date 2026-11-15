@@ -1,0 +1,16 @@
+Sprite sheet of 6 miner's backpacks for a 2D side-scrolling mining game, one horizontal row, left to right, showing the upgrade path:
+1) a small lumpy brown canvas sack with a rope tie and a small boxy lead-acid battery strapped to its side;
+2) a reinforced brown leather pack on a dark wrought-iron frame with rivets, a nickel battery cell on the side;
+3) a large steel exo-frame pack, grey steel plates, yellow-black hazard stripe, chunky NiMH battery block;
+4) a sleek light aluminium hard-shell rig, silver with orange trim, a slim lithium battery with a small green LED;
+5) a black carbon-fiber pod pack with a glowing green isotope core window;
+6) a futuristic quantum cargo pack, dark navy shell with glowing cyan plasma vents and seams.
+STRICT SIDE PROFILE: each backpack is seen exactly from the side, as worn on the back of a character facing RIGHT,
+so the flat side that touches the wearer's back is on the RIGHT edge and the bulging outer side is on the LEFT.
+Tall upright shapes, taller than wide. No shoulder straps hanging loose, no character, no body.
+Sizes grow from left (smallest) to right (largest).
+Pixel art, hard nearest-neighbor edges, limited 24-color palette, 1-pixel dark outline,
+simple cel shading with 2-3 tones per color, light from the upper left, no anti-aliasing, no gradients, no blur, no texture noise.
+Solid flat magenta background (#FF00FF). No text, no letters, no numbers, no labels, no watermark, no UI.
+No grid lines, no borders, no cell frames; the whole background is one flat magenta.
+All objects at the same pixel scale, each one separated from its neighbours by wide empty magenta space.
