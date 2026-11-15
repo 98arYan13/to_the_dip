@@ -56,6 +56,8 @@ export class Renderer {
     this.resize();
     /** Skeleton assets; null until loaded (or forever if they fail → old sheet is drawn). */
     this.rigA = null; this.animator = null; this.rigR = null; this.onRigReady = null;
+    /** Backpack sprites by look tier (rig level 0 → 0, 1-2 → 1, 3+ → 2). */
+    this.packImgs = [1, 2, 3].map((n) => { const i = new Image(); i.src = `rig/wear/backpack/pack${n}.png`; return i; });
     loadRigAssets().then((a) => {
       if (!a) return;
       this.rigA = a;
@@ -368,7 +370,8 @@ export class Renderer {
     const angle = mining ? Math.atan2(my - w0.y[sh], mx - w0.x[sh]) + swing : idleGripAngle(rig, w0);
     const world = applyOverlays(rig, pose, { look: [mx, my], mining, pickAngle: angle, landVY: this.animator.landVY, squashT: this.animator.squashT });
     const color = this.d.economy.pickaxe.color;
-    const canvas = this.rigR.render(world, p.outfit, { sprite: this._playerArt().pickReady() && !(p.onLadder && Math.abs(p.vy) > 1 && !mining) ? this._pickSprite(color) : null, angle, color });  // pick is stowed while climbing
+    const rl = this.d.economy.levels.rig; const pack = this.packImgs[rl >= 3 ? 2 : rl >= 1 ? 1 : 0];
+    const canvas = this.rigR.render(world, p.outfit, { sprite: this._playerArt().pickReady() && !(p.onLadder && Math.abs(p.vy) > 1 && !mining) ? this._pickSprite(color) : null, angle, color }, pack.complete && pack.naturalWidth ? pack : null);  // pick is stowed while climbing
     ctx.save();
     ctx.translate(cx, top);
     if (f < 0) ctx.scale(-1, 1);

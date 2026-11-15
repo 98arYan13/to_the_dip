@@ -30,6 +30,17 @@ export class Background {
     this.birdTimer = this.rng.range(SURFACE.BIRD_INTERVAL[0], SURFACE.BIRD_INTERVAL[1]) * 0.3;
     this.flock = { active: false, x: 0, y: 0, dir: 1, n: 0, speed: 0 };
     this.pollenTimer = 0;
+    /** Camp building sprites (web/public/camp, cut by tools/cut_sprites.py); missing ones keep the placeholder boxes. */
+    /** @type {Record<string, HTMLImageElement>} */ this.campArt = {};
+    if (typeof Image !== 'undefined') {
+      for (const id of ['shop', 'station', 'generator', 'furnace', 'refinery', 'lab', 'workshop']) {
+        const img = new Image(); img.onload = () => {
+          this.campArt[id] = img;
+          const bi = id === 'shop' ? 0 : id === 'station' ? 1 : -1; // lift beacon to the sprite's top
+          if (bi >= 0) this.beacons[bi].y = GROUND - img.naturalHeight * 1.5 - 3;
+        }; img.src = `camp/${id}.png`;
+      }
+    }
     const bc = WORLD.BASE_CAMP;
     /** Beacons consumed by Lighting. */
     this.beacons = [
@@ -194,6 +205,16 @@ export class Background {
       const x = tx * T - T / 2 + 4; const w = 2 * T - 8; const h = 24 + 14 * lvl;
       const tech = b.levels[0].tech;
       ctx.globalAlpha = tech && !ec.tech.includes(tech) ? 0.4 : 1;
+      const img = this.campArt[id];
+      if (img) {
+        // Unbuilt: faint ghost of the building. Label sits above the sprite.
+        if (!lvl) ctx.globalAlpha *= 0.3;
+        const ih = this._drawCampSprite(ctx, img, (tx + 0.5) * T); calls++;
+        ctx.globalAlpha = tech && !ec.tech.includes(tech) ? 0.4 : 1;
+        ctx.fillStyle = '#e8eef5'; ctx.fillText(`${b.name.toUpperCase()}${lvl ? ` ${lvl}` : ''}`, x + 2, GROUND - ih - 9); calls++;
+        ctx.globalAlpha = 1;
+        continue;
+      }
       if (lvl) {
         r(x, GROUND - h, w, h, '#4a4f5c'); r(x, GROUND - h, w, 4, '#6b7385');
         r(x + 6, GROUND - h + 10, w - 12, 6, id === 'furnace' ? '#ff8a3a' : id === 'generator' ? '#ffd166' : '#3ff0ff');
@@ -206,11 +227,26 @@ export class Background {
     return calls;
   }
 
+  /** Draws a camp sprite at 1.5 world px per art px, centred on cx, standing on the ground. Returns its height. */
+  _drawCampSprite(ctx, img, cx) {
+    const w = img.naturalWidth * 1.5; const h = img.naturalHeight * 1.5;
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(img, Math.round(cx - w / 2), GROUND - h, w, h);
+    return h;
+  }
+
   /** @param {CanvasRenderingContext2D} ctx */
   _drawBaseCamp(ctx) {
     const bc = WORLD.BASE_CAMP;
     let calls = 0;
     const r = (x, y, w, h, c) => { ctx.fillStyle = c; ctx.fillRect(x, y, w, h); calls++; };
+    if (this.campArt.shop && this.campArt.station) {
+      this._drawCampSprite(ctx, this.campArt.shop, (bc.SHOP_X + 0.5) * T);
+      this._drawCampSprite(ctx, this.campArt.station, (bc.STATION_X + 0.5) * T);
+      calls += 2;
+      if (this.economy) calls += this._drawBuildings(ctx, r);
+      return calls + this._drawRig(ctx);
+    }
     // Trading Post
     const sx = (bc.SHOP_X - 1) * T; const sw = 3 * T;
     r(sx + 4, GROUND - 56, sw - 8, 56, '#5a3b22');
@@ -235,7 +271,14 @@ export class Background {
     r(ex + 13, GROUND - 36, 22, 2, '#1d8a99');
     r(ex + 4, GROUND - 6, 40, 6, '#2a303b');
     r(ex + 22, GROUND - 58, 4, 6, '#9aa4b5');
-    // Drilling rig over the shaft entrance
+    return calls + this._drawRig(ctx);
+  }
+
+  /** Drilling rig over the shaft entrance + beacon lamps. */
+  _drawRig(ctx) {
+    const bc = WORLD.BASE_CAMP;
+    let calls = 0;
+    const r = (x, y, w, h, c) => { ctx.fillStyle = c; ctx.fillRect(x, y, w, h); calls++; };
     const rx = bc.SHAFT_X * T;
     const top = GROUND - 120;
     ctx.fillStyle = '#6b6f7a';

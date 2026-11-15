@@ -59,8 +59,8 @@ export class RigRenderer {
     return c;
   }
 
-  /** @param {import('./Rig.js').WorldPose} world @param {any} outfit @param {{sprite:HTMLCanvasElement|null, angle:number, color:string}} pick */
-  render(world, outfit, pick) {
+  /** @param {import('./Rig.js').WorldPose} world @param {any} outfit @param {{sprite:HTMLCanvasElement|null, angle:number, color:string}} pick @param {HTMLImageElement|null} [pack] backpack sprite drawn instead of the grey box */
+  render(world, outfit, pick, pack = null) {
     const rig = this.rig;
     if (!this.canvas) {
       this.canvas = document.createElement('canvas'); this.canvas.width = this.canvas.height = rig.canvas + 2 * PAD;
@@ -78,6 +78,12 @@ export class RigRenderer {
         ctx.restore(); continue;
       }
       ctx.rotate(snapAngle(world.a[d.bone], rig.angleStep));
+      if (d.kind === 'jetpack' && pack) {
+        // Upright backpack sprite (back on the left): undo the torso's rest angle, hang it behind the spine.
+        ctx.rotate(Math.PI / 2);
+        ctx.drawImage(pack, -24, -17 - pack.naturalHeight / 2);
+        ctx.restore(); continue;
+      }
       const img = d.sprite && this.images.get(d.sprite);
       if (img) ctx.drawImage(d.tint ? this._tint(d.sprite, d.color) : img, -d.pivot[0], -d.pivot[1]);
       else {
