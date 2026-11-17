@@ -8,13 +8,14 @@ import { UI, CONSUMABLES, ORES, DYNAMITE, TECH, ERAS } from '../config.js';
 import { CAMP_BUILDINGS, ACHIEVEMENTS } from '../config.js';
 import { renderTech, eraTechs } from './TechScreen.js';
 import { renderCraft } from './CraftScreen.js';
+import { renderLog, markLogRead, hasUnread } from './LogScreen.js';
 import { renderContracts } from './ContractsScreen.js';
 import { rollContracts, dayNumber, acceptContract, turnIn } from '../systems/Contracts.js';
 import { unlockTech, canUnlock, eraReached } from '../systems/Tech.js';
 import { craft, upgradeBuilding } from '../systems/Crafting.js';
 import { saleLines, cargoValue } from '../systems/Economy.js';
 
-const TABS = ['sell', 'stash', 'craft', 'tech', 'shop', 'camp', 'contracts', 'awards'];
+const TABS = ['log', 'sell', 'stash', 'craft', 'tech', 'shop', 'camp', 'contracts', 'awards'];
 
 export class Shop {
   /**
@@ -42,6 +43,7 @@ export class Shop {
       <div class="modal-box">
         <header><h2>EXPEDITION BASE CAMP · TERMINAL</h2><span class="shop-credits">$0</span><button class="btn close" title="Close (Esc)">✕</button></header>
         <nav class="tabs" role="tablist">
+          <button class="tab" data-tab="log" role="tab">Log</button>
           <button class="tab" data-tab="sell" role="tab">Sell Cargo</button>
           <button class="tab" data-tab="stash" role="tab">Stash</button>
           <button class="tab" data-tab="craft" role="tab">Craft</button>
@@ -128,7 +130,9 @@ export class Shop {
 
   render() {
     const focusedKey = /** @type {HTMLElement|null} */ (document.activeElement)?.dataset?.key;
-    if (this.tab === 'sell') this._renderSell();
+    this.el.querySelector('[data-tab="log"]')?.classList.toggle('unread', this.tab !== 'log' && hasUnread(this.economy));
+    if (this.tab === 'log') { this.body.innerHTML = renderLog(this.economy); markLogRead(this.economy); }
+    else if (this.tab === 'sell') this._renderSell();
     else if (this.tab === 'stash') this._renderStash();
     else if (this.tab === 'craft') this.body.innerHTML = renderCraft(this.economy, this.building);
     else if (this.tab === 'tech') this.body.innerHTML = renderTech(this.economy, this.techView);

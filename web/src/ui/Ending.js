@@ -2,6 +2,8 @@
  * @module ui/Ending
  * Victory screen shown once when the Core is stabilized; closing it keeps the game running (post-game digging).
  */
+import { LOG_ENTRIES } from '../story.js';
+
 export class Ending {
   /** @param {HTMLElement} root @param {{onClose:()=>void}} hooks */
   constructor(root, hooks) {
@@ -9,8 +11,8 @@ export class Ending {
     this.el = document.createElement('div');
     this.el.className = 'modal hidden';
     this.el.setAttribute('role', 'dialog');
-    this.el.innerHTML = `<div class="modal-box"><header><h2>THE CORE IS STABLE</h2></header>
-      <section class="tab-body"><p>The heart of the world settles. The tremors fade, and the way back up is quiet.</p>
+    this.el.innerHTML = `<div class="modal-box"><header><h2>THE SEED IS SILENT</h2></header>
+      <section class="tab-body"><p>${LOG_ENTRIES.find((e) => e.id === 'ending')?.text ?? ''}</p>
       <p>Reward: $100,000. Keep digging — every depth is yours now.</p>
       <button class="btn primary" data-close>Keep digging</button></section></div>`;
     root.appendChild(this.el);

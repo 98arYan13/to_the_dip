@@ -58,3 +58,18 @@ describe('story', () => {
     expect(ec.story.mission).toBeGreaterThan(MISSIONS.findIndex((m) => m.id === 'ch6_core'));
   });
 });
+
+import { renderLog } from '../src/ui/LogScreen.js';
+import { renderTech } from '../src/ui/TechScreen.js';
+
+const ecWith = (story) => { const ec = createEconomyState(); Object.assign(ec.story, story); return ec; };
+describe('story ui', () => {
+  it('log shows the current objective and unread marks', () => {
+    const html = renderLog(ecWith({ seen: ['intro', 'ch1_tools'], read: ['intro'], mission: 1 }));
+    expect(html).toContain(MISSIONS[1].text); expect(html).toContain('unread');
+    expect(html.indexOf('"ch1_tools"')).toBeLessThan(html.indexOf('"intro"'));
+  });
+  it('tech panel names a missing relic and its layer', () => {
+    expect(renderTech(ecWith({}), { era: 3, selected: 'faraday_shielding' })).toContain('not found (ruin in layer 2)');
+  });
+});

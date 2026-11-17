@@ -5,7 +5,7 @@
  */
 import {
   WORLD, TILE, FLAG, CAMP_BUILDINGS, MATERIALS, PHYSICS, CAMERA, MINING, ENERGY, RADAR, TELEPORT, CONSUMABLES, GAMEPAD,
-  PARTICLES, QUALITY, SAVE, SETTINGS_DEFAULT, PICKAXES,
+  PARTICLES, QUALITY, SAVE, SETTINGS_DEFAULT, PICKAXES, RELICS,
 } from './config.js';
 import { EventBus, EV } from './core/EventBus.js';
 import { GameLoop } from './core/GameLoop.js';
@@ -13,7 +13,7 @@ import { Input } from './core/Input.js';
 import { randomSeed, RNG } from './core/RNG.js';
 import { log } from './core/log.js';
 import { World } from './world/World.js';
-import { clearOwnedRelics } from './world/Ruins.js';
+import { clearOwnedRelics, hasRuins } from './world/Ruins.js';
 import { Visibility } from './world/Visibility.js';
 import { ChunkCache } from './world/ChunkCache.js';
 import { Player } from './entities/Player.js';
@@ -35,6 +35,7 @@ import { placeChargeStation, nearStation, placeFieldCamp, nearFieldCamp } from '
 import { dailySeed, dailyScore, dateKey } from './systems/Daily.js';
 import { coreChamber } from './world/Zones.js';
 import { Ending } from './ui/Ending.js';
+import { StoryModal } from './ui/StoryModal.js';
 import { Economy, createEconomyState } from './systems/Economy.js';
 import { Renderer } from './render/Renderer.js';
 import { Camera } from './render/Camera.js';
@@ -173,6 +174,15 @@ function boot() {
   const toast = new Toast(hudRoot);
   const minimap = new Minimap(hud.minimapParent, bus);
   minimap.setWorld(world);
+  const storyModal = new StoryModal(hudRoot, { onClose: () => { if (!showStory()) { input.clear(); if (!shop.open) canvas.focus(); } } });
+  const showStory = () => {
+    if (storyModal.open) return true;
+    const e = story.pendingModals()[0]; if (!e) return false;
+    const relic = e.when.relic ? RELICS.find((r) => r.id === e.when.relic) : null;
+    story.markRead(e.id); // marked on show: a reload mid-modal must not replay it
+    storyModal.show(relic ? `RELIC DECODED — ${relic.name}` : 'THE DEEP SIGNAL', e.text, e.id === 'intro' ? 'Begin' : 'Continue');
+    return true;
+  };
   const ending = new Ending(hudRoot, { onClose: () => { input.clear(); canvas.focus(); } });
   const shop = new Shop(hudRoot, bus, economy, { seed: () => seed, onClose: () => { input.clear(); canvas.focus(); }, click: () => sfx.uiClick() });
   const settings = new Settings(hudRoot, settingsValues, {
@@ -344,7 +354,12 @@ function boot() {
   bus.on(EV.STATION_FULL, () => toast.show('Suit energy fully recharged', 'good'));
   bus.on(EV.SAVED, () => toast.show('Game Saved', 'good'));
   bus.on(EV.ORE_COLLECTED, (ore) => particles.pickupSparkle(player.cx, player.cy, ore));
-  bus.on(EV.SHOP_OPEN, () => saveGame(false));
+  bus.on(EV.SHOP_OPEN, () => { saveGame(false); showStory(); });
+  showStory();
+  if (loaded.ok && !hasRuins(world) && economy.relics.length < 5 && !economy.story.flags.includes('no_ruins_notice')) {
+    economy.story.flags.push('no_ruins_notice');
+    toast.show('Signals detected — start a New Map to find alien ruins.', 'info');
+  }
   bus.on(EV.PURCHASE_FAILED, (reason) => toast.show(reason, 'warn'));
   bus.on(EV.UPGRADE_BOUGHT, (u) => {
     if (u.kind === 'rig') energy.refill();
@@ -495,7 +510,7 @@ function boot() {
   }
 
   function update(dt) {
-    if (!g.started || g.tabHidden || shop.open || settings.open || saveMenu.open || ending.open) { input.endStep(); return; }
+    if (!g.started || g.tabHidden || shop.open || settings.open || saveMenu.open || ending.open || storyModal.open) { input.endStep(); return; }
     if (g.hitStop > 0) { g.hitStop--; return; }
     input.pollGamepad();
     g.time += dt;

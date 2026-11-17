@@ -4,6 +4,7 @@
  */
 import { EV } from '../core/EventBus.js';
 import { CONSUMABLES, MATERIALS, ORES, TILE, FLAG, ENERGY, PHYSICS } from '../config.js';
+import { currentMission } from '../systems/Story.js';
 import { canMine, requirementHint, isCampGround, CAMP_HINT } from '../systems/Mining.js';
 
 export class HUD {
@@ -23,6 +24,7 @@ export class HUD {
         <div class="row"><span class="lbl">CREDITS</span><span class="val credits-val">$0</span></div>
         <div class="row"><span class="lbl">TEMP</span><span class="val temp-val">15 °C</span></div>
         <div class="row"><span class="lbl">DEPTH</span><span class="val depth-val">0 m</span></div>
+        <div class="row mission-val"></div>
         <div class="row layer-val">Surface · Base Camp</div>
         <div class="row pick"><span class="pick-icon"></span><span class="pick-name">Bronze Pickaxe</span></div>
       </div>
@@ -52,7 +54,7 @@ export class HUD {
     const q = (s) => /** @type {HTMLElement} */ (root.querySelector(s));
     this.el = {
       energyRow: q('.energy'), fill: q('.fill'), eVal: q('.e-val'), cargo: q('.cargo-val'), hp: q('.hp-val'), hpFill: q('.hp-fill'), healthRow: q('.health'), credits: q('.credits-val'),
-      depth: q('.depth-val'), temp: q('.temp-val'), layer: q('.layer-val'), pickIcon: q('.pick-icon'), pickName: q('.pick-name'),
+      depth: q('.depth-val'), temp: q('.temp-val'), layer: q('.layer-val'), mission: q('.mission-val'), pickIcon: q('.pick-icon'), pickName: q('.pick-name'),
       prompt: q('.prompt'), pulseBanner: q('.pulse-banner'), pulseFlash: q('.pulse-flash'), tooltip: q('.tooltip'), radarCd: q('.r-cd'), minimapWrap: q('.minimap-wrap'),
       mute: q('[data-act="mute"]'), music: q('[data-act="music"]'),
     };
@@ -84,8 +86,12 @@ export class HUD {
       this.mouseX = e.clientX; this.mouseY = e.clientY;
       this.el.tooltip.style.transform = `translate(${e.clientX + 14}px, ${e.clientY + 14}px)`;
     });
+    this.setMission();
+    bus.on(EV.MISSION_DONE, () => this.setMission());
     this.refreshAll();
   }
+
+  setMission() { const m = currentMission(this.d.economy); this.el.mission.textContent = m ? `▸ ${m.text}` : ''; }
 
   get minimapParent() { return this.el.minimapWrap; }
 

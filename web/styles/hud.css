@@ -154,3 +154,8 @@ kbd { font: inherit; font-size: 11px; background: #1b2630; border: 1px solid #39
 .pulse-flash.go { animation: pulse-flash .5s ease-out; }
 body.reduced-flashing .pulse-flash.go { animation: none; }
 @keyframes pulse-flash { 0% { opacity: .8; } 100% { opacity: 0; } }
+.tab.unread::after { content: ' ●'; color: var(--warm); }
+article.unread { border-left: 3px solid var(--warm); padding-left: 8px; }
+article { margin: 10px 0; }
+.log-done { list-style: none; padding: 0; }
+.tech-node.missing { color: var(--muted); border-color: #2a3640; }

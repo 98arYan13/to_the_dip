@@ -3,7 +3,7 @@
  * HTML for the Tech tab: era tabs, a small left-to-right graph of the era's techs, and a side panel
  * with have/need costs, reverse-looked-up unlocks and the Unlock button.
  */
-import { TECH, ERAS, ORES, CAMP_BUILDINGS, PICKAXES, UPGRADES, CONSUMABLES } from '../config.js';
+import { TECH, ERAS, ORES, CAMP_BUILDINGS, PICKAXES, UPGRADES, CONSUMABLES, RELICS } from '../config.js';
 import { canUnlock, unlocksOf, eraReached } from '../systems/Tech.js';
 
 const NODE_W = 132; const NODE_H = 30; const COL_GAP = 40; const ROW_GAP = 12;
@@ -53,6 +53,11 @@ function unlockLines(t) {
  * @param {any} ec economy
  * @param {{era:number, selected:string|null}} view
  */
+const relicLine = (ec, id) => {
+  const r = /** @type {any} */ (RELICS.find((x) => x.id === id));
+  return `Relic: ${r.name} — ${ec.relics.includes(id) ? 'found ✓' : r.layer < 0 ? 'shut down the Seed' : `not found (ruin in layer ${r.layer + 1})`}`;
+};
+
 export function renderTech(ec, view) {
   const reached = eraReached(ec);
   const tabs = ERAS.map((e) => {
@@ -69,7 +74,7 @@ export function renderTech(ec, view) {
   })).join('');
   const nodes = eraTechs(view.era).map((t) => {
     const p = /** @type {any} */ (pos.get(t.id));
-    const cls = ec.tech.includes(t.id) ? 'owned' : canUnlock(ec, t.id).ok ? 'can' : 'locked';
+    const cls = ec.tech.includes(t.id) ? 'owned' : t.relic && !ec.relics.includes(t.relic) ? 'missing' : canUnlock(ec, t.id).ok ? 'can' : 'locked';
     return `<button class="tech-node ${cls}${t.id === view.selected ? ' sel' : ''}${t.key ? ' key' : ''}" style="left:${p.x}px;top:${p.y}px;width:${NODE_W}px;height:${NODE_H}px" data-key="techsel:${t.id}">${t.key ? '★ ' : ''}${t.name}</button>`;
   }).join('');
 
@@ -84,6 +89,7 @@ export function renderTech(ec, view) {
       ...Object.entries(t.cost.ores).map(([o, n]) => row(/** @type {any} */ (ORES[+o]).name, have(+o) >= n, `${have(+o)} / ${n}`))].join('');
     panel = `<div class="up-name">${t.name}${owned ? ' <span class="maxed">OWNED</span>' : ''}</div>
       <div class="up-stats">${t.desc}</div>
+      ${t.relic ? `<div class="up-stats">${relicLine(ec, t.relic)}</div>` : ''}
       ${t.requires.length ? `<div class="up-stats">Requires: ${t.requires.map((r) => byId(r).name).join(', ')}</div>` : ''}
       <div class="needs">${costs}</div>
       <div class="unlocks">Unlocks: ${unlockLines(t).join(' · ') || '—'}</div>
