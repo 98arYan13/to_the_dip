@@ -12,6 +12,11 @@ describe('WorldGen', () => {
     for (const k of ['tileType', 'tileHP', 'oreType', 'flags', 'band']) expect(same(a[k], b[k])).toBe(true);
   });
 
+  it("defaults to the earth planet", () => {
+    expect(generateWorld(7)).toEqual(generateWorld(7, 'earth'));
+    expect(a.planet).toBe('earth');
+  });
+
   it('different seeds produce different worlds', () => {
     const c = generateWorld(1);
     let diff = 0;

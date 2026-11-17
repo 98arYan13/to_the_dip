@@ -341,6 +341,27 @@ export const WORLD_RARITY = Object.freeze({ RARE_PRICE: 100, RARE_WEIGHT_MUL: 0.
 /** True for mineable ores (never for materials or 0). @param {number} id */
 export const isOre = (id) => /** @type {any} */ (ORES[id])?.kind === 'ore';
 
+const stratum = (tile, cave, extra = {}) => {
+  const m = MATERIALS[tile];
+  return { tile, from: m.band[0], to: m.band[1], tier: m.tier, cave, water: false, magma: false, gas: false, ...extra };
+};
+
+/** Planet profiles. strata: top to bottom, `from`/`to` as fractions of underground rows; cave.open = open-space budget [min, max] as a fraction of the stratum. */
+export const PLANETS = Object.freeze({
+  earth: {
+    id: 'earth', name: 'Earth', H: WORLD.H, gravity: 1, air: 'breathable', pulse: { mul: 1 }, quake: { mul: 1 }, hpMul: 1,
+    strata: [
+      stratum(TILE.SOIL, { style: 'none', open: [0, 0.01] }),
+      stratum(TILE.LIMESTONE, { style: 'karst', open: [0.08, 0.12] }),
+      stratum(TILE.GRANITE, { style: 'fissure', open: [0.03, 0.05] }),
+      stratum(TILE.BASALT, { style: 'tube', open: [0.07, 0.10] }, { water: true }),
+      stratum(TILE.MANTLE, { style: 'pocket', open: [0.04, 0.06] }, { magma: true }),
+      stratum(TILE.CORE, { style: 'none', open: [0, 0] }),
+    ],
+    setPieces: {}, relic: 'per-layer', goal: 'core',
+  },
+});
+
 /** Ore tiles are tougher than plain host rock. */
 export const ORE_HP_MUL = 1.5;
 
