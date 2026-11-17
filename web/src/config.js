@@ -66,12 +66,27 @@ export const HAZARD = Object.freeze({
 export const GAS = Object.freeze({ MAX: 8, STEP_S: 0.25, DPS: 6, EXPLODE_R: 2, MAX_CHAIN_PER_TICK: 40, MAX_PER_TICK: 400 });
 
 /** Designed zones (world/Zones.js). BANDS are depth fractions of the underground; SIZE is [w, h] incl. a 1-tile wall ring. */
+/**
+ * Set pieces: size [w, h] incl. the wall, strata = stratum indices that may host it, landmarkOf = the stratum whose guaranteed landmark it is,
+ * hazard/reward/sign describe the piece for the player (sign = a hint tile just outside the wall).
+ */
+export const SET_PIECES = Object.freeze({
+  sand_pocket: { size: [6, 5], strata: [0, 1], hazard: 'collapse', reward: 'none', landmarkOf: 0, sign: 'none' },
+  fossil_chamber: { size: [7, 5], strata: [1], hazard: 'none', reward: 'fossil', landmarkOf: 1, sign: 'none' },
+  aquifer: { size: [8, 5], strata: [1, 2], hazard: 'flood', reward: 'none', sign: 'moss' },
+  vault: { size: [8, 6], strata: [1, 2, 3], hazard: 'none', reward: 'ore', landmarkOf: 3, sign: 'glint' },
+  gas_cavern: { size: [9, 6], strata: [2, 3], hazard: 'gas', reward: 'none', landmarkOf: 2, sign: 'moss' },
+  crystal_geode: { size: [7, 6], strata: [2, 3, 4], hazard: 'none', reward: 'ore', sign: 'glint' },
+  lava_lake: { size: [10, 6], strata: [4], hazard: 'magma', reward: 'none', landmarkOf: 4, sign: 'glow' },
+  karst_shaft: { size: [5, 16], strata: [1], hazard: 'fall', reward: 'ore', sign: 'moss' },
+  lava_tube: { size: [26, 5], strata: [3], hazard: 'rockfall', reward: 'travel', sign: 'glint' },
+  magma_chamber: { size: [9, 7], strata: [4], hazard: 'magma', reward: 'ore', sign: 'glow' },
+});
+
 export const ZONES = Object.freeze({
   PER_LAYER: 3,
+  SPACING: 3,
   LAYERS: [[0, 0.15], [0.15, 0.35], [0.35, 0.55], [0.55, 0.78], [0.78, 0.92]],
-  LANDMARKS: ['sand_pocket', 'fossil_chamber', 'gas_cavern', 'vault', 'lava_lake'],
-  BANDS: { sand_pocket: [0.03, 0.4], fossil_chamber: [0.12, 0.4], aquifer: [0.15, 0.55], vault: [0.2, 0.8], gas_cavern: [0.3, 0.75], crystal_geode: [0.35, 0.9], lava_lake: [0.78, 0.92] },
-  SIZE: { sand_pocket: [6, 5], fossil_chamber: [7, 5], aquifer: [8, 5], vault: [8, 6], gas_cavern: [9, 6], crystal_geode: [7, 6], lava_lake: [10, 6] },
   CORE_CHAMBER: { W: 9, H: 5 },
   /** One alien ruin per LAYERS entry (world/Ruins.js); SIZE is [w, h] incl. the hull ring. */
   RUIN: { SIZE: [9, 6] },

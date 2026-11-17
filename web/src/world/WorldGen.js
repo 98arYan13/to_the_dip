@@ -5,8 +5,8 @@
  */
 import { WORLD, TILE, FLAG, MATERIALS, ORE_HP_MUL, MINING, PLANETS } from '../config.js';
 import { RNG } from '../core/RNG.js';
-import { planZones, stampZone, stampCore } from './Zones.js';
-import { planRuins, stampRuin } from './Ruins.js';
+import { planSetPieces, stampSetPiece, stampCore } from './Zones.js';
+import { stampRuin } from './Ruins.js';
 import { createNoise2D, fbm } from '../core/Noise.js';
 import { computeBandStarts, bandMaterialAt } from './gen/strata.js';
 import { placeVeins } from './gen/ores.js';
@@ -91,8 +91,7 @@ export function generateWorld(seed, planetId = 'earth', W = WORLD.W, H = PLANETS
   // 3b. Designed zones (own RNG streams, applied after ores so the base layout is unchanged)
   {
     const zrng = new RNG((seed ^ 0x5a17) >>> 0);
-    for (const z of planZones(seed, W, H)) stampZone(d, z, zrng);
-    for (const r of planRuins(seed, W, H)) stampRuin(d, r);
+    for (const z of planSetPieces(seed, W, H, planet)) (z.kind === 'ruin' ? stampRuin(d, z) : stampSetPiece(d, z, zrng));
     stampCore(d);
   }
 

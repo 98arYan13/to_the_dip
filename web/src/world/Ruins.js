@@ -3,19 +3,19 @@
  * One alien ruin per depth layer, each holding a relic (blueprint). Own RNG stream so zone layout is untouched.
  * Pure and deterministic like Zones.
  */
-import { WORLD, TILE, FLAG, ZONES, GAS, HAZARD, RELICS } from '../config.js';
+import { WORLD, TILE, FLAG, ZONES, PLANETS, GAS, HAZARD, RELICS } from '../config.js';
 import { RNG } from '../core/RNG.js';
-import { planZones, blockedAreas, overlaps, gridSet } from './Zones.js';
+import { planZones, blockedAreas, overlaps, gridSet, protectRect } from './Zones.js';
 
 const under = (H) => H - 1 - WORLD.SURFACE_ROWS;
 
 /** @returns {{layer:number, x:number, y:number, w:number, h:number}[]} */
-export function planRuins(seed, W, H) {
+export function planRuins(seed, W, H, planet = PLANETS.earth) {
   const rng = new RNG((seed ^ 0x7a11) >>> 0);
   const SR = WORLD.SURFACE_ROWS; const U = under(H);
   const [w, h] = ZONES.RUIN.SIZE;
   const blocked = blockedAreas(W, H);
-  const zones = planZones(seed, W, H);
+  const zones = planZones(seed, W, H, planet);
   const ruins = [];
   ZONES.LAYERS.forEach(([l0, l1], layer) => {
     const yMin = SR + Math.ceil(U * l0); const yMax = SR + Math.floor(U * l1) - h;
@@ -52,7 +52,9 @@ export function stampRuin(d, r) {
   if (r.layer !== 3) { rock(r.x, bottom - 1); rock(r.x, bottom - 2); } // the breach: two host-rock tiles in the left wall
   if (r.layer === 2 || r.layer === 4) { // a safe two-tile tunnel to stand in before breaking in
     for (let k = 1; k <= 2; k++) { set(r.x - k, bottom - 1, TILE.AIR); rock(r.x - k, bottom); }
+    protectRect(d, r.x - 2, bottom - 1, 2, 2);
   }
+  protectRect(d, r.x, r.y, r.w, r.h);
 }
 
 /** Relic id for the layer containing row `y`. */

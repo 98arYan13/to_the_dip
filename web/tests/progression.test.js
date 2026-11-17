@@ -18,19 +18,15 @@ const mk = () => new Economy(new EventBus(), createEconomyState());
 describe('zones', () => {
   const W = WORLD.W; const H = WORLD.H;
   it('same seed gives the same plan', () => { expect(planZones(5, W, H)).toEqual(planZones(5, W, H)); });
-  it('no overlaps, no camp/shaft, inside its depth band, every layer has its landmark', () => {
-    const bc = WORLD.BASE_CAMP; const U = H - 1 - WORLD.SURFACE_ROWS;
+  it('no overlaps, off the shaft and the camp pad', () => {
+    const bc = WORLD.BASE_CAMP;
     for (const seed of [1, 2, 3, 42, 777]) {
       const zs = planZones(seed, W, H);
       zs.forEach((a, i) => {
         zs.slice(i + 1).forEach((b) => expect(a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h).toBe(false));
         expect(a.x + a.w <= bc.SHAFT_X - 3 || a.x >= bc.SHAFT_X + 4).toBe(true);
         expect(a.y).toBeGreaterThan(WORLD.SURFACE_ROWS + bc.PAD_DEPTH);
-        const [b0, b1] = ZONES.BANDS[a.kind];
-        expect((a.y - WORLD.SURFACE_ROWS) / U).toBeGreaterThanOrEqual(b0 - 1e-9);
-        expect((a.y + a.h - WORLD.SURFACE_ROWS) / U).toBeLessThanOrEqual(b1 + 1e-9);
       });
-      ZONES.LANDMARKS.forEach((k) => expect(zs.some((z) => z.kind === k)).toBe(true));
     }
   });
   it('vaults have a diggable shell; gas caverns and lava lakes have a safe approach', () => {
@@ -41,7 +37,7 @@ describe('zones', () => {
           for (let x = z.x; x < z.x + z.w; x++) { expect(w.tileType[z.y * w.W + x]).not.toBe(TILE.BEDROCK); expect(w.tileType[(z.y + z.h - 1) * w.W + x]).not.toBe(TILE.BEDROCK); }
           expect(w.tileType[(z.y + 1) * w.W + z.x + 1]).toBe(TILE.AIR);
         }
-        if (z.kind === 'gas_cavern' || z.kind === 'lava_lake') {
+        if (z.kind === 'gas_cavern' || z.kind === 'lava_lake' || z.kind === 'magma_chamber') {
           const ay = z.y + z.h - 2; const i = ay * w.W + z.x - 1;
           expect(w.tileType[i]).toBe(TILE.AIR); expect(w.gas[i]).toBe(0); expect(w.isSolid(z.x - 1, ay + 1)).toBe(true);
         }

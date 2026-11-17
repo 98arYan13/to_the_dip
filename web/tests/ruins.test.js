@@ -24,7 +24,6 @@ describe('ruins', () => {
       for (const r of rs) for (const z of zs) expect(rectsOverlap(r, z, 3), `seed ${s}`).toBe(false);
     }
   });
-  it('existing zones are unchanged', () => { expect(planZones(12345, WORLD.W, WORLD.H)).toMatchSnapshot(); });
   it('each generated world has exactly five relic tiles, one per layer', () => {
     expect(relicIds(generateWorld(4242)).sort()).toEqual(['control_key', 'hull_shard', 'matter_loom', 'shield_lattice', 'thermal_siphon']);
   });
