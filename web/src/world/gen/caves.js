@@ -152,3 +152,62 @@ export function carveCaves(d, starts, seed) {
     apply(bestThr);
   });
 }
+
+const NB = [[0, -1], [0, 1], [-1, 0], [1, 0]];
+
+/** Spec 6.3: air deeper than 2 rows into stratum k that is reachable from a higher stratum is filled with host rock. */
+export function applyCaveRules(d, starts) {
+  const { W, H } = d;
+  const planet = PLANETS[d.planet];
+  const sIdx = (x, y) => stratumIndexAt(starts, x, y, W, planet);
+  const inRange = (x, y) => x > 0 && x < W - 1 && y >= WORLD.SURFACE_ROWS && y < H - 1;
+  for (let k = 1; k < planet.strata.length; k++) {
+    const seen = new Uint8Array(W * H), stack = [];
+    eachTile(d, starts, k, (i, x, y) => {
+      if (!isOpen(d.tileType[i])) return;
+      for (const [dx, dy] of NB) {
+        if (inRange(x + dx, y + dy) && isOpen(d.tileType[i + dy * W + dx]) && sIdx(x + dx, y + dy) < k) { seen[i] = 1; stack.push(i); break; }
+      }
+    });
+    while (stack.length) {
+      const i = stack.pop(), x = i % W, y = (i / W) | 0;
+      if (sIdx(x, y) === k && y > starts[k * W + x] + 2) { d.tileType[i] = planet.strata[k].tile; continue; }
+      for (const [dx, dy] of NB) {
+        const j = i + dy * W + dx;
+        if (inRange(x + dx, y + dy) && !seen[j] && isOpen(d.tileType[j]) && sIdx(x + dx, y + dy) >= k) { seen[j] = 1; stack.push(j); }
+      }
+    }
+  }
+}
+
+/** Water in `water` strata (noise), one-tile puddles on wide karst floors, gas in `gas` strata. Magma is carved in carveCaves. */
+export function placeFluids(d, starts, seed) {
+  const { W, H } = d;
+  const planet = PLANETS[d.planet];
+  const sx = WORLD.BASE_CAMP.SHAFT_X;
+  const waterNoise = createNoise2D((seed + 2027) | 0);
+  const gasNoise = createNoise2D((seed + 4091) | 0);
+  const rng = new RNG((seed ^ 0x3a7e) >>> 0);
+  const sIdx = (x, y) => stratumIndexAt(starts, x, y, W, planet);
+  const nearShaft = (x, y) => Math.abs(x - sx) <= 1 && sIdx(x, y) === 0;
+  for (let y = WORLD.SURFACE_ROWS; y < H - 1; y++) {
+    for (let x = 1; x < W - 1; x++) {
+      const i = y * W + x, st = planet.strata[sIdx(x, y)];
+      if (d.tileType[i] !== TILE.AIR || nearShaft(x, y)) continue;
+      if (st.water && fbm(waterNoise, x * WORLD.WATER_FREQ, y * WORLD.WATER_FREQ, 2) > WORLD.WATER_THRESHOLD) d.tileType[i] = TILE.WATER;
+      else if (st.gas && d.gas && fbm(gasNoise, x * 0.2, y * 0.2, 2) > 0.2) d.gas[i] = 8;
+    }
+  }
+  // Karst floors wider than 6: 30% chance the one-tile floor row floods.
+  const floor = (x, y) => d.tileType[y * W + x] === TILE.AIR && planet.strata[sIdx(x, y)].cave.style === 'karst'
+    && !isOpen(d.tileType[(y + 1) * W + x]);
+  for (let y = WORLD.SURFACE_ROWS; y < H - 2; y++) {
+    for (let x = 1; x < W - 1; x++) {
+      if (!floor(x, y)) continue;
+      let e = x;
+      while (e < W - 1 && floor(e, y)) e++;
+      if (e - x > 6 && rng.chance(0.3)) for (let xx = x; xx < e; xx++) d.tileType[y * W + xx] = TILE.WATER;
+      x = e;
+    }
+  }
+}

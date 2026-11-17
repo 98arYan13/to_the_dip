@@ -10,7 +10,7 @@ import { planRuins, stampRuin } from './Ruins.js';
 import { createNoise2D, fbm } from '../core/Noise.js';
 import { computeBandStarts, bandMaterialAt } from './gen/strata.js';
 import { placeVeins } from './gen/ores.js';
-import { carveCaves } from './gen/caves.js';
+import { carveCaves, applyCaveRules, placeFluids } from './gen/caves.js';
 
 /**
  * @typedef {Object} WorldData
@@ -52,7 +52,6 @@ export function generateWorld(seed, planetId = 'earth', W = WORLD.W, H = PLANETS
   const gas = new Uint8Array(n);
   const band = new Uint8Array(n);
   const rng = new RNG(seed);
-  const waterNoise = createNoise2D((seed + 2027) | 0);
   const starts = computeBandStarts(seed, W, H, planet);
   const SR = WORLD.SURFACE_ROWS;
 
@@ -69,12 +68,8 @@ export function generateWorld(seed, planetId = 'earth', W = WORLD.W, H = PLANETS
   }
   const d = { W, H, seed, planet: planetId, tileType, oreType, flags, fluid, gas, band, protect: new Uint8Array(n) };
   carveCaves(d, starts, seed);
-  for (let y = SR; y < H - 1; y++) {
-    for (let x = 1; x < W - 1; x++) {
-      const i = y * W + x;
-      if (tileType[i] === TILE.AIR && band[i] === TILE.BASALT && fbm(waterNoise, x * WORLD.WATER_FREQ, y * WORLD.WATER_FREQ, 2) > WORLD.WATER_THRESHOLD) tileType[i] = TILE.WATER;
-    }
-  }
+  applyCaveRules(d, starts);
+  placeFluids(d, starts, seed);
 
   // 2. Solid flags, fungi & moss
   for (let i = 0; i < n; i++) if (MATERIALS[tileType[i]].solid) flags[i] |= FLAG.SOLID;
