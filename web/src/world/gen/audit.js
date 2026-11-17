@@ -15,7 +15,7 @@ function modelShare(d) {
   return share;
 }
 
-/** @returns {{ore:number,have:number,haveOpen:number,floor:number,ceil:number,bulk:boolean}[]} one row per needed ore; bulk = floor above the natural vein target, exempt from top-up */
+/** @returns {{ore:number,have:number,haveOpen:number,floor:number,ceil:number,bulk:boolean}[]} one row per needed ore; bulk = floor above AUDIT.BULK_TILES, exempt from top-up */
 export function auditOres(d) {
   const need = oreNeed(d.planet);
   const share = modelShare(d);
@@ -23,7 +23,7 @@ export function auditOres(d) {
   const open = new Int32Array(ORES.length);
   for (let i = 0; i < d.oreType.length; i++) if (d.oreType[i]) { have[d.oreType[i]]++; if (!d.protect[i]) open[d.oreType[i]]++; }
   return Object.entries(need).map(([o, n]) => ({
-    ore: +o, have: have[+o], haveOpen: open[+o], floor: AUDIT.FLOOR * n, ceil: Math.max(AUDIT.CEIL * n, share[+o]), bulk: AUDIT.FLOOR * n > share[+o],
+    ore: +o, have: have[+o], haveOpen: open[+o], floor: AUDIT.FLOOR * n, ceil: Math.max(AUDIT.CEIL * n, share[+o]), bulk: AUDIT.FLOOR * n > AUDIT.BULK_TILES,
   }));
 }
 

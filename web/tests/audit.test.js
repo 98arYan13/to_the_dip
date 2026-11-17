@@ -15,7 +15,9 @@ const rep = (s) => {
 describe('ore audit', () => {
   it('bulk ores on Earth are exactly these (a balance change shows up here)', () => {
     const bulk = auditOres(fresh(seeds[0])).filter((r) => r.bulk).map((r) => ORES[r.ore].key).sort();
-    expect(bulk).toEqual(['BAUXITE', 'COAL', 'COPPER', 'DIAMOND', 'GOLD', 'ILMENITE', 'IRON', 'LEAD', 'LITHIUM', 'NICKEL', 'OIL_SHALE', 'TIN', 'TUNGSTEN']);
+    expect(bulk).toEqual(['BAUXITE', 'COAL', 'COPPER', 'ILMENITE', 'IRON', 'LEAD', 'NICKEL', 'OIL_SHALE']);
+    expect(bulk).not.toContain('DIAMOND');
+    expect(bulk).not.toContain('METEORITE');
   });
   it('after repair every needed ore is between floor and ceiling (60 seeds)', () => {
     for (const s of seeds) {

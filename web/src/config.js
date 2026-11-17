@@ -371,8 +371,8 @@ export const PLANETS = Object.freeze({
   },
 });
 
-/** Ore audit: floor x need (open = outside set pieces), ceiling x need, repair attempts per ore. */
-export const AUDIT = Object.freeze({ FLOOR: 1.5, FLOOR_OPEN: 1.0, CEIL: 6, MAX_ATTEMPTS: 8 });
+/** Ore audit: a floor above BULK_TILES tiles marks a bulk ore (ceiling only). floor x need (open = outside set pieces), ceiling x need, repair attempts per ore. */
+export const AUDIT = Object.freeze({ FLOOR: 1.5, FLOOR_OPEN: 1.0, CEIL: 6, MAX_ATTEMPTS: 8, BULK_TILES: 200 });
 
 /** Ore tiles are tougher than plain host rock. */
 export const ORE_HP_MUL = 1.5;

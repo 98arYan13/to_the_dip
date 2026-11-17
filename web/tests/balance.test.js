@@ -32,11 +32,10 @@ import { auditOres, repairOres } from '../src/world/gen/audit.js';
 import { RNG } from '../src/core/RNG.js';
 import { weightedValuePerKg } from '../src/systems/Economy.js';
 
-// The generator's baseline mix (before any repair) already sits at +28% (tier 3) and +43% (tier 5) of Economy's model, because the model
-// ignores rare-ore thinning and the generator ignores its tier filter. So: repair may move the mix by <5%, and where the baseline is
-// inside the spec's 25% (tiers 1, 2, 4) the repaired mix must stay inside it.
+// Pre-repair drift vs the model: tier 1 -0.1%, 2 +17%, 3 +28%, 4 -15%, 5 +43% (generator ignores the model's tier filter, model ignores rare thinning).
+// Repair (which adds the now non-bulk scarce ores) pulls tiers 3-5 toward the model: after repair 1 -0.1%, 2 +17%, 3 +15%, 4 +1%, 5 +35%.
 describe('repaired ore mix vs balance model', () => {
-  it('repair keeps the ore mix within 5% of the unrepaired one and within 25% of the model (tiers 1, 2, 4), 60-seed mean', () => {
+  it('after repair the ore mix is within 25% of the model for tiers 1-4 and no worse than before for tier 5 (60-seed mean)', () => {
     const bands = [TILE.SOIL, TILE.LIMESTONE, TILE.GRANITE, TILE.BASALT, TILE.MANTLE];
     const sums = { before: bands.map(() => [0, 0]), after: bands.map(() => [0, 0]) };
     const tally = (d, acc) => {
@@ -55,8 +54,9 @@ describe('repaired ore mix vs balance model', () => {
     for (let t = 1; t <= 5; t++) {
       const before = sums.before[t - 1][1] / sums.before[t - 1][0];
       const after = sums.after[t - 1][1] / sums.after[t - 1][0];
-      expect(Math.abs(after / before - 1), `tier ${t} repair drift`).toBeLessThan(0.05);
-      if ([1, 2, 4].includes(t)) expect(Math.abs(after / weightedValuePerKg(t, bands[t - 1]) - 1), `tier ${t} vs model`).toBeLessThan(0.25);
+      const model = weightedValuePerKg(t, bands[t - 1]);
+      if (t < 5) expect(Math.abs(after / model - 1), `tier ${t} vs model`).toBeLessThan(0.25);
+      else expect(Math.abs(after / model - 1), 'tier 5 vs model').toBeLessThanOrEqual(Math.abs(before / model - 1));
     }
   });
 });
