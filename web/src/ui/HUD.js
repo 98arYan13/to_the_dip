@@ -38,6 +38,7 @@ export class HUD {
         </div>
       </div>
       <div class="prompt hidden"></div>
+      <div class="pulse-banner hidden"></div><div class="pulse-flash"></div>
       <div class="slots">
         <div class="slot" data-slot="dynamite"><kbd>1</kbd><img class="s-icon" src="icons/dynamite.png" alt=""><span class="s-name">${CONSUMABLES.dynamite.short}</span><span class="s-count">×0</span></div>
         <div class="slot" data-slot="warp"><kbd>2</kbd><img class="s-icon" src="icons/warp.png" alt=""><span class="s-name">Warp</span><span class="s-count">×0</span></div>
@@ -52,7 +53,7 @@ export class HUD {
     this.el = {
       energyRow: q('.energy'), fill: q('.fill'), eVal: q('.e-val'), cargo: q('.cargo-val'), hp: q('.hp-val'), hpFill: q('.hp-fill'), healthRow: q('.health'), credits: q('.credits-val'),
       depth: q('.depth-val'), temp: q('.temp-val'), layer: q('.layer-val'), pickIcon: q('.pick-icon'), pickName: q('.pick-name'),
-      prompt: q('.prompt'), tooltip: q('.tooltip'), radarCd: q('.r-cd'), minimapWrap: q('.minimap-wrap'),
+      prompt: q('.prompt'), pulseBanner: q('.pulse-banner'), pulseFlash: q('.pulse-flash'), tooltip: q('.tooltip'), radarCd: q('.r-cd'), minimapWrap: q('.minimap-wrap'),
       mute: q('[data-act="mute"]'), music: q('[data-act="music"]'),
     };
     root.querySelectorAll('.btn').forEach((b) => b.addEventListener('click', (ev) => {
@@ -76,6 +77,7 @@ export class HUD {
     bus.on(EV.CONSUMABLES_CHANGED, () => this.refreshSlots());
     bus.on(EV.DEPTH_CHANGED, (p) => { this.el.depth.textContent = `${p.meters} m`; this.el.layer.textContent = p.layer; });
     bus.on(EV.PROMPT, (text) => { this.el.prompt.textContent = text || ''; this.el.prompt.classList.toggle('hidden', !text); });
+    bus.on(EV.PULSE, (p) => { if (p.sheltered) return; const f = this.el.pulseFlash; f.classList.remove('go'); void f.offsetWidth; f.classList.add('go'); });
     bus.on(EV.HOVER_TILE, (i) => this.refreshTooltip(i));
     this.mouseX = 0; this.mouseY = 0;
     window.addEventListener('mousemove', (e) => {
@@ -131,6 +133,13 @@ export class HUD {
   setRadarCooldown(cd) {
     const txt = cd > 0 ? `${cd.toFixed(0)}s` : 'ready';
     if (this.el.radarCd.textContent !== txt) this.el.radarCd.textContent = txt;
+  }
+
+  /** @param {number} warn seconds until the pulse (<0 none) @param {number} stun seconds of electronics outage */
+  setPulse(warn, stun) {
+    const txt = warn >= 0 ? `PULSE INCOMING — ${Math.ceil(warn)} s` : stun > 0 ? 'Electronics offline' : '';
+    const b = this.el.pulseBanner;
+    if (b.textContent !== txt) { b.textContent = txt; b.classList.toggle('hidden', !txt); }
   }
 
   setMusic(on) { this.el.music.textContent = on ? 'Music: on' : 'Music: off'; }

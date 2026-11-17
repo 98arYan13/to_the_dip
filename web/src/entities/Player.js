@@ -58,6 +58,7 @@ export class Player {
     this.onGround = false; this.hitX = false; this.hitY = false; this.impactVX = 0; this.impactVY = 0;
     this.facing = 1;
     this.jetting = false;
+    /** Set by main.js while a pulse storm has electronics offline. */ this.gearOffline = false;
     this.onLadder = false;
     this.hurtTimer = 0;
     this.mineState = MINE_IDLE;
@@ -128,7 +129,7 @@ export class Player {
     this.onLadder = onLadder;
     if (this.hurtTimer > 0) this.hurtTimer -= dt;
     if (this.onGround && !onLadder && input.wasPressed('jet')) this.vy = -jumpVelocity(PHYSICS.JUMP_H, PHYSICS.GRAVITY * this.fallMult);
-    this.jetting = economy.hasJetpack && !onLadder && input.isDown('jet') && energy.value > 0;
+    this.jetting = economy.hasJetpack && !this.gearOffline && !onLadder && input.isDown('jet') && energy.value > 0;
     if (this.jetting) {
       this.vy -= economy.stat('jetThrust', jp.thrust) * dt;
       if (this.vy < -jp.maxUp * slow) this.vy = -jp.maxUp * slow;
@@ -173,7 +174,7 @@ export class Player {
           this.swingTimer = swing * MINING.FIRST_SWING_FRAC;
           this.target = t;
         }
-        const flat = pick.powered && energy.value < 0.5;
+        const flat = pick.powered && (energy.value < 0.5 || this.gearOffline);
         if (flat) {
           if (!this.flatHinted) { this.flatHinted = true; bus.emit(EV.HINT, 'Drill battery empty — recharge at the station'); }
         } else { this.flatHinted = false; this.swingTimer += dt; }

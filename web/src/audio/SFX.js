@@ -34,6 +34,8 @@ export class SFX {
     bus.on(EV.MINE_BLOCKED, (h) => { const [x, y] = pos(h); this.clink(x, y); });
     bus.on(EV.BLOCK_BROKEN, (h) => { const [x, y] = pos(h); this.mineHit(h.type, h.ore, x, y); this.blockBreak(h.type, x, y); });
     bus.on(EV.RADAR_PULSE, () => this.radar());
+    bus.on(EV.PULSE_WARN, () => this.pulseHum());
+    bus.on(EV.PULSE, (p) => { if (!p.sheltered) this.pulseCrack(); });
     bus.on(EV.DYNAMITE_THROWN, (p) => this.fuse(p.x, p.y));
     bus.on(EV.EXPLOSION, (p) => this.explosion(p.x, p.y));
     bus.on(EV.TELEPORT_START, () => this.teleport());
@@ -128,6 +130,24 @@ export class SFX {
     const t = e.now; const dur = 0.5 + strength;
     e.osc(v, 'sine', 55, 32, t, dur, 0.5 * (0.4 + strength));
     e.noiseBurst(v, 'brown', 'lowpass', 400, 120, dur, t, 0.1, 0.7 * (0.4 + strength));
+    e.commit(v);
+  }
+
+  /** Rising hum while a pulse storm approaches. */
+  pulseHum() {
+    const e = this.e; if (!e.ready) return;
+    const v = e.voice('sfx'); if (!v) return;
+    e.osc(v, 'sawtooth', 80, 400, e.now, 5, 0.12);
+    e.commit(v);
+  }
+
+  /** Electric crack when the pulse hits. */
+  pulseCrack() {
+    const e = this.e; if (!e.ready) return;
+    const v = e.voice('sfx'); if (!v) return;
+    const t = e.now;
+    e.osc(v, 'square', 1400, 90, t, 0.25, 0.25);
+    e.noiseBurst(v, 'white', 'highpass', 2500, 800, 0.3, t, 0.005, 0.6);
     e.commit(v);
   }
 

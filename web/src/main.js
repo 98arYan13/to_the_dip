@@ -26,6 +26,7 @@ import { Collapse } from './systems/Hazards/Collapse.js';
 import { Fluids } from './systems/Hazards/Fluids.js';
 import { Gas } from './systems/Hazards/Gas.js';
 import { Quake } from './systems/Hazards/Quake.js';
+import { Pulse } from './systems/Hazards/Pulse.js';
 import { CoreGoal } from './systems/CoreGoal.js';
 import { Collectibles } from './systems/Collectibles.js';
 import { FallingLadders, pickUpLadder } from './systems/Items.js';
@@ -110,6 +111,8 @@ function boot() {
   gas.mining = mining; /** @type {any} */ (mining).gas = gas;
   gas.hasMask = () => economy.tech.includes('gas_mask');
   const quake = new Quake(world, bus, collapse, new RNG((seed ^ 0x9e37) >>> 0));
+  const pulse = new Pulse(bus, new RNG((seed ^ 0x5eed) >>> 0), economy);
+  pulse.onDrain = (f) => energy.drain(f * energy.max);
   const coreGoal = new CoreGoal(world, bus, economy);
   coreGoal.onQuake = () => quake.trigger(0.8);
   coreGoal.onFail = () => player.die('core heat');
@@ -351,6 +354,7 @@ function boot() {
     toast.show(`Hard landing! Suit -${h.damage}%`, 'warn');
   });
   bus.on(EV.PLAYER_DEAD, (cause) => {
+    pulse.reset();
     economy.applyDeath();
     energy.refill();
     dynamites.clear();
@@ -359,6 +363,7 @@ function boot() {
     player.setHP(PHYSICS.SUIT_HP);
     warpHome(`You died (${cause})! Ores lost, the rest of your pack kept.`, 'bad');
   });
+  bus.on(EV.NEW_GAME, () => pulse.reset());
   bus.on(EV.RESCUE, () => {
     const lost = economy.applyRescueLoss();
     dynamites.clear();
@@ -393,7 +398,8 @@ function boot() {
   function useSlots() {
     const c = economy.consumables;
     if (input.wasPressed('radar')) {
-      if (g.radarCd > 0) toast.show('Radar recharging…', 'info');
+      if (pulse.stun > 0) toast.show('Electronics offline', 'warn');
+      else if (g.radarCd > 0) toast.show('Radar recharging…', 'info');
       else if (energy.value <= ENERGY.RADAR_COST) toast.show('Not enough energy for radar', 'warn');
       else {
         const r = { ...economy.radar, radius: economy.stat('radarRange', economy.radar.radius) };
@@ -556,6 +562,8 @@ function boot() {
     quake.focus.x = ptx; quake.focus.y = pty;
     quake.update(dt, g.depth01);
     if (quake.shake > 0) camera.addTrauma(quake.shake * dt);
+    pulse.update(dt, meters, onSurface || nearShop || atCamp);
+    player.gearOffline = pulse.stun > 0;
     coreGoal.update(dt, player.cx, player.cy);
     const atField = nearStation(economy, player.cx, player.cy);
     energy.update(dt, { jetting: player.jetting, atStation: atStation || atField, onSurface });
@@ -605,6 +613,7 @@ function boot() {
     renderer.render(alpha, frameDt, st);
     minimap.draw(frameDt, Math.floor(player.cx / T), Math.floor(player.cy / T), vis, economy.pickTier);
     hud.setRadarCooldown(g.radarCd);
+    hud.setPulse(pulse.warn, pulse.stun);
 
     // Auto quality
     if (settingsValues.quality === 'auto' && !g.autoDone && g.started && !document.hidden) {

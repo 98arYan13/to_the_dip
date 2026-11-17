@@ -58,6 +58,8 @@ export const HAZARD = Object.freeze({
   FLUID: Object.freeze({ MAX: 8, FLOW_S: 0.1, MAGMA_EVERY: 3, MAX_PER_TICK: 300 }),
   /** Rare and deep only: a small foreshock, WARN_S of calm, then the main quake. Only rock with hard <= WEAK_MAX_HARD falls. */
   QUAKE: Object.freeze({ SAFE_DEPTH_M: 600, WARN_S: 4, MIN_GAP_S: 180, MAX_GAP_S: 420, RADIUS: 12, BASE_N: 3, MAX_N: 14, SHAKE_DECAY: 1.5, WEAK_MAX_HARD: 1.2 }),
+  /** Electromagnetic storm: WARN_S notice, then an unsheltered player loses DRAIN_FRAC of max energy and has gear offline for STUN_S (both scaled by pulseResist). */
+  PULSE: Object.freeze({ SAFE_DEPTH_M: 150, WARN_S: 5, MIN_GAP_S: 150, MAX_GAP_S: 360, DRAIN_FRAC: 0.25, STUN_S: 6 }),
 });
 
 /** Toxic/explosive gas: per-tile concentration 0..MAX in open air; sealed pockets until a wall breaks. */

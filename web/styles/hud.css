@@ -148,3 +148,9 @@ kbd { font: inherit; font-size: 11px; background: #1b2630; border: 1px solid #39
 .need { display: flex; justify-content: space-between; font-size: 12px; }
 .need.ok span, .up-stats .ok { color: var(--good); }
 .need.no span, .up-stats .no { color: var(--bad); }
+
+.pulse-banner { position: absolute; left: 50%; top: 56px; transform: translateX(-50%); background: var(--bg-solid); border: 1px solid var(--bad); color: var(--bad); padding: 6px 14px; border-radius: var(--radius); pointer-events: none; }
+.pulse-flash { position: fixed; inset: 0; background: #fff; opacity: 0; pointer-events: none; }
+.pulse-flash.go { animation: pulse-flash .5s ease-out; }
+body.reduced-flashing .pulse-flash.go { animation: none; }
+@keyframes pulse-flash { 0% { opacity: .8; } 100% { opacity: 0; } }
