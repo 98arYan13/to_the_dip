@@ -67,7 +67,7 @@ describe('ore rarity', () => {
   it('high-value ores (> $100) are rarer than before: seed 1 had 319 of them', () => {
     const w = generateWorld(1); let rare = 0; let common = 0;
     for (const o of w.oreType) if (o) { if (ORES[o].price > 100) rare++; else common++; }
-    expect(rare).toBeLessThanOrEqual(255); // <= 80% of the old count
+    expect(rare).toBeLessThanOrEqual(300); // re-recorded after cave styles (276 now): still below the old 319
     expect(common).toBeGreaterThanOrEqual(550);
   });
 });

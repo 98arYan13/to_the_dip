@@ -10,6 +10,7 @@ import { planRuins, stampRuin } from './Ruins.js';
 import { createNoise2D, fbm } from '../core/Noise.js';
 import { computeBandStarts, bandMaterialAt } from './gen/strata.js';
 import { placeVeins } from './gen/ores.js';
+import { carveCaves } from './gen/caves.js';
 
 /**
  * @typedef {Object} WorldData
@@ -51,38 +52,27 @@ export function generateWorld(seed, planetId = 'earth', W = WORLD.W, H = PLANETS
   const gas = new Uint8Array(n);
   const band = new Uint8Array(n);
   const rng = new RNG(seed);
-  const caveNoise = createNoise2D((seed + 1013) | 0);
   const waterNoise = createNoise2D((seed + 2027) | 0);
-  const magmaNoise = createNoise2D((seed + 3049) | 0);
   const starts = computeBandStarts(seed, W, H, planet);
   const SR = WORLD.SURFACE_ROWS;
-  const U = undergroundRows(H);
 
-  // 1. Bands, caves, water, magma
+  // 1. Bands, then caves per stratum style (budgeted), then water in basalt caves
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {
       const i = y * W + x;
       const b = bandMaterialAt(starts, x, y, W, planet);
       band[i] = b;
       if (y < SR) { tileType[i] = TILE.AIR; flags[i] = FLAG.DISCOVERED; continue; }
-      if (x === 0 || x === W - 1 || y === H - 1) { tileType[i] = TILE.BEDROCK; continue; }
-      let t = b;
-      if (y >= SR + WORLD.CAVE_MIN_DEPTH) {
-        const d = (y - SR) / U;
-        const thr = WORLD.CAVE_THRESHOLD_TOP + (WORLD.CAVE_THRESHOLD_BOTTOM - WORLD.CAVE_THRESHOLD_TOP) * d;
-        const c = fbm(caveNoise, x * WORLD.CAVE_FREQ_X, y * WORLD.CAVE_FREQ_Y, WORLD.CAVE_OCTAVES);
-        if (c > thr) {
-          t = TILE.AIR;
-          if (b === TILE.BASALT && fbm(waterNoise, x * WORLD.WATER_FREQ, y * WORLD.WATER_FREQ, 2) > WORLD.WATER_THRESHOLD) {
-            t = TILE.WATER;
-          }
-        }
-        if (b === TILE.MANTLE && Math.abs(fbm(magmaNoise, x * WORLD.MAGMA_FREQ_X, y * WORLD.MAGMA_FREQ_Y, 3)) < WORLD.MAGMA_WIDTH) {
-          t = TILE.MAGMA;
-        }
-      }
-      tileType[i] = t;
+      tileType[i] = (x === 0 || x === W - 1 || y === H - 1) ? TILE.BEDROCK : b;
       if (y === SR) flags[i] |= FLAG.DISCOVERED;
+    }
+  }
+  const d = { W, H, seed, planet: planetId, tileType, oreType, flags, fluid, gas, band, protect: new Uint8Array(n) };
+  carveCaves(d, starts, seed);
+  for (let y = SR; y < H - 1; y++) {
+    for (let x = 1; x < W - 1; x++) {
+      const i = y * W + x;
+      if (tileType[i] === TILE.AIR && band[i] === TILE.BASALT && fbm(waterNoise, x * WORLD.WATER_FREQ, y * WORLD.WATER_FREQ, 2) > WORLD.WATER_THRESHOLD) tileType[i] = TILE.WATER;
     }
   }
 
@@ -101,7 +91,6 @@ export function generateWorld(seed, planetId = 'earth', W = WORLD.W, H = PLANETS
   }
 
   // 3. Ore veins per host band
-  const d = { W, H, seed, planet: planetId, tileType, oreType, flags, fluid, gas, band, protect: new Uint8Array(n) };
   placeVeins(d, rng);
 
   // 3b. Designed zones (own RNG streams, applied after ores so the base layout is unchanged)
