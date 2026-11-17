@@ -1,6 +1,7 @@
 {
   "version": "0.0.1",
   "configurations": [
-    { "name": "depths-dev", "runtimeExecutable": "npm", "runtimeArgs": ["--prefix", "web", "run", "dev", "--", "--port", "5179", "--strictPort"], "port": 5179 }
+    { "name": "depths-dev", "runtimeExecutable": "npm", "runtimeArgs": ["--prefix", "web", "run", "dev", "--", "--port", "5179", "--strictPort"], "port": 5179 },
+    { "name": "depths-dev-5273", "runtimeExecutable": "npm", "runtimeArgs": ["--prefix", "web", "run", "dev", "--", "--port", "5273", "--strictPort"], "port": 5273 }
   ]
 }

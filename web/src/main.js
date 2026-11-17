@@ -13,7 +13,7 @@ import { Input } from './core/Input.js';
 import { randomSeed, RNG } from './core/RNG.js';
 import { log } from './core/log.js';
 import { World } from './world/World.js';
-import { clearOwnedRelics, hasRuins, planRuins } from './world/Ruins.js';
+import { clearOwnedRelics, hasRuins, planRuins, relicIdAt } from './world/Ruins.js';
 import { Visibility } from './world/Visibility.js';
 import { ChunkCache } from './world/ChunkCache.js';
 import { Player } from './entities/Player.js';
@@ -208,6 +208,10 @@ function boot() {
       else if (a === 'quake') { quake.focus.x = tx; quake.focus.y = ty; quake.trigger(1); }
       else if (a === 'cash') { economy.credits += 100000; bus.emit(EV.CREDITS_CHANGED, economy.credits); }
       else if (a === 'mats') { for (let o = 1; o < economy.stash.length; o++) economy.stash[o] += 50; bus.emit(EV.CARGO_CHANGED); }
+      else if (a === 'ruin') { // next ruin whose relic isn't owned; carve a pocket left of it
+        const r = planRuins(seed, world.W, world.H).find((q) => !economy.relics.includes(relicIdAt(q.y + q.h - 2, world.H)));
+        if (r) { const px = r.x - 3; const py = r.y + r.h - 2; for (let dy = -2; dy <= 0; dy++) for (let dx = -1; dx <= 1; dx++) world.clear(world.idx(px + dx, py + dy)); player.placeAt(px * T, (py + 1) * T - player.h); camera.snap(player.cx, player.cy); }
+      }
       else if (a === 'core') { const c = coreChamber(world.W, world.H); player.placeAt((c.x + c.w / 2) * T, (c.y + c.h - 1) * T - player.h); camera.snap(player.cx, player.cy); }
       canvas.focus();
     },
