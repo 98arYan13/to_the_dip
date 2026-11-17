@@ -146,10 +146,10 @@ export const RECIPES = Object.freeze(RECIPE_DEFS.map(([key, building, level, tec
 
 export const CONTRACTS = Object.freeze({ MAX_ACTIVE: 3, OFFERS: 4, PREMIUM: 0.25 });
 
-/** test: {event:'ore', ore, count} | {event:'depth', depthM} | {event:'completed'} */
 /** Cash paid for completing a mission, by chapter (index = chapter - 1). */
 export const STORY = Object.freeze({ REWARD_BY_CHAPTER: Object.freeze([10, 30, 250, 3000, 80000, 0]) });
 
+/** test: {event:'ore', ore, count} | {event:'depth', depthM} | {event:'completed'} */
 export const ACHIEVEMENTS = Object.freeze([
   { id: 'first_fossil', name: 'Bone Collector', desc: 'Find a fossil.', test: { event: 'ore', ore: 10, count: 1 } },
   { id: 'fossils_5', name: 'Paleontologist', desc: 'Find 5 fossils.', test: { event: 'ore', ore: 10, count: 5 } },

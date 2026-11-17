@@ -50,4 +50,11 @@ describe('story', () => {
     new Story(bus, ec).sync(true);
     expect(toasts).toEqual([]); expect(ec.story.mission).toBeGreaterThan(0);
   });
+  it('a loaded completed save sees the ending and passes ch6_core', () => {
+    const bus = new EventBus(); const ec = new Economy(bus, createEconomyState());
+    ec.completed = true;
+    new Story(bus, ec).sync(true);
+    expect(ec.story.seen).toContain('ending');
+    expect(ec.story.mission).toBeGreaterThan(MISSIONS.findIndex((m) => m.id === 'ch6_core'));
+  });
 });

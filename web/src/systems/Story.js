@@ -13,7 +13,7 @@ export function met(when, ec) {
   if (when.relic) return ec.relics.includes(when.relic);
   if (when.flag) return ec.story.flags.includes(when.flag);
   if (when.depthM !== undefined) return ec.collect.maxDepth >= when.depthM;
-  return ec.story.flags.includes('completed'); // {completed:true}
+  return ec.completed || ec.story.flags.includes('completed'); // {completed:true}; ec.completed covers loaded saves
 }
 
 export const currentMission = (ec) => MISSIONS[ec.story.mission] || null;
