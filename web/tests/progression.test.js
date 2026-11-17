@@ -160,8 +160,9 @@ describe('collectibles', () => {
 });
 
 describe('core goal', () => {
-  const setup = (tech) => {
+  const setup = (tech, iface = true) => {
     const w = new World(generateWorld(1)); const e = mk(); if (tech) e.tech.push('heat_suit');
+    if (iface) e.tech.push('core_interface');
     const g = new CoreGoal(w, e.bus, e); const c = coreChamber(w.W, w.H);
     return { w, e, g, px: (c.x + 2) * 32, py: (c.y + 2) * 32 };
   };
@@ -180,6 +181,18 @@ describe('core goal', () => {
   it('kills without the heat suit', () => {
     const { g, px, py } = setup(false); let failed = 0; g.onFail = () => failed++;
     g.update(0.1, px, py); expect(failed).toBe(1);
+  });
+  it('without the interface the hold never starts and nobody dies', () => {
+    const { e, g, px, py } = setup(true, false); let failed = 0, denied = 0; g.onFail = () => failed++;
+    e.bus.on(EV.CORE_DENIED, () => denied++);
+    for (let t = 0; t < 30; t += 0.5) g.update(0.5, px, py);
+    expect(e.completed).toBe(false); expect(failed).toBe(0); expect(g.hold).toBe(0); expect(denied).toBe(1);
+    g.update(0.5, 0, 0); g.update(0.5, px, py); expect(denied).toBe(2);
+  });
+  it('with interface + heat suit the hold completes and grants the seed core', () => {
+    const { e, g, px, py } = setup(true);
+    for (let t = 0; t <= CORE_GOAL.HOLD_S + 1; t += 0.5) g.update(0.5, px, py);
+    expect(e.completed).toBe(true); expect(e.relics).toContain('seed_core');
   });
   it('a tier-6 pickaxe can mine the core rock', () => {
     expect(canMine(TILE.CORE, 0, 6)).toBe(true); expect(canMine(TILE.CORE, 0, 5)).toBe(false);

@@ -10,7 +10,7 @@ export class CoreGoal {
   /** @param {import('../world/World.js').World} world @param {import('../core/EventBus.js').EventBus} bus @param {any} economy */
   constructor(world, bus, economy) {
     this.world = world; this.bus = bus; this.economy = economy;
-    this.hold = 0; this.quakeAcc = 0;
+    this.hold = 0; this.quakeAcc = 0; this.denied = false;
     /** Optional: called every QUAKE_EVERY_S while holding. */ this.onQuake = () => {};
     /** Called when the sequence kills the player (no heat suit). */ this.onFail = () => {};
     bus.on(EV.PLAYER_DEAD, () => { this.hold = 0; });
@@ -26,7 +26,12 @@ export class CoreGoal {
   }
 
   update(dt, px, py) {
-    if (!this.inChamber(px, py)) { this.hold = 0; return; }
+    if (!this.inChamber(px, py)) { this.hold = 0; this.denied = false; return; }
+    if (!this.economy.tech.includes('core_interface')) {
+      this.hold = 0;
+      if (!this.denied) { this.denied = true; this.bus.emit(EV.CORE_DENIED); }
+      return;
+    }
     if (!this.economy.tech.includes('heat_suit')) { this.hold = 0; this.onFail(); return; }
     this.hold += dt;
     this.quakeAcc += dt;
@@ -38,6 +43,7 @@ export class CoreGoal {
     this.hold = 0;
     if (this.economy.completed) return; // reward once; keep digging
     this.economy.completed = true;
+    if (!this.economy.relics.includes('seed_core')) this.economy.relics.push('seed_core');
     this.economy.credits += CORE_GOAL.REWARD_CASH;
     this.bus.emit(EV.CREDITS_CHANGED, this.economy.credits);
     this.bus.emit(EV.COMPLETED);
