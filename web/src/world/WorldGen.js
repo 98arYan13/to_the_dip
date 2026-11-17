@@ -98,5 +98,5 @@ export function generateWorld(seed, planetId = 'earth', W = WORLD.W, H = PLANETS
   // 4. HP
   for (let i = 0; i < n; i++) tileHP[i] = maxHPFor(tileType[i], oreType[i]);
 
-  return { W, H, seed, planet: planetId, tileType, tileHP, oreType, flags, band, fluid, gas };
+  return { W, H, seed, planet: planetId, tileType, tileHP, oreType, flags, band, fluid, gas, protect: d.protect };
 }

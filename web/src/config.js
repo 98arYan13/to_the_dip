@@ -358,7 +358,7 @@ const stratum = (tile, cave, extra = {}) => {
 /** Planet profiles. strata: top to bottom, `from`/`to` as fractions of underground rows; cave.open = open-space budget [min, max] as a fraction of the stratum. */
 export const PLANETS = Object.freeze({
   earth: {
-    id: 'earth', name: 'Earth', H: WORLD.H, gravity: 1, air: 'breathable', pulse: { mul: 1 }, quake: { mul: 1 }, hpMul: 1,
+    id: 'earth', name: 'Earth', eras: [1, 2, 3, 4, 5], H: WORLD.H, gravity: 1, air: 'breathable', pulse: { mul: 1 }, quake: { mul: 1 }, hpMul: 1,
     strata: [
       stratum(TILE.SOIL, { style: 'none', open: [0, 0.01] }),
       stratum(TILE.LIMESTONE, { style: 'karst', open: [0.08, 0.12], fx: 0.03, fy: 0.16, shaftsPer64: 2, shaftLen: [8, 16] }),
@@ -370,6 +370,9 @@ export const PLANETS = Object.freeze({
     setPieces: {}, relic: 'per-layer', goal: 'core',
   },
 });
+
+/** Ore audit: floor x need (open = outside set pieces), ceiling x need, repair attempts per ore. */
+export const AUDIT = Object.freeze({ FLOOR: 1.5, FLOOR_OPEN: 1.0, CEIL: 6, MAX_ATTEMPTS: 8 });
 
 /** Ore tiles are tougher than plain host rock. */
 export const ORE_HP_MUL = 1.5;
