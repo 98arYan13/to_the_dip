@@ -45,6 +45,7 @@ export function craft(ec, recipeId, times = 1) {
   drawPower(ec, r.power * times);
   for (const [o, n] of Object.entries(r.out)) ec.stash[+o] += n * times;
   ec.bus.emit(EV.CARGO_CHANGED);
+  for (const o of Object.keys(r.out)) ec.bus.emit(EV.CRAFTED, +o);
   return c;
 }
 

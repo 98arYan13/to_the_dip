@@ -29,6 +29,7 @@ import { Quake } from './systems/Hazards/Quake.js';
 import { Pulse } from './systems/Hazards/Pulse.js';
 import { CoreGoal } from './systems/CoreGoal.js';
 import { Collectibles } from './systems/Collectibles.js';
+import { Story } from './systems/Story.js';
 import { FallingLadders, pickUpLadder } from './systems/Items.js';
 import { placeChargeStation, nearStation, placeFieldCamp, nearFieldCamp } from './systems/Camp.js';
 import { dailySeed, dailyScore, dateKey } from './systems/Daily.js';
@@ -117,6 +118,7 @@ function boot() {
   coreGoal.onQuake = () => quake.trigger(0.8);
   coreGoal.onFail = () => player.die('core heat');
   new Collectibles(bus, economy);
+  const story = new Story(bus, economy); story.sync(loaded.ok); // silent for loaded saves: catch up without a toast flood
   collapse.crush = (x, y) => {
     const tx0 = Math.floor(player.x / T); const tx1 = Math.floor((player.x + player.w - 1) / T);
     const ty0 = Math.floor(player.y / T); const ty1 = Math.floor((player.y + player.h - 1) / T);
