@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { rleEncode, rleDecode, serialize, deserialize, SaveSystem, migrate } from '../src/save/SaveSystem.js';
+import { rleEncode, rleDecode, serialize, deserialize, SaveSystem, migrate, migrateEconomyV6 } from '../src/save/SaveSystem.js';
 import { generateWorld } from '../src/world/WorldGen.js';
 import { World } from '../src/world/World.js';
 import { Economy, createEconomyState } from '../src/systems/Economy.js';
 import { EventBus } from '../src/core/EventBus.js';
-import { FLAG, SAVE, ITEM, TECH } from '../src/config.js';
+import { FLAG, SAVE, ITEM, TECH, RELICS } from '../src/config.js';
 
 function memStorage() {
   const m = new Map();
@@ -129,5 +129,23 @@ describe('New map carry-over', () => {
     sys.setCarry({ credits: 9 });
     expect(sys.takeCarry()).toEqual({ credits: 9 });
     expect(sys.takeCarry()).toBe(null);
+  });
+});
+
+describe('v6 migration', () => {
+  it('fresh fields', () => {
+    expect(migrateEconomyV6({ tech: ['bloomery'] })).toMatchObject({ relics: [], story: { seen: [], read: [], flags: [], mission: 0 } });
+  });
+  it('a completed save owns every relic and the interface', () => {
+    const e = migrateEconomyV6({ completed: true, tech: ['heat_suit'] });
+    expect(e.relics).toEqual(RELICS.map((r) => r.id));
+    expect(e.tech).toContain('core_interface');
+    expect(e.tech).toContain('heat_suit');
+  });
+  it('owning a relic-gated tech grants that relic', () => {
+    expect(migrateEconomyV6({ tech: ['exotic_materials', 'warp_drive'] }).relics.sort()).toEqual(['matter_loom', 'seed_core']);
+  });
+  it('migrate() steps v5 to current', () => {
+    expect(migrate({ version: 5, economy: { tech: [] } }).economy.story.mission).toBe(0);
   });
 });

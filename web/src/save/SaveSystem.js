@@ -4,7 +4,7 @@
  * The world grid is RLE-compressed and base64-encoded per typed array, with an FNV-1a checksum.
  * The codec functions are pure and unit-tested.
  */
-import { SAVE, WORLD, FLAG, TECH, ITEM, START_BUILDINGS, POWER } from '../config.js';
+import { SAVE, WORLD, FLAG, TECH, RELICS, ITEM, START_BUILDINGS, POWER } from '../config.js';
 import { computeBandStarts, bandMaterialAt } from '../world/WorldGen.js';
 
 /** RLE as (count ≤ 255, value) byte pairs. @param {Uint8Array} bytes */
@@ -109,6 +109,7 @@ export function decodeWorld(e, seed) {
  * v1 → v2: settings moved out of the save; economy.levels gained `radar` and `cargo`.
  * v2 → v3: ore ids were remapped (20 ores) and suit/cargo became the rig; old worlds can't be converted.
  * v4 → v5: tech redesign (migrateEconomyV5).
+ * v5 → v6: relics and story state (migrateEconomyV6).
  * @param {any} save
  */
 export function migrate(save) {
@@ -121,6 +122,8 @@ export function migrate(save) {
       s.economy = { ...s.economy, levels: { radar: 0, cargo: 0, ...(s.economy?.levels || {}) } };
     } else if (from === 4) {
       s = { ...s, version: 5, economy: migrateEconomyV5(s.economy || {}) };
+    } else if (from === 5) {
+      s = { ...s, version: 6, economy: migrateEconomyV6(s.economy || {}) };
     } else if (from === 3) {
       s = { ...s, version: 4 }; // v4 adds optional world.fluid/gas and economy extras; absent fields default on load
     } else if (from === 2) {
@@ -158,6 +161,18 @@ export function migrateEconomyV5(ec) {
   old.forEach(grant);
   e.tech = [...tech];
   return e;
+}
+
+/**
+ * v5 economy → v6: fresh relics/story. A completed save owns every relic and core_interface; owning a relic-gated
+ * tech grants its relic. Owned techs are never removed.
+ * @param {any} ec
+ */
+export function migrateEconomyV6(ec) {
+  const tech = new Set(/** @type {string[]} */ (ec.tech || []));
+  const relics = new Set(TECH.filter((t) => t.relic && tech.has(t.id)).map((t) => t.relic));
+  if (ec.completed) { RELICS.forEach((r) => relics.add(r.id)); tech.add('core_interface'); }
+  return { ...ec, tech: [...tech], relics: RELICS.map((r) => r.id).filter((id) => relics.has(id)), story: { seen: [], read: [], flags: [], mission: 0 } };
 }
 
 /**

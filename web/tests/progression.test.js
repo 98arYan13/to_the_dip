@@ -11,7 +11,7 @@ import { CoreGoal } from '../src/systems/CoreGoal.js';
 import { dailySeed } from '../src/systems/Daily.js';
 import { canPlaceLadder, placeLadder, pickUpLadder, FallingLadders } from '../src/systems/Items.js';
 import { Mining, canMine } from '../src/systems/Mining.js';
-import { ORE, ITEM, TILE, ORES, ZONES, WORLD, CAMP, CONTRACTS, CORE_GOAL, FLAG, GAS, PICKAXES, DYNAMITE, PHYSICS } from '../src/config.js';
+import { ORE, ITEM, TILE, ORES, ZONES, WORLD, CAMP, CONTRACTS, CORE_GOAL, FLAG, SAVE, GAS, PICKAXES, DYNAMITE, PHYSICS } from '../src/config.js';
 
 const mk = () => new Economy(new EventBus(), createEconomyState());
 
@@ -288,7 +288,7 @@ describe('polish items', () => {
     const s = JSON.parse(serialize({ seed: 4, player: {}, economy: createEconomyState(), world: w }));
     s.version = 3; delete s.world.fluid; delete s.world.gas; delete s.economy.tech; delete s.economy.stash;
     const d = deserialize(JSON.stringify(s));
-    expect(d.version).toBe(5); expect(d.world.gas.length).toBe(w.W * w.H);
+    expect(d.version).toBe(SAVE.VERSION); expect(d.world.gas.length).toBe(w.W * w.H);
     const e = mk(); e.load(d.economy); expect(e.tech).toEqual([]); expect(e.stash[2]).toBe(0);
   });
 });

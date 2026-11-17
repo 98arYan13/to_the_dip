@@ -752,7 +752,7 @@ export const SAVE = Object.freeze({
   /** localStorage key holding the active slot number. */
   SLOT_KEY: 'jttdote.slot',
   SETTINGS_KEY: 'jttdote.settings',
-  VERSION: 5,
+  VERSION: 6,
   AUTOSAVE_SEC: 15,
   EXPLOSION_BLOCK_SEC: 1.5,
 });

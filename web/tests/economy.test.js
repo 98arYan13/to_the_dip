@@ -57,3 +57,11 @@ describe('Cargo rules', () => {
     expect(e.credits).toBe(4.9);
   });
 });
+
+describe('relics and story state', () => {
+  it('round-trip and survive New Map', () => {
+    const e = new Economy(new EventBus()); e.relics.push('hull_shard'); e.story.flags.push('sold'); e.story.mission = 3;
+    const n = new Economy(new EventBus(), e.newMapState());
+    expect(n.relics).toEqual(['hull_shard']); expect(n.story).toEqual({ seen: [], read: [], flags: ['sold'], mission: 3 });
+  });
+});
