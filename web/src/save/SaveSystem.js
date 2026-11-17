@@ -186,7 +186,7 @@ export function migrateEconomyV6(ec) {
 
 /** v6 economy → v7: Earth is the home planet; the rest are defaults for the planets and ending work. @param {any} ec */
 export function migrateEconomyV7(ec) {
-  return { ...ec, planet: 'earth', elevatorStops: [], finished: false, mind: { nodes: [], coolant: 0 } };
+  return { ...ec, planet: 'earth', elevatorStops: [], finished: false, mind: { nodes: [], coolant: 0, greeted: false } };
 }
 
 /**

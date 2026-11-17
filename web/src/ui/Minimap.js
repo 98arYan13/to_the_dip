@@ -29,6 +29,7 @@ export class Minimap {
     this.canvas.addEventListener('click', () => this.toggleBig());
     this.ctx = /** @type {CanvasRenderingContext2D} */ (this.canvas.getContext('2d'));
     this.ctx.imageSmoothingEnabled = false;
+    // 1-row placeholder; setWorld sizes the real buffer to world.H.
     this.buf = createCanvas(WORLD.W, 1);
     this.bctx = get2D(this.buf);
     this.img = this.bctx.createImageData(WORLD.W, 1);

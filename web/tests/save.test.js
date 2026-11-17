@@ -191,18 +191,49 @@ describe('planets in the save', () => {
   });
   it('old saves migrate to planet earth', () => {
     const m = migrate({ version: 6, economy: { tech: [] } }).economy;
-    expect(m.planet).toBe('earth'); expect(m.elevatorStops).toEqual([]); expect(m.finished).toBe(false); expect(m.mind).toBeDefined();
+    expect(m).toEqual({ tech: [], planet: 'earth', elevatorStops: [], finished: false, mind: { nodes: [], coolant: 0, greeted: false } });
   });
-  it('newMapState keeps the planet', () => {
-    expect(new Economy(new EventBus(), { ...createEconomyState(), planet: 'tessera' }).newMapState().planet).toBe('tessera');
+  it('newMapState keeps the planet and clears elevator stops', () => {
+    const n = new Economy(new EventBus(), { ...createEconomyState(), planet: 'tessera', elevatorStops: [{ x: 1, y: 2 }] }).newMapState();
+    expect(n.planet).toBe('tessera'); expect(n.elevatorStops).toEqual([]);
   });
   it('no source file reads WORLD.H outside config and generator defaults', async () => {
     const fs = await import('node:fs'); const path = await import('node:path');
     const root = path.resolve(__dirname, '../src');
     const files = [];
     (function walk(d) { for (const f of fs.readdirSync(d, { withFileTypes: true })) { const p = path.join(d, f.name); if (f.isDirectory()) walk(p); else if (p.endsWith('.js')) files.push(p); } })(root);
-    const allowed = { 'config.js': 'defines WORLD and PLANETS.earth.H', 'strata.js': 'default parameter only', 'WorldGen.js': 'default parameter of undergroundRows' };
-    const bad = files.filter((p) => /WORLD\.H\b/.test(fs.readFileSync(p, 'utf8')) && !allowed[path.basename(p)]);
-    expect(bad.map((p) => path.basename(p))).toEqual([]);
+    const allowed = [ // [file, line start, why]
+      ['config.js', "id: 'earth'", 'Earth profile height'],
+      ['strata.js', 'export function computeBandStarts', 'default parameter'],
+      ['WorldGen.js', 'export function undergroundRows', 'default parameter'],
+    ];
+    const bad = [];
+    for (const p of files) for (const line of fs.readFileSync(p, 'utf8').split('\n')) {
+      if (/WORLD\.H\b/.test(line) && !allowed.some(([f, start]) => path.basename(p) === f && line.trim().startsWith(start))) bad.push(path.basename(p) + ': ' + line.trim());
+    }
+    expect(bad).toEqual([]);
+  });
+});
+
+describe('height comes from the world', () => {
+  it('camera clamp reaches the bottom of a 1000-row world', async () => {
+    const { Camera } = await import('../src/render/Camera.js');
+    const c = new Camera(); c.worldH = 1000; c.x = 0; c.y = 1e6; c._clamp();
+    expect(c.y).toBeGreaterThan(256 * 16 + 1000);
+  });
+  it('quake depth uses the world height', async () => {
+    const { Quake } = await import('../src/systems/Hazards/Quake.js');
+    const { RNG } = await import('../src/core/RNG.js'); const { underM } = await import('../src/config.js');
+    const timerAfter = (H) => { const q = new Quake({ H }, null, null, new RNG(1)); const t = q.timer; q.update(1, 500 / underM(256)); return t - q.timer; };
+    expect(timerAfter(256)).toBe(0); // 500 m is above the safe depth on 256 rows, below it on 1000
+    expect(timerAfter(1000)).toBeGreaterThan(0);
+  });
+  it('minimap buffer is sized to the world', async () => {
+    globalThis.OffscreenCanvas = class { constructor(w, h) { this.width = w; this.height = h; } getContext() { return { createImageData: (w, h) => ({ w, h, data: [] }) }; } };
+    const { Minimap } = await import('../src/ui/Minimap.js');
+    const fake = { updateTile() {} };
+    Minimap.prototype.setWorld.call(fake, { W: 64, H: 1000 });
+    expect([fake.buf.width, fake.buf.height, fake.img.h]).toEqual([64, 1000, 1000]);
+    delete globalThis.OffscreenCanvas;
   });
 });

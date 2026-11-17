@@ -132,9 +132,9 @@ export function createEconomyState() {
     /** Alien relic ids found (kept on New Map). */
     relics: /** @type {string[]} */ ([]),
     planet: 'earth',
-    elevatorStops: /** @type {number[]} */ ([]),
+    elevatorStops: /** @type {{x:number,y:number}[]} */ ([]),
     finished: false,
-    mind: { nodes: /** @type {number[]} */ ([]), coolant: 0 },
+    mind: { nodes: /** @type {number[]} */ ([]), coolant: 0, greeted: false },
     story: { seen: /** @type {string[]} */ ([]), read: /** @type {string[]} */ ([]), flags: /** @type {string[]} */ ([]), mission: 0 },
   };
 }
@@ -168,21 +168,21 @@ export class Economy {
     this.consumables = { ...createEconomyState().consumables, ...s.consumables };
     this.relics = [...(s.relics || [])];
     this.planet = s.planet || 'earth';
-    this.elevatorStops = [...(s.elevatorStops || [])];
+    this.elevatorStops = (s.elevatorStops || []).map((p) => ({ ...p }));
     this.finished = !!s.finished;
-    this.mind = { nodes: [...(s.mind?.nodes || [])], coolant: s.mind?.coolant || 0 };
+    this.mind = { nodes: [...(s.mind?.nodes || [])], coolant: s.mind?.coolant || 0, greeted: !!s.mind?.greeted };
     this.story = { seen: [...(s.story?.seen || [])], read: [...(s.story?.read || [])], flags: [...(s.story?.flags || [])], mission: s.story?.mission || 0 };
   }
 
   toJSON() {
-    return { credits: this.credits, cargo: Array.from(this.cargo), stash: Array.from(this.stash), tech: [...this.tech], buildings: { ...this.buildings }, power: this.power, stations: this.stations.map((p) => ({ ...p })), fieldCamps: this.fieldCamps.map((p) => ({ ...p })), contracts: { active: [...this.contracts.active], done: [...this.contracts.done] }, achievements: [...this.achievements], collect: { ore: { ...this.collect.ore }, maxDepth: this.collect.maxDepth, pulses: this.collect.pulses }, completed: this.completed, levels: { ...this.levels }, consumables: { ...this.consumables }, relics: [...this.relics], planet: this.planet, elevatorStops: [...this.elevatorStops], finished: this.finished, mind: { nodes: [...this.mind.nodes], coolant: this.mind.coolant }, story: { seen: [...this.story.seen], read: [...this.story.read], flags: [...this.story.flags], mission: this.story.mission } };
+    return { credits: this.credits, cargo: Array.from(this.cargo), stash: Array.from(this.stash), tech: [...this.tech], buildings: { ...this.buildings }, power: this.power, stations: this.stations.map((p) => ({ ...p })), fieldCamps: this.fieldCamps.map((p) => ({ ...p })), contracts: { active: [...this.contracts.active], done: [...this.contracts.done] }, achievements: [...this.achievements], collect: { ore: { ...this.collect.ore }, maxDepth: this.collect.maxDepth, pulses: this.collect.pulses }, completed: this.completed, levels: { ...this.levels }, consumables: { ...this.consumables }, relics: [...this.relics], planet: this.planet, elevatorStops: this.elevatorStops.map((p) => ({ ...p })), finished: this.finished, mind: { nodes: [...this.mind.nodes], coolant: this.mind.coolant, greeted: this.mind.greeted }, story: { seen: [...this.story.seen], read: [...this.story.read], flags: [...this.story.flags], mission: this.story.mission } };
   }
 
   /** State for a fresh map that keeps progress (cash, stash, tech, buildings, gear, power, consumables). */
   newMapState() {
     const s = this.toJSON();
     const consumables = { ...s.consumables, ladder: Math.max(s.consumables.ladder, CONSUMABLES.ladder.start) };
-    return { ...s, consumables, cargo: s.cargo.map(() => 0), stations: [], fieldCamps: [], story: { ...s.story, flags: s.story.flags.filter((f) => f !== 'hall_exploded') }, contracts: { active: [], done: s.contracts.done }, completed: false };
+    return { ...s, consumables, cargo: s.cargo.map(() => 0), stations: [], fieldCamps: [], elevatorStops: [], story: { ...s.story, flags: s.story.flags.filter((f) => f !== 'hall_exploded') }, contracts: { active: [], done: s.contracts.done }, completed: false };
   }
 
   /** Dev override: tier 1..6, or 0 for the owned tool. Not saved. */
