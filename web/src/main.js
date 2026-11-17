@@ -13,7 +13,7 @@ import { Input } from './core/Input.js';
 import { randomSeed, RNG } from './core/RNG.js';
 import { log } from './core/log.js';
 import { World } from './world/World.js';
-import { clearOwnedRelics, hasRuins } from './world/Ruins.js';
+import { clearOwnedRelics, hasRuins, planRuins } from './world/Ruins.js';
 import { Visibility } from './world/Visibility.js';
 import { ChunkCache } from './world/ChunkCache.js';
 import { Player } from './entities/Player.js';
@@ -118,7 +118,10 @@ function boot() {
   const coreGoal = new CoreGoal(world, bus, economy);
   coreGoal.onQuake = () => quake.trigger(0.8);
   coreGoal.onFail = () => player.die('core heat');
-  new Collectibles(bus, economy);
+  new Collectibles(bus, economy, {
+    ruinRect: (layer) => planRuins(seed, world.W, world.H).find((r) => r.layer === layer),
+    waterIn: (r) => { let n = 0; for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) if (world.tileType[y * world.W + x] === TILE.WATER) n++; return n; },
+  });
   const story = new Story(bus, economy); story.sync(loaded.ok); // silent for loaded saves: catch up without a toast flood
   collapse.crush = (x, y) => {
     const tx0 = Math.floor(player.x / T); const tx1 = Math.floor((player.x + player.w - 1) / T);
@@ -172,7 +175,7 @@ function boot() {
   hud.setMuted(settingsValues.muted);
   bus.emit(EV.HP_CHANGED, player.hp);
   const toast = new Toast(hudRoot);
-  const minimap = new Minimap(hud.minimapParent, bus);
+  const minimap = new Minimap(hud.minimapParent, bus, economy, () => seed);
   minimap.setWorld(world);
   const storyModal = new StoryModal(hudRoot, { onClose: () => { if (!showStory()) { input.clear(); if (!shop.open) canvas.focus(); } } });
   const showStory = () => {

@@ -149,7 +149,7 @@ export const CONTRACTS = Object.freeze({ MAX_ACTIVE: 3, OFFERS: 4, PREMIUM: 0.25
 /** Cash paid for completing a mission, by chapter (index = chapter - 1). */
 export const STORY = Object.freeze({ REWARD_BY_CHAPTER: Object.freeze([10, 30, 250, 3000, 80000, 0]) });
 
-/** test: {event:'ore', ore, count} | {event:'depth', depthM} | {event:'completed'} */
+/** test: {event:'ore', ore, count} | {depth, depthM} | {completed} | {relic, count | id[, unlessFlag | dry]} | {pulse, count} | {tech, stat, min} */
 export const ACHIEVEMENTS = Object.freeze([
   { id: 'first_fossil', name: 'Bone Collector', desc: 'Find a fossil.', test: { event: 'ore', ore: 10, count: 1 } },
   { id: 'fossils_5', name: 'Paleontologist', desc: 'Find 5 fossils.', test: { event: 'ore', ore: 10, count: 5 } },
@@ -159,7 +159,13 @@ export const ACHIEVEMENTS = Object.freeze([
   { id: 'depth_100', name: 'Going Down', desc: 'Reach 100 m.', test: { event: 'depth', depthM: 100 } },
   { id: 'depth_500', name: 'Deep Diver', desc: 'Reach 500 m.', test: { event: 'depth', depthM: 500 } },
   { id: 'depth_1000', name: 'Into the Mantle', desc: 'Reach 1,000 m.', test: { event: 'depth', depthM: 1000 } },
-  { id: 'core', name: 'Heart of the World', desc: 'Stabilize the Core.', test: { event: 'completed' } },
+  { id: 'core', name: 'The Seed Is Silent', desc: 'Shut down the Seed.', test: { event: 'completed' } },
+  { id: 'relic_first', name: 'First Contact', desc: 'Recover an alien relic.', test: { event: 'relic', count: 1 } },
+  { id: 'relic_all', name: 'Relic Hunter', desc: 'Recover all 5 alien relics.', test: { event: 'relic', count: 5 } },
+  { id: 'clean_air', name: 'Clean Air', desc: 'Recover the Thermal Siphon without blowing up its hall.', test: { event: 'relic', id: 'thermal_siphon', unlessFlag: 'hall_exploded' } },
+  { id: 'dry_feet', name: 'Dry Feet', desc: 'Recover the Shielding Lattice with its ruin drained.', test: { event: 'relic', id: 'shield_lattice', dry: true } },
+  { id: 'pulse_10', name: 'Storm Chaser', desc: 'Weather 10 unsheltered pulses.', test: { event: 'pulse', count: 10 } },
+  { id: 'immune', name: 'Immune', desc: 'Become immune to the pulse.', test: { event: 'tech', stat: 'pulseResist', min: 1 } },
 ]);
 
 export const DAILY = Object.freeze({ SALT: 0xda11 });

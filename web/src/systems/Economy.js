@@ -125,7 +125,7 @@ export function createEconomyState() {
     fieldCamps: /** @type {{x:number,y:number}[]} */ ([]),
     contracts: { active: /** @type {any[]} */ ([]), done: /** @type {string[]} */ ([]) },
     achievements: /** @type {string[]} */ ([]),
-    collect: { ore: /** @type {Record<number,number>} */ ({}), maxDepth: 0 },
+    collect: { ore: /** @type {Record<number,number>} */ ({}), maxDepth: 0, pulses: 0 },
     completed: false,
     levels: { pickaxe: 0, rig: 0, jetpack: 0, radar: 0 },
     consumables,
@@ -156,7 +156,7 @@ export class Economy {
     this.fieldCamps = (s.fieldCamps || []).map((p) => ({ ...p }));
     this.contracts = { active: [...(s.contracts?.active || [])], done: [...(s.contracts?.done || [])] };
     this.achievements = [...(s.achievements || [])];
-    this.collect = { ore: { ...(s.collect?.ore || {}) }, maxDepth: s.collect?.maxDepth || 0 };
+    this.collect = { ore: { ...(s.collect?.ore || {}) }, maxDepth: s.collect?.maxDepth || 0, pulses: s.collect?.pulses || 0 };
     this.completed = !!s.completed;
     this.stash = new Uint16Array(ORES.length);
     for (let o = 0; o < ORES.length; o++) { this.cargo[o] = s.cargo[o] || 0; this.stash[o] = s.stash?.[o] || 0; }

@@ -6,14 +6,18 @@
 import { UI, WORLD, TILE, FLAG, MATERIALS, ORES, SURFACE } from '../config.js';
 import { hexToRgb, createCanvas, get2D } from '../render/canvas.js';
 import { EV } from '../core/EventBus.js';
+import { nearestRuin } from '../world/Ruins.js';
 import { requiredTier } from '../systems/Mining.js';
 
 export class Minimap {
   /**
    * @param {HTMLElement} parent
    * @param {import('../core/EventBus.js').EventBus} bus
+   * @param {any} economy
+   * @param {() => number} getSeed
    */
-  constructor(parent, bus) {
+  constructor(parent, bus, economy, getSeed) {
+    this.economy = economy; this.getSeed = getSeed;
     this.canvas = document.createElement('canvas');
     this.canvas.className = 'minimap';
     this.canvas.width = UI.MINIMAP_W;
@@ -120,6 +124,15 @@ export class Minimap {
       ctx.fillRect((WORLD.BASE_CAMP.SHOP_X - sx) * s - 1, by - 1, 3, 3);
       ctx.fillStyle = SURFACE.BEACON_STATION;
       ctx.fillRect((WORLD.BASE_CAMP.STATION_X - sx) * s - 1, by - 1, 3, 3);
+    }
+    // ruin ping (pulse detector): violet blinking marker, clamped to the edge when out of view
+    if (this.economy.tech.includes('pulse_detector') && Math.floor(this.time * 2) % 2 === 0) {
+      const r = nearestRuin(this.getSeed(), w.W, w.H, this.economy.relics, ptx, pty);
+      if (r) {
+        const mx = Math.max(2, Math.min(W - 3, (r.x - sx) * s)); const my = Math.max(2, Math.min(H - 3, (r.y - sy) * s));
+        ctx.fillStyle = '#b36bff';
+        ctx.fillRect(mx - 2, my - 2, 5, 5);
+      }
     }
     // player
     if (Math.floor(this.time / UI.PLAYER_BLINK) % 2 === 0) {
