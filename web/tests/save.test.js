@@ -162,3 +162,17 @@ describe('v6 migration', () => {
     expect(new Economy(new EventBus(), ec.toJSON()).collect.pulses).toBe(7);
   });
 });
+
+describe('genSeed in saves', () => {
+  it('round-trip keeps genSeed; a save without genSeed decodes with seed', () => {
+    const w = new World(generateWorld(31337, 'earth', 64, 256, { forceRetry: 1 }));
+    expect(w.genSeed).not.toBe(31337);
+    const s = serialize({ seed: 31337, player: {}, economy: createEconomyState(), world: w });
+    const d = deserialize(s);
+    expect(d.world.genSeed).toBe(w.genSeed);
+    expect(Array.from(d.world.band)).toEqual(Array.from(w.band));
+    const old = JSON.parse(s); delete old.genSeed;
+    const o = deserialize(JSON.stringify(old));
+    expect(o.world.genSeed).toBe(31337);
+  });
+});

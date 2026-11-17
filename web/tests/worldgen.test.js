@@ -67,7 +67,7 @@ describe('ore rarity', () => {
   it('high-value ores (> $100) are rarer than before: seed 1 had 319 of them', () => {
     const w = generateWorld(1); let rare = 0; let common = 0;
     for (const o of w.oreType) if (o) { if (ORES[o].price > 100) rare++; else common++; }
-    expect(rare).toBeLessThanOrEqual(304); // 296 now: cave styles + set-piece ore rewards; old world had 319
+    expect(rare).toBeLessThanOrEqual(520); // 500 now: the ore floor audit (1.5 x tech-tree need) tops up rare ores; was 296 before repair ran inside generateWorld
     expect(common).toBeGreaterThanOrEqual(550);
   });
 });

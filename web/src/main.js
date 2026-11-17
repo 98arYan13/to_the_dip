@@ -119,7 +119,7 @@ function boot() {
   coreGoal.onQuake = () => quake.trigger(0.8);
   coreGoal.onFail = () => player.die('core heat');
   new Collectibles(bus, economy, {
-    ruinRect: (layer) => planRuins(seed, world.W, world.H).find((r) => r.layer === layer),
+    ruinRect: (layer) => planRuins(world.genSeed, world.W, world.H).find((r) => r.layer === layer),
     waterIn: (r) => { let n = 0; for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) if (world.tileType[y * world.W + x] === TILE.WATER) n++; return n; },
   });
   const story = new Story(bus, economy); story.sync(loaded.ok); // silent for loaded saves: catch up without a toast flood
@@ -209,7 +209,7 @@ function boot() {
       else if (a === 'cash') { economy.credits += 100000; bus.emit(EV.CREDITS_CHANGED, economy.credits); }
       else if (a === 'mats') { for (let o = 1; o < economy.stash.length; o++) economy.stash[o] += 50; bus.emit(EV.CARGO_CHANGED); }
       else if (a === 'ruin') { // next ruin whose relic isn't owned; carve a pocket left of it
-        const r = planRuins(seed, world.W, world.H).find((q) => !economy.relics.includes(relicIdAt(q.y + q.h - 2, world.H)));
+        const r = planRuins(world.genSeed, world.W, world.H).find((q) => !economy.relics.includes(relicIdAt(q.y + q.h - 2, world.H)));
         if (r) { const px = r.x - 3; const py = r.y + r.h - 2; for (let dy = -2; dy <= 0; dy++) for (let dx = -1; dx <= 1; dx++) world.clear(world.idx(px + dx, py + dy)); player.placeAt(px * T, (py + 1) * T - player.h); camera.snap(player.cx, player.cy); }
       }
       else if (a === 'core') { const c = coreChamber(world.W, world.H); player.placeAt((c.x + c.w / 2) * T, (c.y + c.h - 1) * T - player.h); camera.snap(player.cx, player.cy); }

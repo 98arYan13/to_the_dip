@@ -85,9 +85,9 @@ export function encodeWorld(w) {
 
 /**
  * Decode a world grid; throws on corruption.
- * @param {ReturnType<typeof encodeWorld>} e @param {number} seed
+ * @param {ReturnType<typeof encodeWorld>} e @param {number} seed @param {number} [genSeed] seed actually used for the band map (old saves: same as seed)
  */
-export function decodeWorld(e, seed) {
+export function decodeWorld(e, seed, genSeed = seed) {
   const n = e.W * e.H;
   const tileType = rleDecode(fromBase64(e.tileType), n);
   const hpBytes = rleDecode(fromBase64(e.tileHP), n * 2);
@@ -96,12 +96,12 @@ export function decodeWorld(e, seed) {
   if (checksum([tileType, hpBytes, oreType, flags]) !== e.sum) throw new Error('World checksum mismatch');
   const tileHP = new Uint16Array(hpBytes.buffer.slice(0));
   // Band map is deterministic from the seed and not stored.
-  const starts = computeBandStarts(seed, e.W, e.H);
+  const starts = computeBandStarts(genSeed, e.W, e.H);
   const band = new Uint8Array(n);
   for (let y = 0; y < e.H; y++) for (let x = 0; x < e.W; x++) band[y * e.W + x] = bandMaterialAt(starts, x, y, e.W);
   const fluid = e.fluid ? rleDecode(fromBase64(e.fluid), n) : new Uint8Array(n);
   const gas = e.gas ? rleDecode(fromBase64(e.gas), n) : new Uint8Array(n);
-  return { W: e.W, H: e.H, seed, tileType, tileHP, oreType, flags, band, fluid, gas };
+  return { W: e.W, H: e.H, seed, genSeed, tileType, tileHP, oreType, flags, band, fluid, gas };
 }
 
 /**
@@ -189,6 +189,7 @@ export function serialize(state) {
   return JSON.stringify({
     version: SAVE.VERSION,
     seed: state.seed,
+    genSeed: state.world.genSeed,
     player: state.player,
     economy: state.economy,
     world: encodeWorld(state.world),
@@ -205,7 +206,7 @@ export function deserialize(str) {
   if (s.version > SAVE.VERSION) throw new Error('Save from a newer version');
   s = migrate(s);
   if (s.world.W !== WORLD.W || s.world.H !== WORLD.H) throw new Error('World size mismatch');
-  return { version: s.version, seed: s.seed >>> 0, player: s.player, economy: s.economy, world: decodeWorld(s.world, s.seed >>> 0) };
+  return { version: s.version, seed: s.seed >>> 0, player: s.player, economy: s.economy, world: decodeWorld(s.world, s.seed >>> 0, (s.genSeed ?? s.seed) >>> 0) };
 }
 
 export class SaveSystem {

@@ -3,13 +3,14 @@
  * Pure, deterministic world generation: depth bands with noise-perturbed boundaries,
  * fBm caves, water pockets, decorative magma channels, fungi/moss, and ore veins via random walks.
  */
-import { WORLD, TILE, FLAG, MATERIALS, ORE_HP_MUL, MINING, PLANETS } from '../config.js';
-import { RNG } from '../core/RNG.js';
+import { WORLD, TILE, FLAG, MATERIALS, ORE_HP_MUL, MINING, PLANETS, AUDIT } from '../config.js';
+import { RNG, hash2 } from '../core/RNG.js';
 import { planSetPieces, stampSetPiece, stampCore } from './Zones.js';
 import { stampRuin } from './Ruins.js';
 import { createNoise2D, fbm } from '../core/Noise.js';
 import { computeBandStarts, bandMaterialAt } from './gen/strata.js';
 import { placeVeins } from './gen/ores.js';
+import { repairOres, auditOres, auditReach, repairReach, auditSafety, repairSafety } from './gen/audit.js';
 import { carveCaves, applyCaveRules, placeFluids } from './gen/caves.js';
 
 /**
@@ -36,12 +37,26 @@ export function undergroundRows(H = WORLD.H) {
 }
 
 /**
- * Generate a full world from a seed. Pure: same seed → identical arrays.
+ * Generate a full world from a seed. Pure: same seed -> identical arrays, retries included.
+ * Audit failures retry with genSeed = hash2(seed, attempt, 0x9e11), at most AUDIT.MAX_ATTEMPTS times; the attempt with the fewest problems wins.
+ * `forceRetry` (test hook) makes that many leading attempts count as failed.
  * @param {number} seed
- * @returns {WorldData}
+ * @returns {WorldData & {genSeed:number, problems:string[]}}
  */
-export function generateWorld(seed, planetId = 'earth', W = WORLD.W, H = PLANETS[planetId].H) {
+export function generateWorld(seed, planetId = 'earth', W = WORLD.W, H = PLANETS[planetId].H, { forceRetry = 0 } = {}) {
   seed >>>= 0;
+  let best = null;
+  for (let attempt = 0; attempt <= AUDIT.MAX_ATTEMPTS; attempt++) {
+    const genSeed = attempt ? hash2(seed, attempt, 0x9e11) : seed;
+    const r = buildWorld(genSeed, planetId, W, H);
+    if (attempt < forceRetry) r.problems.push('forced retry');
+    if (!best || r.problems.length < best.problems.length) best = { ...r, seed, genSeed };
+    if (!best.problems.length) break;
+  }
+  return best;
+}
+
+function buildWorld(seed, planetId, W, H) {
   const planet = PLANETS[planetId];
   const n = W * H;
   const tileType = new Uint8Array(n);
@@ -95,8 +110,17 @@ export function generateWorld(seed, planetId = 'earth', W = WORLD.W, H = PLANETS
     stampCore(d);
   }
 
+  // 3c. Audit and repair: ores, reachability, safety; whatever still fails is reported for the caller's retry rule
+  const orng = new RNG((seed ^ 0xabc) >>> 0);
+  const oresOk = () => auditOres(d).every((r) => r.bulk || (r.have >= r.floor && r.haveOpen >= r.floor / AUDIT.FLOOR * AUDIT.FLOOR_OPEN));
+  repairOres(d, orng);
+  repairReach(d, starts); repairSafety(d, starts);
+  repairOres(d, orng); // reach/safety repairs may have cut ore tiles
+  const problems = [...auditReach(d, starts), ...auditSafety(d, starts)];
+  if (!oresOk()) problems.push('ore floor not met');
+
   // 4. HP
   for (let i = 0; i < n; i++) tileHP[i] = maxHPFor(tileType[i], oreType[i]);
 
-  return { W, H, seed, planet: planetId, tileType, tileHP, oreType, flags, band, fluid, gas, protect: d.protect };
+  return { W, H, seed, planet: planetId, tileType, tileHP, oreType, flags, band, fluid, gas, protect: d.protect, problems };
 }

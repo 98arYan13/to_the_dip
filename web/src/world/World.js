@@ -11,6 +11,7 @@ export class World {
     this.W = data.W;
     this.H = data.H;
     this.seed = data.seed;
+    this.genSeed = data.genSeed ?? data.seed;
     this.T = WORLD.TILE_PX;
     this.tileType = data.tileType;
     this.tileHP = data.tileHP;
