@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { WORLD, TILE, ZONES, RELICS } from '../src/config.js';
+import { WORLD, TILE, ZONES, RELICS, PLANETS } from '../src/config.js';
+import { requiredTier } from '../src/systems/Mining.js';
 import { planZones, blockedAreas } from '../src/world/Zones.js';
 import { generateWorld } from '../src/world/WorldGen.js';
 import { planRuins, relicIdAt, clearOwnedRelics, hasRuins, nearestRuin } from '../src/world/Ruins.js';
@@ -84,5 +85,20 @@ describe('ruins', () => {
     expect(near.y).toBeLessThan(rs[0].y + rs[0].h);
     expect(nearestRuin(4242, WORLD.W, WORLD.H, ['hull_shard'], rs[0].x, rs[0].y).y).not.toBe(near.y);
     expect(nearestRuin(4242, WORLD.W, WORLD.H, ['hull_shard', 'shield_lattice', 'thermal_siphon', 'matter_loom', 'control_key'], 0, 0)).toBeNull();
+  });
+});
+
+describe('ruin breach tier', () => {
+  it('every breach tile needs no more than its layer stratum tier (60 seeds)', () => {
+    for (let k = 0; k < 60; k++) {
+      const w = generateWorld(500 + k * 104729);
+      for (const r of planRuins(w.genSeed, w.W, w.H)) {
+        if (r.layer === 3) continue; // sealed in hull
+        for (const y of [r.y + r.h - 2, r.y + r.h - 3]) {
+          const i = y * w.W + r.x;
+          expect(requiredTier(w.tileType[i], w.oreType[i]), `seed ${k} layer ${r.layer}`).toBeLessThanOrEqual(PLANETS.earth.strata[r.layer].tier);
+        }
+      }
+    }
   });
 });

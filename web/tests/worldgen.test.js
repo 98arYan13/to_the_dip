@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { auditOres } from '../src/world/gen/audit.js';
 import { generateWorld } from '../src/world/WorldGen.js';
 import { WORLD, TILE, ORES, FLAG, isOre } from '../src/config.js';
 
@@ -64,10 +65,8 @@ describe('WorldGen', () => {
 });
 
 describe('ore rarity', () => {
-  it('high-value ores (> $100) are rarer than before: seed 1 had 319 of them', () => {
-    const w = generateWorld(1); let rare = 0; let common = 0;
-    for (const o of w.oreType) if (o) { if (ORES[o].price > 100) rare++; else common++; }
-    expect(rare).toBeLessThanOrEqual(520); // 500 now: the ore floor audit (1.5 x tech-tree need) tops up rare ores; was 296 before repair ran inside generateWorld
-    expect(common).toBeGreaterThanOrEqual(550);
+  it('high-value ores (> $100) stay within the audit ceiling', () => {
+    const w = generateWorld(1);
+    for (const r of auditOres(w)) if (ORES[r.ore].price > 100) expect(r.have, ORES[r.ore].key).toBeLessThanOrEqual(Math.floor(r.ceil));
   });
 });

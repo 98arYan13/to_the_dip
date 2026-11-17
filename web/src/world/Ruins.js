@@ -49,7 +49,10 @@ export function stampRuin(d, r) {
   };
   for (let y = r.y + 1; y < bottom; y++) for (let x = r.x + 1; x < right; x++) fillAt(x, y);
   set(r.x + (r.w >> 1), bottom - 1, TILE.RELIC);
-  if (r.layer !== 3) { rock(r.x, bottom - 1); rock(r.x, bottom - 2); } // the breach: two host-rock tiles in the left wall
+  // breach rock is the layer's own stratum rock, so the layer's pickaxe tier opens it even where bands drift
+  const strata = PLANETS[d.planet].strata;
+  const own = strata[Math.min(r.layer, strata.length - 1)].tile;
+  if (r.layer !== 3) { set(r.x, bottom - 1, own); set(r.x, bottom - 2, own); } // the breach: two host-rock tiles in the left wall
   if (r.layer === 2 || r.layer === 4) { // a safe two-tile tunnel to stand in before breaking in
     for (let k = 1; k <= 2; k++) { set(r.x - k, bottom - 1, TILE.AIR); rock(r.x - k, bottom); }
     protectRect(d, r.x - 2, bottom - 1, 2, 2);

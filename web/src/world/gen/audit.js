@@ -102,8 +102,7 @@ function reachTargets(d, starts) {
   for (let k = 1; k < strata.length; k++) out.push({ label: `stratum ${k} top`, cols: cols.map((x) => [x, starts[k * d.W + x]]), tier: strata[k].tier, magma: false, host: strata[k].tile });
   planRuins(d.seed, d.W, d.H, PLANETS[d.planet]).forEach((r) => {
     const own = strata[Math.min(r.layer, strata.length - 1)];
-    const host = d.band[(r.y + r.h - 2) * d.W + r.x] || own.tile; // ruin layers and strata overlap loosely: take the rock actually at the breach
-    out.push({ label: `ruin ${r.layer}`, cols: [[r.x, r.y + r.h - 2]], tier: Math.max(own.tier, MATERIALS[host].tier), magma: false, host });
+    out.push({ label: `ruin ${r.layer}`, cols: [[r.x, r.y + r.h - 2]], tier: own.tier, magma: false, host: own.tile });
   });
   const c = coreChamber(d.W, d.H);
   out.push({ label: 'core chamber', cols: [[c.x + (c.w >> 1), c.y + (c.h >> 1)]], tier: 6, magma: true, host: TILE.CORE });

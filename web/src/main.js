@@ -175,7 +175,7 @@ function boot() {
   hud.setMuted(settingsValues.muted);
   bus.emit(EV.HP_CHANGED, player.hp);
   const toast = new Toast(hudRoot);
-  const minimap = new Minimap(hud.minimapParent, bus, economy, () => seed);
+  const minimap = new Minimap(hud.minimapParent, bus, economy, () => world.genSeed);
   minimap.setWorld(world);
   const storyModal = new StoryModal(hudRoot, { onClose: () => { if (!showStory()) { input.clear(); if (!shop.open) canvas.focus(); } } });
   const showStory = () => {
