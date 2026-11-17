@@ -6,6 +6,7 @@
 import { WORLD, TILE, ORE, FLAG, MATERIALS, ORES, ORE_HP_MUL, MINING, WORLD_RARITY } from '../config.js';
 import { RNG } from '../core/RNG.js';
 import { planZones, stampZone, stampCore } from './Zones.js';
+import { planRuins, stampRuin } from './Ruins.js';
 import { createNoise2D, fbm } from '../core/Noise.js';
 
 /** Band material ids, top to bottom. */
@@ -23,7 +24,7 @@ export const BAND_MATERIALS = Object.freeze([TILE.SOIL, TILE.LIMESTONE, TILE.GRA
 export function maxHPFor(type, ore) {
   const m = MATERIALS[type];
   if (!m || !m.solid) return 0;
-  if (type === TILE.BEDROCK) return m.hp;
+  if (m.hp >= 65535) return m.hp; // bedrock and alien hull: unbreakable, must not scale past Uint16
   return Math.round(m.hp * MINING.HP_MULT * (ore ? ORE_HP_MUL : 1));
 }
 
@@ -169,6 +170,7 @@ export function generateWorld(seed, W = WORLD.W, H = WORLD.H) {
     const d = { W, H, tileType, oreType, flags, fluid, gas, band };
     const zrng = new RNG((seed ^ 0x5a17) >>> 0);
     for (const z of planZones(seed, W, H)) stampZone(d, z, zrng);
+    for (const r of planRuins(seed, W, H)) stampRuin(d, r);
     stampCore(d);
   }
 

@@ -6,7 +6,7 @@
 
 /** Tile type ids (stored in World.tileType). */
 export const TILE = Object.freeze({
-  AIR: 0, SOIL: 1, LIMESTONE: 2, GRANITE: 3, BASALT: 4, MANTLE: 5, BEDROCK: 6, WATER: 7, MAGMA: 8, CORE: 9, SAND: 10, LADDER: 11,
+  AIR: 0, SOIL: 1, LIMESTONE: 2, GRANITE: 3, BASALT: 4, MANTLE: 5, BEDROCK: 6, WATER: 7, MAGMA: 8, CORE: 9, SAND: 10, LADDER: 11, ALIEN_HULL: 12, RELIC: 13,
 });
 
 /** Ore ids (stored in World.oreType), in the design-table rank order. */
@@ -71,6 +71,8 @@ export const ZONES = Object.freeze({
   BANDS: { sand_pocket: [0.03, 0.4], fossil_chamber: [0.12, 0.4], aquifer: [0.15, 0.55], vault: [0.2, 0.8], gas_cavern: [0.3, 0.75], crystal_geode: [0.35, 0.9], lava_lake: [0.78, 0.92] },
   SIZE: { sand_pocket: [6, 5], fossil_chamber: [7, 5], aquifer: [8, 5], vault: [8, 6], gas_cavern: [9, 6], crystal_geode: [7, 6], lava_lake: [10, 6] },
   CORE_CHAMBER: { W: 9, H: 5 },
+  /** One alien ruin per LAYERS entry (world/Ruins.js); SIZE is [w, h] incl. the hull ring. */
+  RUIN: { SIZE: [9, 6] },
 });
 
 export const CORE_GOAL = Object.freeze({ HOLD_S: 20, REWARD_CASH: 100000, QUAKE_EVERY_S: 4 });
@@ -227,6 +229,11 @@ export const MATERIALS = Object.freeze([
   // Placed by the player (systems/Items.js); walkable, climbable.
   { id: 11, key: 'LADDER', name: 'Ladder', hp: 0, tier: 0, solid: false, sfx: 'none',
     colors: { base: '#8a5a2b', dark: '#4f3220', light: '#b98046', accent: '#6b4423', extra: '#3b2a1a' } },
+  // Alien ruins (world/Ruins.js): the hull only yields to a Big Bomb; the relic is mined by hand, hard 9 keeps both out of quake rockfall.
+  { id: 12, key: 'ALIEN_HULL', name: 'Alien Hull', hp: 65535, tier: 99, hard: 9, solid: true, sfx: 'clink',
+    colors: { base: '#3a2a5c', dark: '#1e1433', light: '#6a4ea8', accent: '#b08cff', extra: '#120b20' } },
+  { id: 13, key: 'RELIC', name: 'Alien Relic', hp: 12, tier: 1, hard: 9, solid: true, sfx: 'clink',
+    colors: { base: '#2ac0d0', dark: '#156068', light: '#a0f8ff', accent: '#ffffff', extra: '#0b3034' } },
 ]);
 
 /**

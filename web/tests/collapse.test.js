@@ -30,6 +30,15 @@ describe('collapse', () => {
     expect(w.tileType[(y + 4) * w.W + x]).toBe(TILE.SAND);
     expect(w.flags[(y + 4) * w.W + x] & FLAG.UNSTABLE).toBe(0);
   });
+  it('a RELIC tile with air below is never marked unstable and never falls', () => {
+    const { w, c, i, x, y } = setup(TILE.RELIC);
+    for (let yy = y + 1; yy < y + 4; yy++) w.clear(yy * w.W + x);
+    expect(isUnstable(w, x, y)).toBe(false);
+    c.markDirty(x, y); c.markDirty(x, y + 1);
+    run(c, HAZARD.COLLAPSE.WARN_S + 2);
+    expect(w.tileType[i]).toBe(TILE.RELIC);
+    expect(w.flags[i] & FLAG.UNSTABLE).toBe(0);
+  });
   it('soil in a tunnel ceiling (solid on a side) stays up', () => {
     const { w, c, x, y } = setup(TILE.SOIL);
     w.clear((y + 1) * w.W + x);

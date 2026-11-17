@@ -4,6 +4,7 @@
  */
 import { TILE, ORE, MATERIALS, ORES, PICKAXES, MINING, WORLD, DYNAMITE } from '../config.js';
 import { EV } from '../core/EventBus.js';
+import { relicIdAt } from '../world/Ruins.js';
 
 /** Ground under the base camp buildings stays solid so the camp and spawn point never float. */
 export function isCampGround(x, y) {
@@ -65,8 +66,10 @@ export const DYN_COLLECT = 2;
  * Never bypasses the diamond gate or bedrock.
  * @returns {0|1|2}
  */
-export function dynamiteOutcome(type, ore, pickTier) {
+export function dynamiteOutcome(type, ore, pickTier, big = false) {
   const m = MATERIALS[type];
+  if (type === TILE.RELIC) return DYN_KEEP;
+  if (type === TILE.ALIEN_HULL) return big ? DYN_DESTROY : DYN_KEEP;
   if (!m || !m.solid || type === TILE.BEDROCK) return DYN_KEEP;
   if (m.tier > pickTier + 1) return DYN_KEEP;
   if (type === TILE.CORE && pickTier < m.tier) return DYN_KEEP; // the Core needs the tier-6 drill, no bomb shortcut
@@ -190,6 +193,11 @@ export class Mining {
     const ore = w.oreType[i];
     const x = i % w.W; const y = (i / w.W) | 0;
     w.clear(i);
+    if (type === TILE.RELIC) {
+      const id = relicIdAt(y, w.H);
+      if (id && !this.economy.relics.includes(id)) this.economy.relics.push(id);
+      this.bus.emit(EV.RELIC_FOUND, { id });
+    }
     this._untrack(i);
     if (this.recoilTile === i) this.recoilTile = -1;
     if (ore && collectOre && !this.economy.addOre(ore)) {
@@ -205,7 +213,7 @@ export class Mining {
    * Dynamite blast centred on tile (tx, ty).
    * @returns {number} tiles destroyed
    */
-  blast(tx, ty, r = DYNAMITE.RADIUS) {
+  blast(tx, ty, r = DYNAMITE.RADIUS, big = false) {
     const w = this.world;
     const tier = this.economy.pickTier;
     let n = 0;
@@ -214,7 +222,7 @@ export class Mining {
       if (!w.inBounds(x, y)) continue;
       const i = y * w.W + x;
       if (this.gas && !this.gas.exploding && w.gas[i] > 0) this.gas.explodeAt(x, y);
-      const out = isCampGround(x, y) ? DYN_KEEP : dynamiteOutcome(w.tileType[i], w.oreType[i], tier);
+      const out = isCampGround(x, y) ? DYN_KEEP : dynamiteOutcome(w.tileType[i], w.oreType[i], tier, big);
       if (out === DYN_KEEP) { if (w.oreType[i]) this.vis.revealAround(x, y); continue; }
       this.breakTile(i, out === DYN_COLLECT);
       n++;

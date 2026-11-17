@@ -37,6 +37,14 @@ describe('fluids', () => {
     expect(w.tileType[60 * w.W + 15]).toBe(TILE.WATER); // reached the floor
     expect(f.dirty.size).toBe(0);
   });
+  it('a fluid step leaves a RELIC tile untouched', () => {
+    const w = box((w) => air(w, 10, 50, 20, 60));
+    const f = new Fluids(w, new EventBus());
+    const r = 55 * w.W + 15; w.tileType[r] = TILE.RELIC; w.flags[r] |= FLAG.SOLID;
+    const i = 50 * w.W + 15; w.tileType[i] = TILE.WATER; w.fluid[i] = 8; f.dirty.add(i);
+    run(f, 400);
+    expect(w.tileType[r]).toBe(TILE.RELIC);
+  });
   it('magma meeting water becomes basalt', () => {
     const w = box((w) => air(w, 10, 50, 14, 52));
     const f = new Fluids(w, new EventBus());

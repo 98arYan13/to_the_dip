@@ -90,3 +90,30 @@ describe('core vs dynamite', () => {
     expect(dynamiteOutcome(T_.CORE, 0, 6)).toBe(DYN_DESTROY);
   });
 });
+
+import { Mining } from '../src/systems/Mining.js';
+import { EventBus, EV } from '../src/core/EventBus.js';
+import { World } from '../src/world/World.js';
+import { generateWorld } from '../src/world/WorldGen.js';
+describe('alien ruins vs mining', () => {
+  it('hull resists everything but a big bomb; the relic resists every bomb', () => {
+    expect(canMine(TILE.ALIEN_HULL, 0, 6)).toBe(false);
+    expect(dynamiteOutcome(TILE.ALIEN_HULL, 0, 6)).toBe(DYN_KEEP);
+    expect(dynamiteOutcome(TILE.ALIEN_HULL, 0, 1, true)).toBe(DYN_DESTROY);
+    expect(dynamiteOutcome(TILE.RELIC, 0, 6, true)).toBe(DYN_KEEP);
+    expect(canMine(TILE.RELIC, 0, 1)).toBe(true);
+  });
+  it('breaking a relic tile records it once and emits RELIC_FOUND', () => {
+    const w = new World(generateWorld(4242));
+    const i = w.tileType.indexOf(TILE.RELIC);
+    const bus = new EventBus(); const found = [];
+    bus.on(EV.RELIC_FOUND, (e) => found.push(e.id));
+    const economy = { relics: [], pickTier: 1 };
+    const m = new Mining(w, bus, economy, { revealAround() {} }, { spawn() {} });
+    m.breakTile(i, true);
+    expect(economy.relics).toEqual(found);
+    expect(found.length).toBe(1);
+    m.breakTile(i, true); // already air: the type check stops a second record
+    expect(economy.relics.length).toBe(1);
+  });
+});

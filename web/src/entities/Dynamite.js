@@ -80,7 +80,7 @@ export class DynamiteSystem {
   _detonate(d) {
     const T = WORLD.TILE_PX;
     const cx = d.x + d.w / 2; const cy = d.y + d.h / 2;
-    this.mining.blast(Math.floor(cx / T), Math.floor(cy / T), d.big ? DYNAMITE.BIG_RADIUS : DYNAMITE.RADIUS);
+    this.mining.blast(Math.floor(cx / T), Math.floor(cy / T), d.big ? DYNAMITE.BIG_RADIUS : DYNAMITE.RADIUS, d.big);
     this.lastExplosionAge = 0;
     this.payload.x = cx; this.payload.y = cy;
     this.bus.emit(EV.EXPLOSION, this.payload);

@@ -52,7 +52,7 @@ describe('WorldGen', () => {
     const d = [TILE.SOIL, TILE.LIMESTONE, TILE.GRANITE, TILE.BASALT, TILE.MANTLE, TILE.CORE].map(depthOf);
     for (let k = 1; k < d.length; k++) expect(d[k]).toBeGreaterThan(d[k - 1]);
     for (let i = 0; i < a.tileType.length; i++) {
-      const solid = a.tileType[i] >= TILE.SOIL && a.tileType[i] <= TILE.BEDROCK || a.tileType[i] === TILE.CORE || a.tileType[i] === TILE.SAND;
+      const solid = a.tileType[i] >= TILE.SOIL && a.tileType[i] <= TILE.BEDROCK || a.tileType[i] === TILE.CORE || a.tileType[i] === TILE.SAND || a.tileType[i] === TILE.ALIEN_HULL || a.tileType[i] === TILE.RELIC;
       expect((a.flags[i] & FLAG.SOLID) !== 0).toBe(solid);
     }
   });

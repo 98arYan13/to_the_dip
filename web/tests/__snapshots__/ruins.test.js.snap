@@ -1,0 +1,97 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`ruins > existing zones are unchanged 1`] = `
+[
+  {
+    "h": 5,
+    "kind": "sand_pocket",
+    "w": 6,
+    "x": 6,
+    "y": 14,
+  },
+  {
+    "h": 5,
+    "kind": "fossil_chamber",
+    "w": 7,
+    "x": 10,
+    "y": 83,
+  },
+  {
+    "h": 5,
+    "kind": "sand_pocket",
+    "w": 6,
+    "x": 15,
+    "y": 70,
+  },
+  {
+    "h": 5,
+    "kind": "sand_pocket",
+    "w": 6,
+    "x": 39,
+    "y": 77,
+  },
+  {
+    "h": 6,
+    "kind": "gas_cavern",
+    "w": 9,
+    "x": 37,
+    "y": 104,
+  },
+  {
+    "h": 5,
+    "kind": "aquifer",
+    "w": 8,
+    "x": 14,
+    "y": 130,
+  },
+  {
+    "h": 6,
+    "kind": "crystal_geode",
+    "w": 7,
+    "x": 52,
+    "y": 115,
+  },
+  {
+    "h": 6,
+    "kind": "vault",
+    "w": 8,
+    "x": 5,
+    "y": 160,
+  },
+  {
+    "h": 6,
+    "kind": "gas_cavern",
+    "w": 9,
+    "x": 10,
+    "y": 183,
+  },
+  {
+    "h": 6,
+    "kind": "crystal_geode",
+    "w": 7,
+    "x": 50,
+    "y": 175,
+  },
+  {
+    "h": 6,
+    "kind": "lava_lake",
+    "w": 10,
+    "x": 14,
+    "y": 212,
+  },
+  {
+    "h": 6,
+    "kind": "crystal_geode",
+    "w": 7,
+    "x": 49,
+    "y": 209,
+  },
+  {
+    "h": 6,
+    "kind": "crystal_geode",
+    "w": 7,
+    "x": 39,
+    "y": 206,
+  },
+]
+`;

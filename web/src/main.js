@@ -13,6 +13,7 @@ import { Input } from './core/Input.js';
 import { randomSeed, RNG } from './core/RNG.js';
 import { log } from './core/log.js';
 import { World } from './world/World.js';
+import { clearOwnedRelics } from './world/Ruins.js';
 import { Visibility } from './world/Visibility.js';
 import { ChunkCache } from './world/ChunkCache.js';
 import { Player } from './entities/Player.js';
@@ -92,6 +93,7 @@ function boot() {
   let seed = loaded.ok ? loaded.data.seed : slot === 0 ? dailySeed() : randomSeed();
   let world = loaded.ok ? new World(loaded.data.world) : World.generate(seed);
   const economy = new Economy(bus, loaded.ok ? loaded.data.economy : saves.takeCarry() || createEconomyState());
+  if (!loaded.ok) clearOwnedRelics(world, economy.relics); // a new map starts without relics the player already holds
   const vis = new Visibility(world, bus);
   const physics = new Physics(world);
   const pickups = new PickupSystem(physics, bus);

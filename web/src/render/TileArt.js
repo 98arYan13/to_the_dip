@@ -10,7 +10,7 @@ import { createCanvas, get2D, hexToRgb } from './canvas.js';
 
 const T = WORLD.TILE_PX;
 const N = T * T * 4;
-const SOLID_TYPES = [TILE.SOIL, TILE.LIMESTONE, TILE.GRANITE, TILE.BASALT, TILE.MANTLE, TILE.BEDROCK, TILE.MAGMA, TILE.WATER, TILE.CORE, TILE.SAND];
+const SOLID_TYPES = [TILE.SOIL, TILE.LIMESTONE, TILE.GRANITE, TILE.BASALT, TILE.MANTLE, TILE.BEDROCK, TILE.MAGMA, TILE.WATER, TILE.CORE, TILE.SAND, TILE.ALIEN_HULL, TILE.RELIC];
 const BAND_TYPES = [TILE.SOIL, TILE.LIMESTONE, TILE.GRANITE, TILE.BASALT, TILE.MANTLE, TILE.CORE];
 
 /** Small RGBA painter for one 32×32 cell. */
@@ -203,6 +203,17 @@ export class TileArt {
             const r = rng.float();
             if (r < 0.1) c = col.light; else if (r < 0.2) c = col.accent; else if (r < 0.23) c = col.extra;
             if (((y + Math.floor(n * 4)) % 6) === 0) c = col.dark;
+            break;
+          }
+          case TILE.ALIEN_HULL: {
+            if (((x + y * 2) % 8) === 0 || x === 0 || y === 0) c = col.dark;
+            else if (((x - y + 16) % 9) === 0) c = col.light;
+            if (rng.float() < 0.02) c = col.accent;
+            break;
+          }
+          case TILE.RELIC: {
+            const dx = x - T / 2 + 0.5; const dy = y - T / 2 + 0.5; const r = Math.abs(dx) + Math.abs(dy);
+            if (r < 3) { c = col.accent; shade = 1; } else if (r < 6) { c = col.light; shade = 1; } else if (r > 10) c = col.dark;
             break;
           }
           case TILE.BEDROCK: {

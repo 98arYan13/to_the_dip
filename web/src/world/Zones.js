@@ -17,7 +17,26 @@ export function coreChamber(W, H) {
   return { x: Math.floor((W - w) / 2), y: H - 3 - h, w, h };
 }
 
-const overlaps = (a, b, pad) => a.x - pad < b.x + b.w && b.x - pad < a.x + a.w && a.y - pad < b.y + b.h && b.y - pad < a.y + a.h;
+export const overlaps = (a, b, pad) => a.x - pad < b.x + b.w && b.x - pad < a.x + a.w && a.y - pad < b.y + b.h && b.y - pad < a.y + a.h;
+
+/** Areas no designed zone or ruin may touch: the shaft, the camp pad and the core chamber. */
+export function blockedAreas(W, H) {
+  const bc = WORLD.BASE_CAMP;
+  return [
+    { x: bc.SHAFT_X - 3, y: 0, w: 7, h: H },
+    { x: bc.PAD_X0 - 3, y: 0, w: bc.PAD_X1 - bc.PAD_X0 + 7, h: WORLD.SURFACE_ROWS + bc.PAD_DEPTH + 4 },
+    (({ x, y, w, h }) => ({ x: x - 2, y: y - 2, w: w + 4, h: h + 4 }))(coreChamber(W, H)),
+  ];
+}
+
+/** Tile writer shared by every stamper: sets type/ore/fluid/gas and the SOLID flag together. */
+export function gridSet(d) {
+  return (x, y, type, ore = 0, fluid = 0, gas = 0) => {
+    const i = y * d.W + x;
+    d.tileType[i] = type; d.oreType[i] = ore; d.fluid[i] = fluid; d.gas[i] = gas;
+    d.flags[i] = (d.flags[i] & ~(FLAG.SOLID | FLAG.FUNGI | FLAG.MOSS)) | (MATERIALS[type].solid ? FLAG.SOLID : 0);
+  };
+}
 
 /**
  * @param {number} seed @param {number} W @param {number} H
@@ -25,12 +44,8 @@ const overlaps = (a, b, pad) => a.x - pad < b.x + b.w && b.x - pad < a.x + a.w &
  */
 export function planZones(seed, W, H) {
   const rng = new RNG((seed ^ 0x2d9b) >>> 0);
-  const SR = WORLD.SURFACE_ROWS; const U = under(H); const bc = WORLD.BASE_CAMP;
-  const blocked = [
-    { x: bc.SHAFT_X - 3, y: 0, w: 7, h: H },
-    { x: bc.PAD_X0 - 3, y: 0, w: bc.PAD_X1 - bc.PAD_X0 + 7, h: SR + bc.PAD_DEPTH + 4 },
-    (({ x, y, w, h }) => ({ x: x - 2, y: y - 2, w: w + 4, h: h + 4 }))(coreChamber(W, H)),
-  ];
+  const SR = WORLD.SURFACE_ROWS; const U = under(H);
+  const blocked = blockedAreas(W, H);
   /** @type {{kind:string, x:number, y:number, w:number, h:number}[]} */
   const zones = [];
   ZONES.LAYERS.forEach(([l0, l1], k) => {
@@ -73,11 +88,7 @@ function bestOre(mat) {
 export function stampZone(d, z, rng) {
   const W = d.W;
   const idx = (x, y) => y * W + x;
-  const set = (x, y, type, ore = 0, fluid = 0, gas = 0) => {
-    const i = idx(x, y);
-    d.tileType[i] = type; d.oreType[i] = ore; d.fluid[i] = fluid; d.gas[i] = gas;
-    d.flags[i] = (d.flags[i] & ~(FLAG.SOLID | FLAG.FUNGI | FLAG.MOSS)) | (MATERIALS[type].solid ? FLAG.SOLID : 0);
-  };
+  const set = gridSet(d);
   const host = (x, y) => d.band[idx(x, y)] || TILE.SOIL;
   const rock = (x, y, ore = 0) => set(x, y, host(x, y), ore);
   const ring = () => { for (let y = z.y; y < z.y + z.h; y++) for (let x = z.x; x < z.x + z.w; x++) if (x === z.x || y === z.y || x === z.x + z.w - 1 || y === z.y + z.h - 1) rock(x, y); };
