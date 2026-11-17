@@ -176,7 +176,7 @@ export class Player {
         }
         const flat = pick.powered && (energy.value < 0.5 || this.gearOffline);
         if (flat) {
-          if (!this.flatHinted) { this.flatHinted = true; bus.emit(EV.HINT, 'Drill battery empty — recharge at the station'); }
+          if (!this.flatHinted) { this.flatHinted = true; bus.emit(EV.HINT, this.gearOffline ? 'Electronics offline' : 'Drill battery empty — recharge at the station'); }
         } else { this.flatHinted = false; this.swingTimer += dt; }
         if (this.swingTimer >= swing) {
           this.swingTimer -= swing;

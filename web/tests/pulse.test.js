@@ -42,7 +42,10 @@ describe('Pulse', () => {
     const { p, ev } = setup();
     for (let i = 0; i < 100000 && !ev.some((e) => e[0] === 'pulse'); i++) p.update(0.1, 400, false);
     p.reset(); expect(p.stun).toBe(0);
-    ev.length = 0; p.update(0.1, 400, false); // timer was re-armed: no immediate event
-    p.warn = 3; p.reset(); run(p, 400, false, 1); expect(ev.some((e) => e[0] === 'pulse')).toBe(false);
+    ev.length = 0;
+    p.warn = 3; p.reset();
+    expect(p.warn).toBeLessThan(0); expect(p.stun).toBe(0);
+    run(p, 400, false, 10); // shorter than the minimum gap, so any event means the warning survived
+    expect(ev).toEqual([]);
   });
 });

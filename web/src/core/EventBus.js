@@ -58,7 +58,7 @@ export const EV = Object.freeze({
   TECH_UNLOCKED: 'tech:unlocked',         // payload: tech id
   RELIC_FOUND: 'relic:found',            // payload: {id}
   PULSE_WARN: 'pulse:warn',              // payload: {seconds}
-  PULSE: 'pulse',                        // payload: {strength}
+  PULSE: 'pulse',                        // payload: {sheltered}
   CORE_DENIED: 'core:denied',
   CRAFTED: 'crafted',                    // payload: recipe id
   LOG_ENTRY: 'story:log',                // payload: {id}
