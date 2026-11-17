@@ -55,6 +55,13 @@ export function stampRuin(d, r) {
     protectRect(d, r.x - 2, bottom - 1, 2, 2);
   }
   protectRect(d, r.x, r.y, r.w, r.h);
+  // fleck: one hull tile detached by a tile of rock or cave, above (else below) the ruin, hints at it from outside
+  outer: for (const y of [r.y - 2, r.y + r.h + 1]) {
+    for (let x = r.x + 1; x < r.x + r.w - 1; x++) {
+      const i = y * W + x;
+      if (!d.protect[i]) { set(x, y, TILE.ALIEN_HULL); break outer; }
+    }
+  }
 }
 
 /** Relic id for the layer containing row `y`. */

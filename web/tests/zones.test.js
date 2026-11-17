@@ -38,7 +38,7 @@ describe('set pieces', () => {
   });
   it('ore rewards are worth 0.5-1.0 trips of the era that reaches them', () => {
     let seen = 0;
-    for (const s of seeds.slice(0, 20)) {
+    for (const s of seeds) {
       const w = generateWorld(s);
       for (const z of planZones(s, W, H)) {
         if (SET_PIECES[z.kind].reward !== 'ore') continue;
@@ -49,10 +49,10 @@ describe('set pieces', () => {
         expect(r, `seed ${s} ${z.kind}`).toBeLessThanOrEqual(1.0);
       }
     }
-    expect(seen).toBeGreaterThan(20);
+    expect(seen).toBeGreaterThan(50);
   });
   it('gas and magma pieces keep their safe approach tunnel', () => {
-    for (const s of seeds.slice(0, 20)) {
+    for (const s of seeds) {
       const w = generateWorld(s);
       for (const z of planZones(s, W, H)) {
         if (!['gas_cavern', 'lava_lake', 'magma_chamber'].includes(z.kind)) continue;
@@ -66,7 +66,7 @@ describe('set pieces', () => {
     }
   });
   it('every signed piece has a sign tile within 3 tiles outside its wall', () => {
-    for (const s of seeds.slice(0, 20)) {
+    for (const s of seeds) {
       const d = generateWorld(s);
       for (const z of planZones(s, W, H)) {
         const sign = SET_PIECES[z.kind].sign;
@@ -87,4 +87,6 @@ describe('set pieces', () => {
     expect(ps.some((p) => p.kind === 'lava_tube')).toBe(false);
     for (const lm of ['sand_pocket', 'fossil_chamber', 'gas_cavern', 'vault', 'lava_lake']) expect(ps.some((p) => p.kind === lm), lm).toBe(true);
   });
+  it('generates 50 seeds without throwing', () => { for (const s of seeds) expect(() => generateWorld(s)).not.toThrow(); });
+  it('generates seed 341517 (a host with no ore of its own)', () => { expect(() => generateWorld(341517)).not.toThrow(); });
 });

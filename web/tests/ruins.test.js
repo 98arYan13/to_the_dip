@@ -24,6 +24,34 @@ describe('ruins', () => {
       for (const r of rs) for (const z of zs) expect(rectsOverlap(r, z, 3), `seed ${s}`).toBe(false);
     }
   });
+  it('planRuins rects match the stamped ruins: that layer relic and a hull ring', () => {
+    for (const s of seeds) {
+      const w = generateWorld(s);
+      for (const r of planRuins(s, w.W, w.H)) {
+        let relics = 0; let hull = 0;
+        for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) {
+          const t = w.tileType[y * w.W + x];
+          if (t === TILE.RELIC) { relics++; expect(relicIdAt(y, w.H)).toBe(RELICS.find((q) => q.layer === r.layer).id); }
+          if (t === TILE.ALIEN_HULL && (x === r.x || y === r.y || x === r.x + r.w - 1 || y === r.y + r.h - 1)) hull++;
+        }
+        expect(relics, `seed ${s}`).toBe(1);
+        expect(hull, `seed ${s}`).toBe(r.layer === 3 ? 26 : 24);
+      }
+    }
+  });
+  it('each ruin has one detached hull tile outside its wall', () => {
+    for (const s of seeds) {
+      const w = generateWorld(s);
+      for (const r of planRuins(s, w.W, w.H)) {
+        let n = 0;
+        for (let y = r.y - 3; y < r.y + r.h + 3; y++) for (let x = r.x - 3; x < r.x + r.w + 3; x++) {
+          if (x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h) continue;
+          if (w.tileType[y * w.W + x] === TILE.ALIEN_HULL) n++;
+        }
+        expect(n, `seed ${s}`).toBeGreaterThanOrEqual(1);
+      }
+    }
+  });
   it('each generated world has exactly five relic tiles, one per layer', () => {
     expect(relicIds(generateWorld(4242)).sort()).toEqual(['control_key', 'hull_shard', 'matter_loom', 'shield_lattice', 'thermal_siphon']);
   });

@@ -61,7 +61,8 @@ export function planZones(seed, W, H, planet = PLANETS.earth) {
   /** Landmarks retry with a shrinking gap to other pieces rather than vanish; optional pieces are simply skipped. */
   const place = (kind, st, gaps) => {
     const [bw, bh] = SET_PIECES[kind].size;
-    const yMin = SR + Math.ceil(U * st.from); const yMax = SR + Math.floor(U * st.to) - bh;
+    const nz = WORLD.BAND_NOISE_AMP * 2; // keep clear of the noisy stratum boundaries so the host rock is the stratum's own
+    const yMin = SR + Math.ceil(U * st.from) + nz; const yMax = SR + Math.floor(U * st.to) - bh - nz;
     if (yMax < yMin || W - bw - 3 < 3) return;
     for (const gap of gaps) {
       for (let attempt = 0; attempt < 200; attempt++) {
@@ -102,10 +103,12 @@ function bestOre(mat) {
  * Spread `ore` over `cells` (earlier cells first when topping up): each cell takes it with `chance`, then the count is
  * clamped so the piece is worth 0.55-0.95 trips of the era that reaches it (tier capped at 4: a mantle piece cannot hold more than a trip of diamonds).
  */
-function seedOre(d, cells, ore, chance, mat, rng) {
-  const T = expectedTripIncome(Math.min(MATERIALS[mat].tier, 4)); const price = /** @type {any} */ (ORES[ore]).price;
+function seedOre(d, cells, ore, chance, mat, rng, z) {
+  if (!ore) return; // host rock with no ore of its own
+  for (let y = z.y; y < z.y + z.h; y++) for (let x = z.x; x < z.x + z.w; x++) d.oreType[y * d.W + x] = 0; // vein ore must not add to the reward
+  const T = expectedTripIncome(Math.min(MATERIALS[mat].tier, 4)); const price = /** @type {any} */ (ORES[ore]).price; // tier cap accepted: a tier-5 trip cannot fit in a mantle piece
   const hit = cells.filter(() => rng.chance(chance)); const order = [...hit, ...cells.filter((c) => !hit.includes(c))];
-  const n = Math.min(cells.length, Math.max(Math.ceil(0.55 * T / price), Math.min(hit.length, Math.floor(0.95 * T / price))));
+  const n = Math.min(cells.length, Math.floor(T / price), Math.max(Math.ceil(0.5 * T / price), hit.length));
   for (const [x, y] of order.slice(0, n)) d.oreType[y * d.W + x] = ore;
 }
 
@@ -146,7 +149,7 @@ export function stampSetPiece(d, z, rng) {
     case 'vault':
       ring(); inner((x, y) => set(x, y, TILE.AIR));
       for (let x = z.x + 1; x < z.x + z.w - 1; x++) rock(x, ay);
-      seedOre(d, [...cellsWhere((x, y) => y === ay), ...cellsWhere(onRing)], rich, 0.7, mat, rng);
+      seedOre(d, [...cellsWhere((x, y) => y === ay), ...cellsWhere(onRing)], rich, 0.7, mat, rng, z);
       break;
     case 'fossil_chamber':
       ring(); inner((x, y) => set(x, y, TILE.AIR));
@@ -167,11 +170,11 @@ export function stampSetPiece(d, z, rng) {
       break;
     case 'crystal_geode':
       ring(); inner((x, y) => set(x, y, TILE.AIR));
-      seedOre(d, cellsWhere(onRing), rich, 0.6, mat, rng);
+      seedOre(d, cellsWhere(onRing), rich, 0.6, mat, rng, z);
       break;
     case 'karst_shaft': // 3-wide void, the bottom two rows flooded, ore in the side walls
       ring(); inner((x, y) => (y >= z.y + z.h - 3 ? set(x, y, TILE.WATER, 0, MAX) : set(x, y, TILE.AIR)));
-      seedOre(d, cellsWhere((x, y) => (x === z.x || x === z.x + z.w - 1) && y > z.y && y < z.y + z.h - 1), rich, 0.5, mat, rng);
+      seedOre(d, cellsWhere((x, y) => (x === z.x || x === z.x + z.w - 1) && y > z.y && y < z.y + z.h - 1), rich, 0.5, mat, rng, z);
       break;
     case 'lava_tube': // 3-high tunnel; the cracked roof is the warning, ore on the floor
       ring(); inner((x, y) => set(x, y, TILE.AIR));
@@ -179,7 +182,7 @@ export function stampSetPiece(d, z, rng) {
       break;
     case 'magma_chamber': // magma left, right and below an air pocket; the ore is in the roof
       ring(); inner((x, y) => (x === z.x + 1 || x === z.x + z.w - 2 || y === ay ? set(x, y, TILE.MAGMA, 0, MAX) : set(x, y, TILE.AIR)));
-      seedOre(d, [...cellsWhere((x, y) => y === z.y), ...cellsWhere((x, y) => onRing(x, y) && y !== z.y)], rich, 0.7, mat, rng);
+      seedOre(d, [...cellsWhere((x, y) => y === z.y), ...cellsWhere((x, y) => onRing(x, y) && y !== z.y)], rich, 0.7, mat, rng, z);
       break;
     default: break;
   }
@@ -207,7 +210,7 @@ function signpost(d, z, rich, rng) {
   for (let n = sign === 'moss' ? 3 : 2; n > 0 && cand.length; n--) {
     const [x, y] = cand.splice(rng.int(0, cand.length - 1), 1)[0];
     if (sign === 'moss') d.flags[y * d.W + x] |= FLAG.MOSS;
-    else if (sign === 'glint') d.oreType[y * d.W + x] = rich;
+    else if (sign === 'glint') { if (rich) d.oreType[y * d.W + x] = rich; }
     else gridSet(d)(x, y, TILE.MAGMA, 0, HAZARD.FLUID.MAX);
   }
 }

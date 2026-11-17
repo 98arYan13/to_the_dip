@@ -65,7 +65,6 @@ export const HAZARD = Object.freeze({
 /** Toxic/explosive gas: per-tile concentration 0..MAX in open air; sealed pockets until a wall breaks. */
 export const GAS = Object.freeze({ MAX: 8, STEP_S: 0.25, DPS: 6, EXPLODE_R: 2, MAX_CHAIN_PER_TICK: 40, MAX_PER_TICK: 400 });
 
-/** Designed zones (world/Zones.js). BANDS are depth fractions of the underground; SIZE is [w, h] incl. a 1-tile wall ring. */
 /**
  * Set pieces: size [w, h] incl. the wall, strata = stratum indices that may host it, landmarkOf = the stratum whose guaranteed landmark it is,
  * hazard/reward/sign describe the piece for the player (sign = a hint tile just outside the wall).
