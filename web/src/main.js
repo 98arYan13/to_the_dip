@@ -5,7 +5,7 @@
  */
 import {
   WORLD, TILE, FLAG, CAMP_BUILDINGS, MATERIALS, PHYSICS, CAMERA, MINING, ENERGY, RADAR, TELEPORT, CONSUMABLES, GAMEPAD,
-  PARTICLES, QUALITY, SAVE, SETTINGS_DEFAULT, PICKAXES, RELICS,
+  PARTICLES, QUALITY, SAVE, SETTINGS_DEFAULT, PICKAXES, RELICS, underM,
 } from './config.js';
 import { EventBus, EV } from './core/EventBus.js';
 import { GameLoop } from './core/GameLoop.js';
@@ -59,7 +59,8 @@ import { DebugOverlay } from './debug/DebugOverlay.js';
 
 const T = WORLD.TILE_PX;
 const SURFACE_PX = WORLD.SURFACE_ROWS * T;
-const UNDERGROUND_PX = (WORLD.H - 1 - WORLD.SURFACE_ROWS) * T;
+/** Underground depth in px of a world. @param {{H:number}} w */
+const undergroundPx = (w) => (w.H - 1 - WORLD.SURFACE_ROWS) * T;
 
 /** localStorage with a graceful in-memory fallback. */
 function safeStorage() {
@@ -94,8 +95,10 @@ function boot() {
   // ---------- World & simulation ----------
   const loaded = saves.load();
   let seed = loaded.ok ? loaded.data.seed : slot === 0 ? dailySeed() : randomSeed();
-  let world = loaded.ok ? new World(loaded.data.world) : World.generate(seed);
-  const economy = new Economy(bus, loaded.ok ? loaded.data.economy : saves.takeCarry() || createEconomyState());
+  const carry = loaded.ok ? null : saves.takeCarry();
+  const planet = loaded.ok ? loaded.data.economy.planet ?? 'earth' : carry?.planet ?? 'earth';
+  let world = loaded.ok ? new World(loaded.data.world) : World.generate(seed, planet);
+  const economy = new Economy(bus, loaded.ok ? loaded.data.economy : carry || createEconomyState());
   if (!loaded.ok) clearOwnedRelics(world, economy.relics); // a new map starts without relics the player already holds
   const vis = new Visibility(world, bus);
   const physics = new Physics(world);
@@ -144,6 +147,7 @@ function boot() {
   const chunks = new ChunkCache(world, art);
   art.loadImages(() => chunks.markAllDirty());
   const camera = new Camera();
+  camera.worldH = world.H; pulse.underM = underM(world.H);
   const background = new Background();
   background.economy = economy;
   const lighting = new Lighting();
@@ -282,6 +286,7 @@ function boot() {
 
   function setWorld(w) {
     world = w;
+    camera.worldH = w.H; pulse.underM = underM(w.H);
     // Saves from before MINING.HP_MULT store untouched tiles at the old max HP: scale them up.
     for (let i = 0; i < w.tileHP.length; i++) {
       const max = w.maxHP(i);
@@ -562,7 +567,7 @@ function boot() {
     const band = world.band[pty * world.W + ptx];
     const onSurface = player.feetY <= SURFACE_PX + 2;
     const inMantle = band === TILE.MANTLE && !onSurface;
-    g.depth01 = Math.max(0, Math.min(1, (player.feetY - SURFACE_PX) / UNDERGROUND_PX));
+    g.depth01 = Math.max(0, Math.min(1, (player.feetY - SURFACE_PX) / undergroundPx(world)));
     const meters = Math.max(0, Math.floor((player.feetY - SURFACE_PX) / T)) * WORLD.METERS_PER_TILE;
     const layer = onSurface || band === TILE.AIR ? 'Surface · Expedition Base Camp' : `${MATERIALS[band].layer}`;
     if (meters !== g.lastMeters || layer !== g.lastLayer) {

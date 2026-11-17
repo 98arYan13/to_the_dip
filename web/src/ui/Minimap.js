@@ -29,9 +29,9 @@ export class Minimap {
     this.canvas.addEventListener('click', () => this.toggleBig());
     this.ctx = /** @type {CanvasRenderingContext2D} */ (this.canvas.getContext('2d'));
     this.ctx.imageSmoothingEnabled = false;
-    this.buf = createCanvas(WORLD.W, WORLD.H);
+    this.buf = createCanvas(WORLD.W, 1);
     this.bctx = get2D(this.buf);
-    this.img = this.bctx.createImageData(WORLD.W, WORLD.H);
+    this.img = this.bctx.createImageData(WORLD.W, 1);
     this.dirty = true;
     this.matRGB = MATERIALS.map((m) => (m.colors ? hexToRgb(m.colors.base) : [0, 0, 0]));
     this.oreRGB = ORES.map((o) => (o ? hexToRgb(o.colors.light) : [0, 0, 0]));
@@ -56,6 +56,7 @@ export class Minimap {
   /** @param {import('../world/World.js').World} world */
   setWorld(world) {
     this.world = world;
+    this.buf = createCanvas(world.W, world.H); this.bctx = get2D(this.buf); this.img = this.bctx.createImageData(world.W, world.H); this.dirty = true;
     for (let i = 0; i < world.W * world.H; i++) this.updateTile(i);
   }
 

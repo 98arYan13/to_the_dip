@@ -4,7 +4,7 @@
  * The world grid is RLE-compressed and base64-encoded per typed array, with an FNV-1a checksum.
  * The codec functions are pure and unit-tested.
  */
-import { SAVE, WORLD, FLAG, TECH, RELICS, HAZARD, ITEM, START_BUILDINGS, POWER } from '../config.js';
+import { SAVE, WORLD, PLANETS, FLAG, TECH, RELICS, HAZARD, ITEM, START_BUILDINGS, POWER } from '../config.js';
 import { computeBandStarts, bandMaterialAt } from '../world/WorldGen.js';
 
 /** RLE as (count ≤ 255, value) byte pairs. @param {Uint8Array} bytes */
@@ -85,9 +85,9 @@ export function encodeWorld(w) {
 
 /**
  * Decode a world grid; throws on corruption.
- * @param {ReturnType<typeof encodeWorld>} e @param {number} seed @param {number} [genSeed] seed actually used for the band map (old saves: same as seed)
+ * @param {ReturnType<typeof encodeWorld>} e @param {number} seed @param {number} [genSeed] seed actually used for the band map (old saves: same as seed) @param {string} [planet]
  */
-export function decodeWorld(e, seed, genSeed = seed) {
+export function decodeWorld(e, seed, genSeed = seed, planet = 'earth') {
   const n = e.W * e.H;
   const tileType = rleDecode(fromBase64(e.tileType), n);
   const hpBytes = rleDecode(fromBase64(e.tileHP), n * 2);
@@ -96,12 +96,12 @@ export function decodeWorld(e, seed, genSeed = seed) {
   if (checksum([tileType, hpBytes, oreType, flags]) !== e.sum) throw new Error('World checksum mismatch');
   const tileHP = new Uint16Array(hpBytes.buffer.slice(0));
   // Band map is deterministic from the seed and not stored.
-  const starts = computeBandStarts(genSeed, e.W, e.H);
+  const starts = computeBandStarts(genSeed, e.W, e.H, PLANETS[planet]);
   const band = new Uint8Array(n);
   for (let y = 0; y < e.H; y++) for (let x = 0; x < e.W; x++) band[y * e.W + x] = bandMaterialAt(starts, x, y, e.W);
   const fluid = e.fluid ? rleDecode(fromBase64(e.fluid), n) : new Uint8Array(n);
   const gas = e.gas ? rleDecode(fromBase64(e.gas), n) : new Uint8Array(n);
-  return { W: e.W, H: e.H, seed, genSeed, tileType, tileHP, oreType, flags, band, fluid, gas };
+  return { W: e.W, H: e.H, seed, genSeed, planet, tileType, tileHP, oreType, flags, band, fluid, gas };
 }
 
 /**
@@ -110,6 +110,7 @@ export function decodeWorld(e, seed, genSeed = seed) {
  * v2 → v3: ore ids were remapped (20 ores) and suit/cargo became the rig; old worlds can't be converted.
  * v4 → v5: tech redesign (migrateEconomyV5).
  * v5 → v6: relics and story state (migrateEconomyV6).
+ * v6 → v7: planet, elevator stops, finished flag, Mind state (migrateEconomyV7).
  * @param {any} save
  */
 export function migrate(save) {
@@ -124,6 +125,8 @@ export function migrate(save) {
       s = { ...s, version: 5, economy: migrateEconomyV5(s.economy || {}) };
     } else if (from === 5) {
       s = { ...s, version: 6, economy: migrateEconomyV6(s.economy || {}) };
+    } else if (from === 6) {
+      s = { ...s, version: 7, economy: migrateEconomyV7(s.economy || {}) };
     } else if (from === 3) {
       s = { ...s, version: 4 }; // v4 adds optional world.fluid/gas and economy extras; absent fields default on load
     } else if (from === 2) {
@@ -181,6 +184,11 @@ export function migrateEconomyV6(ec) {
   return { ...ec, tech: [...tech], relics: owned, story: { seen: [], read: ['intro', ...owned.map((id) => 'relic_' + id)], flags, mission: 0 } };
 }
 
+/** v6 economy → v7: Earth is the home planet; the rest are defaults for the planets and ending work. @param {any} ec */
+export function migrateEconomyV7(ec) {
+  return { ...ec, planet: 'earth', elevatorStops: [], finished: false, mind: { nodes: [], coolant: 0 } };
+}
+
 /**
  * Build a save object.
  * @param {{seed:number, player:any, economy:any, world:any}} state
@@ -205,8 +213,9 @@ export function deserialize(str) {
   if (!s || typeof s.version !== 'number' || typeof s.seed !== 'number') throw new Error('Malformed save');
   if (s.version > SAVE.VERSION) throw new Error('Save from a newer version');
   s = migrate(s);
-  if (s.world.W !== WORLD.W || s.world.H !== WORLD.H) throw new Error('World size mismatch');
-  return { version: s.version, seed: s.seed >>> 0, player: s.player, economy: s.economy, world: decodeWorld(s.world, s.seed >>> 0, (s.genSeed ?? s.seed) >>> 0) };
+  const planet = s.economy?.planet ?? 'earth';
+  if (!PLANETS[planet] || s.world.W !== WORLD.W || s.world.H !== PLANETS[planet].H) throw new Error('World size mismatch');
+  return { version: s.version, seed: s.seed >>> 0, player: s.player, economy: s.economy, world: decodeWorld(s.world, s.seed >>> 0, (s.genSeed ?? s.seed) >>> 0, planet) };
 }
 
 export class SaveSystem {

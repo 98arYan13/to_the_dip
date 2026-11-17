@@ -3,11 +3,10 @@
  * Seeded electromagnetic pulse storm: a warning countdown, then unsheltered players lose energy and gear goes offline for a while.
  * Never above SAFE_DEPTH_M; the timer is frozen by the caller while a modal is open.
  */
-import { WORLD, HAZARD } from '../../config.js';
+import { PLANETS, HAZARD, underM } from '../../config.js';
 import { EV } from '../../core/EventBus.js';
 
 const P = HAZARD.PULSE;
-const UNDER_M = (WORLD.H - 1 - WORLD.SURFACE_ROWS) * WORLD.METERS_PER_TILE;
 
 /** @param {number} resist 0..1 */
 export function pulseEffect(resist) {
@@ -21,6 +20,8 @@ export class Pulse {
     this.bus = bus; this.rng = rng; this.economy = economy;
     this.timer = P.MAX_GAP_S * (0.5 + 0.5 * rng.float());
     this.warn = -1; this.stun = 0;
+    /** Underground metres of the current world; main.js updates it on world change. */
+    this.underM = underM(PLANETS.earth.H);
     /** Hook: called with the fraction of max energy to drain. */
     this.onDrain = (_frac) => {};
   }
@@ -39,7 +40,7 @@ export class Pulse {
     if (depthM < P.SAFE_DEPTH_M) return;
     this.timer -= dt;
     if (this.timer > 0) return;
-    this.timer = this._gap(Math.min(1, depthM / UNDER_M));
+    this.timer = this._gap(Math.min(1, depthM / this.underM));
     this.warn = P.WARN_S * (this.economy.tech.includes('pulse_detector') ? 2 : 1);
     this.bus.emit(EV.PULSE_WARN, { seconds: this.warn });
   }

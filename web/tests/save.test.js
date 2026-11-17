@@ -176,3 +176,33 @@ describe('genSeed in saves', () => {
     expect(o.world.genSeed).toBe(31337);
   });
 });
+
+describe('planets in the save', () => {
+  it('a 1000-row world generates, saves and loads', () => {
+    const w = generateWorld(9, 'tessera');
+    expect(w.H).toBe(1000);
+    const back = deserialize(serialize({ seed: 9, player: {}, economy: { ...createEconomyState(), planet: 'tessera' }, world: w }));
+    expect(back.world.H).toBe(1000);
+    expect(back.world.planet).toBe('tessera');
+  }, 60000);
+  it('a save whose world height does not match its planet is rejected', () => {
+    const w = generateWorld(9);
+    expect(() => deserialize(serialize({ seed: 9, player: {}, economy: { ...createEconomyState(), planet: 'tessera' }, world: w }))).toThrow(/size/i);
+  });
+  it('old saves migrate to planet earth', () => {
+    const m = migrate({ version: 6, economy: { tech: [] } }).economy;
+    expect(m.planet).toBe('earth'); expect(m.elevatorStops).toEqual([]); expect(m.finished).toBe(false); expect(m.mind).toBeDefined();
+  });
+  it('newMapState keeps the planet', () => {
+    expect(new Economy(new EventBus(), { ...createEconomyState(), planet: 'tessera' }).newMapState().planet).toBe('tessera');
+  });
+  it('no source file reads WORLD.H outside config and generator defaults', async () => {
+    const fs = await import('node:fs'); const path = await import('node:path');
+    const root = path.resolve(__dirname, '../src');
+    const files = [];
+    (function walk(d) { for (const f of fs.readdirSync(d, { withFileTypes: true })) { const p = path.join(d, f.name); if (f.isDirectory()) walk(p); else if (p.endsWith('.js')) files.push(p); } })(root);
+    const allowed = { 'config.js': 'defines WORLD and PLANETS.earth.H', 'strata.js': 'default parameter only', 'WorldGen.js': 'default parameter of undergroundRows' };
+    const bad = files.filter((p) => /WORLD\.H\b/.test(fs.readFileSync(p, 'utf8')) && !allowed[path.basename(p)]);
+    expect(bad.map((p) => path.basename(p))).toEqual([]);
+  });
+});

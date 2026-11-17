@@ -12,6 +12,7 @@ export class World {
     this.H = data.H;
     this.seed = data.seed;
     this.genSeed = data.genSeed ?? data.seed;
+    this.planet = data.planet ?? 'earth';
     this.T = WORLD.TILE_PX;
     this.tileType = data.tileType;
     this.tileHP = data.tileHP;
@@ -26,8 +27,8 @@ export class World {
   }
 
   /** @param {number} seed */
-  static generate(seed) {
-    return new World(generateWorld(seed));
+  static generate(seed, planetId = 'earth') {
+    return new World(generateWorld(seed, planetId));
   }
 
   idx(x, y) { return y * this.W + x; }

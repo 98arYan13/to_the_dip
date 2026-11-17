@@ -3,12 +3,11 @@
  * Seeded earthquake scheduler: a small foreshock, a few calm seconds, then weak ceiling tiles near the player fall (rockfall).
  * Never above SAFE_DEPTH_M or at camp.
  */
-import { WORLD, HAZARD, MATERIALS, TILE } from '../../config.js';
+import { underM, HAZARD, MATERIALS, TILE } from '../../config.js';
 import { EV } from '../../core/EventBus.js';
 import { isCampGround } from '../Mining.js';
 
 const Q = HAZARD.QUAKE;
-const UNDER_M = (WORLD.H - 1 - WORLD.SURFACE_ROWS) * WORLD.METERS_PER_TILE;
 
 export class Quake {
   /**
@@ -34,7 +33,7 @@ export class Quake {
       if (this.warn < 0) this.trigger(this.pending);
       return;
     }
-    if (depth01 <= 0 || depth01 * UNDER_M < Q.SAFE_DEPTH_M) return;
+    if (depth01 <= 0 || depth01 * underM(this.world.H) < Q.SAFE_DEPTH_M) return;
     this.timer -= dt;
     if (this.timer > 0) return;
     this.timer = this._gap(depth01);

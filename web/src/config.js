@@ -369,7 +369,13 @@ export const PLANETS = Object.freeze({
     ],
     setPieces: {}, relic: 'per-layer', goal: 'core',
   },
+  // Stub until the Tessera task replaces it: Earth's profile on a 1000-row map.
+  tessera: { id: 'tessera', name: 'Tessera', eras: [1, 2, 3, 4, 5], H: 1000, gravity: 1, air: 'breathable', pulse: { mul: 1 }, quake: { mul: 1 }, hpMul: 1, strata: null, setPieces: {}, relic: 'per-layer', goal: 'core' },
 });
+PLANETS.tessera.strata = PLANETS.earth.strata;
+
+/** Underground depth in metres of a world `H` rows tall. */
+export const underM = (H) => (H - 1 - WORLD.SURFACE_ROWS) * WORLD.METERS_PER_TILE;
 
 /** Ore audit: a floor above BULK_TILES tiles marks a bulk ore (ceiling only). floor x need (open = outside set pieces), ceiling x need, repair attempts per ore. */
 export const AUDIT = Object.freeze({ FLOOR: 1.5, FLOOR_OPEN: 1.0, CEIL: 6, MAX_ATTEMPTS: 8, BULK_TILES: 200 });
@@ -803,7 +809,7 @@ export const SAVE = Object.freeze({
   /** localStorage key holding the active slot number. */
   SLOT_KEY: 'jttdote.slot',
   SETTINGS_KEY: 'jttdote.settings',
-  VERSION: 6,
+  VERSION: 7,
   AUTOSAVE_SEC: 15,
   EXPLOSION_BLOCK_SEC: 1.5,
 });

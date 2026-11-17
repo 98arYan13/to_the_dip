@@ -2,7 +2,7 @@
  * @module render/Camera
  * Critically damped spring follow and trauma-based screen shake (shake = trauma²).
  */
-import { CAMERA, WORLD } from '../config.js';
+import { CAMERA, WORLD, PLANETS } from '../config.js';
 import { createNoise2D } from '../core/Noise.js';
 
 /**
@@ -16,6 +16,8 @@ export function viewScale(canvasH, zoom) {
 
 export class Camera {
   constructor() {
+    /** Rows of the current world; main.js updates it on world change. */
+    this.worldH = PLANETS.earth.H;
     /** Centre position in world px. */
     this.x = 0; this.y = 0;
     this.vx = 0; this.vy = 0;
@@ -59,7 +61,7 @@ export class Camera {
     const hw = this.viewW / 2; const hh = this.viewH / 2;
     const minX = hw; const maxX = WORLD.W * T - hw;
     this.x = maxX < minX ? (WORLD.W * T) / 2 : Math.min(maxX, Math.max(minX, this.x));
-    const minY = -CAMERA.TOP_MARGIN + hh; const maxY = WORLD.H * T - hh;
+    const minY = -CAMERA.TOP_MARGIN + hh; const maxY = this.worldH * T - hh;
     this.y = Math.min(maxY, Math.max(minY, this.y));
   }
 
