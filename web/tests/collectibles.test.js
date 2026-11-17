@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { Collectibles } from '../src/systems/Collectibles.js';
+import { Economy } from '../src/systems/Economy.js';
 import { EventBus, EV } from '../src/core/EventBus.js';
 
 const T = 32;
@@ -54,5 +55,17 @@ describe('feats', () => {
     expect(got).not.toContain('immune');
     economy.tech.push('hard'); bus.emit(EV.TECH_UNLOCKED, 'hard');
     expect(got).toContain('immune');
+  });
+  it('missing ruin does not throw', () => {
+    const bus = new EventBus();
+    const economy = { achievements: [], collect: { ore: {}, maxDepth: 0, pulses: 0 }, relics: ['shield_lattice'], tech: [], story: { flags: [] }, stat: (n, b) => b };
+    new Collectibles(bus, economy, { ruinRect: () => undefined, waterIn: () => 5 });
+    expect(() => { bus.emit(EV.EXPLOSION, { x: 1, y: 1 }); bus.emit(EV.RELIC_FOUND, { id: 'shield_lattice' }); }).not.toThrow();
+    expect(economy.achievements).toContain('dry_feet');
+  });
+  it('New Map clears hall_exploded', () => {
+    const e = new Economy(new EventBus(), undefined);
+    e.story.flags.push('hall_exploded', 'other');
+    expect(e.newMapState().story.flags).toEqual(['other']);
   });
 });

@@ -174,7 +174,7 @@ export class Economy {
   newMapState() {
     const s = this.toJSON();
     const consumables = { ...s.consumables, ladder: Math.max(s.consumables.ladder, CONSUMABLES.ladder.start) };
-    return { ...s, consumables, cargo: s.cargo.map(() => 0), stations: [], fieldCamps: [], contracts: { active: [], done: s.contracts.done }, completed: false };
+    return { ...s, consumables, cargo: s.cargo.map(() => 0), stations: [], fieldCamps: [], story: { ...s.story, flags: s.story.flags.filter((f) => f !== 'hall_exploded') }, contracts: { active: [], done: s.contracts.done }, completed: false };
   }
 
   /** Dev override: tier 1..6, or 0 for the owned tool. Not saved. */

@@ -16,10 +16,12 @@ export class Collectibles {
     bus.on(EV.PULSE, (p) => this.handle('pulse', { sheltered: p.sheltered }));
     bus.on(EV.TECH_UNLOCKED, () => this.handle('tech', {}));
     bus.on(EV.EXPLOSION, (p) => { // payload is in pixels
-      const r = this.ctx.ruinRect(2); const x = p.x / WORLD.TILE_PX; const y = p.y / WORLD.TILE_PX;
+      const r = this.ctx.ruinRect(2); if (!r) return; const x = p.x / WORLD.TILE_PX; const y = p.y / WORLD.TILE_PX;
       if (x >= r.x - 2 && x <= r.x + r.w + 2 && y >= r.y - 2 && y <= r.y + r.h + 2 && !this.economy.story.flags.includes('hall_exploded')) this.economy.story.flags.push('hall_exploded');
     });
   }
+
+  dry() { const r = this.ctx.ruinRect(1); return !r || this.ctx.waterIn(r) === 0; }
 
   /** @param {'ore'|'depth'|'completed'|'relic'|'pulse'|'tech'} event @param {{ore?:number, meters?:number, id?:string, sheltered?:boolean}} p */
   handle(event, p) {
@@ -33,7 +35,7 @@ export class Collectibles {
       const ok = event === 'ore' ? c.ore[t.ore] >= t.count && p.ore === t.ore
         : event === 'depth' ? c.maxDepth >= t.depthM
         : event === 'relic' ? (t.count ? this.economy.relics.filter((r) => r !== 'seed_core').length >= t.count
-          : p.id === t.id && !(t.unlessFlag && this.economy.story.flags.includes(t.unlessFlag)) && (!t.dry || this.ctx.waterIn(this.ctx.ruinRect(1)) === 0))
+          : p.id === t.id && !(t.unlessFlag && this.economy.story.flags.includes(t.unlessFlag)) && (!t.dry || this.dry()))
         : event === 'pulse' ? c.pulses >= t.count
         : event === 'tech' ? this.economy.stat(t.stat, 0) >= t.min
         : true;
