@@ -116,4 +116,15 @@ describe('alien ruins vs mining', () => {
     m.breakTile(i, true); // already air: the type check stops a second record
     expect(economy.relics.length).toBe(1);
   });
+  it('breaking a second relic tile of an owned relic emits nothing', () => {
+    const w = new World(generateWorld(4242));
+    const i = w.tileType.indexOf(TILE.RELIC);
+    const bus = new EventBus(); let n = 0;
+    bus.on(EV.RELIC_FOUND, () => { n++; });
+    const m = new Mining(w, bus, { relics: [], pickTier: 1 }, { revealAround() {} }, { spawn() {} });
+    m.breakTile(i, true);
+    w.tileType[i] = TILE.RELIC; // a second tile of the same layer
+    m.breakTile(i, true);
+    expect(n).toBe(1);
+  });
 });

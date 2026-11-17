@@ -195,8 +195,7 @@ export class Mining {
     w.clear(i);
     if (type === TILE.RELIC) {
       const id = relicIdAt(y, w.H);
-      if (id && !this.economy.relics.includes(id)) this.economy.relics.push(id);
-      this.bus.emit(EV.RELIC_FOUND, { id });
+      if (id && !this.economy.relics.includes(id)) { this.economy.relics.push(id); this.bus.emit(EV.RELIC_FOUND, { id }); }
     }
     this._untrack(i);
     if (this.recoilTile === i) this.recoilTile = -1;

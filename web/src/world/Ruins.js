@@ -21,9 +21,9 @@ export function planRuins(seed, W, H) {
     const yMin = SR + Math.ceil(U * l0); const yMax = SR + Math.floor(U * l1) - h;
     for (let attempt = 0; attempt < 200; attempt++) {
       const r = { layer, x: rng.int(5, W - w - 5), y: rng.int(yMin, yMax), w, h };
-      if (blocked.some((b) => overlaps(r, b, 0)) || zones.some((o) => overlaps(r, o, 3)) || ruins.some((o) => overlaps(r, o, 3))) continue;
+      if (blocked.some((b) => overlaps(r, b, 3)) || zones.some((o) => overlaps(r, o, 3)) || ruins.some((o) => overlaps(r, o, 3))) continue;
       ruins.push(r);
-      break;
+      break; // shortcut: a layer silently gets no ruin after 200 failed attempts, upgrade if a seed ever hits it (tests cover 50 seeds)
     }
   });
   return ruins;

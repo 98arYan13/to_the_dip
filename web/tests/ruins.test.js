@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { WORLD, TILE } from '../src/config.js';
-import { planZones } from '../src/world/Zones.js';
+import { WORLD, TILE, ZONES, RELICS } from '../src/config.js';
+import { planZones, blockedAreas } from '../src/world/Zones.js';
 import { generateWorld } from '../src/world/WorldGen.js';
 import { planRuins, relicIdAt, clearOwnedRelics, hasRuins, nearestRuin } from '../src/world/Ruins.js';
 
@@ -13,6 +13,14 @@ describe('ruins', () => {
     for (const s of seeds) {
       const rs = planRuins(s, WORLD.W, WORLD.H); const zs = planZones(s, WORLD.W, WORLD.H);
       expect(rs.map((r) => r.layer)).toEqual([0, 1, 2, 3, 4]);
+      const bl = blockedAreas(WORLD.W, WORLD.H); const U = WORLD.H - 1 - WORLD.SURFACE_ROWS;
+      for (const r of rs) {
+        const [l0, l1] = ZONES.LAYERS[r.layer];
+        expect(r.y).toBeGreaterThanOrEqual(WORLD.SURFACE_ROWS + Math.ceil(U * l0));
+        expect(r.y + r.h).toBeLessThanOrEqual(WORLD.SURFACE_ROWS + Math.floor(U * l1));
+        expect(relicIdAt(r.y + r.h - 2, WORLD.H)).toBe(RELICS.find((x) => x.layer === r.layer).id);
+        for (const b of bl) expect(rectsOverlap(r, b, 3), `seed ${s} blocked`).toBe(false);
+      }
       for (const r of rs) for (const z of zs) expect(rectsOverlap(r, z, 3), `seed ${s}`).toBe(false);
     }
   });
