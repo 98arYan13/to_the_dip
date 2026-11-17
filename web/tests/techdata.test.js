@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { TECH, ERAS, RECIPES, CAMP_BUILDINGS, PICKAXES, UPGRADES, CONSUMABLES, ORES, MATERIALS, MATERIAL_INPUTS, isOre } from '../src/config.js';
+import { RELICS, TECH, ERAS, RECIPES, CAMP_BUILDINGS, PICKAXES, UPGRADES, CONSUMABLES, ORES, MATERIALS, MATERIAL_INPUTS, isOre } from '../src/config.js';
 import { eraPickTier } from '../src/systems/Tech.js';
 
 const ids = new Set(TECH.map((t) => t.id));
@@ -75,4 +75,23 @@ describe('tech data', () => {
       expect(digTier(raw), `${t.id} needs ${ORES[raw].name}`).toBeLessThanOrEqual(eraPickTier(t.era));
     }
   });
+});
+
+describe('relic data', () => {
+  it('every relic reference exists and each world relic gates a tech', () => {
+    const rel = new Set(RELICS.map((r) => r.id));
+    for (const t of TECH) if (t.relic) expect(rel.has(t.relic), t.id).toBe(true);
+    for (const r of RELICS) expect(TECH.some((t) => t.relic === r.id), r.id).toBe(true);
+  });
+  it('key techs never need a relic, directly or through requires', () => {
+    const needsRelic = (id) => { const t = byId(id); return !!t.relic || t.requires.some(needsRelic); };
+    for (const t of TECH) if (t.key) expect(needsRelic(t.id), t.id).toBe(false);
+  });
+  it('a relic is reachable by the era that needs it (spec 4.3)', () => {
+    for (const r of RELICS.filter((x) => x.layer >= 0)) {
+      const era = Math.min(...TECH.filter((t) => t.relic === r.id).map((t) => t.era));
+      expect(eraPickTier(era), r.id).toBeGreaterThanOrEqual(r.layer + 1);
+    }
+  });
+  it('exotic materials moved to era 5', () => { expect(byId('exotic_materials').era).toBe(5); });
 });

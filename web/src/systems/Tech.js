@@ -2,7 +2,8 @@
  * @module systems/Tech
  * Era-based tech graph (config TECH). Owned ids live in economy.tech; stats are derived on read.
  */
-import { TECH, RECIPES, CAMP_BUILDINGS, PICKAXES, UPGRADES, CONSUMABLES, ERAS } from '../config.js';
+import { EV } from '../core/EventBus.js';
+import { TECH, RECIPES, CAMP_BUILDINGS, PICKAXES, UPGRADES, CONSUMABLES, ERAS, RELICS } from '../config.js';
 
 const byId = (id) => TECH.find((t) => t.id === id);
 
@@ -29,6 +30,7 @@ export function canUnlock(economy, id) {
   if (economy.tech.includes(id)) return { ok: false, reason: 'Already owned' };
   const missing = t.requires.find((r) => !economy.tech.includes(r));
   if (missing) return { ok: false, reason: `Requires ${byId(missing).name}` };
+  if (t.relic && !economy.relics?.includes(t.relic)) return { ok: false, reason: `Requires relic: ${RELICS.find((r) => r.id === t.relic).name}` };
   if (!economy.canAfford(t.cost)) return { ok: false, reason: 'Not enough cash or ore' };
   return { ok: true };
 }
@@ -39,6 +41,7 @@ export function unlockTech(economy, id) {
   if (!c.ok) return c;
   economy.pay(byId(id).cost);
   economy.tech.push(id);
+  economy.bus.emit(EV.TECH_UNLOCKED, id);
   return c;
 }
 

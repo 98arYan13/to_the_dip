@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { Economy, createEconomyState } from '../src/systems/Economy.js';
 import { EventBus } from '../src/core/EventBus.js';
 import { TECH } from '../src/config.js';
-import { canUnlock, unlockTech, unlocksOf, eraReached } from '../src/systems/Tech.js';
+import { canUnlock, unlockTech, unlocksOf, eraReached, techStat } from '../src/systems/Tech.js';
 
 const mk = () => new Economy(new EventBus(), createEconomyState());
 const rich = (e, id) => { const c = TECH.find((t) => t.id === id).cost; e.credits = c.cash; for (const [o, n] of Object.entries(c.ores)) e.stash[o] = n; };
@@ -38,5 +38,21 @@ describe('tech', () => {
   });
   it('nothing but era-1 techs is free of prerequisites', () => {
     for (const t of TECH) if (t.era > 1) expect(t.requires.length, t.id).toBeGreaterThan(0);
+  });
+  it('a relic-gated tech needs its relic', () => {
+    const ec = mk(); ec.tech.push('bloomery', 'solder', 'radio'); ec.relics = [];
+    rich(ec, 'pulse_detector');
+    expect(canUnlock(ec, 'pulse_detector')).toEqual({ ok: false, reason: 'Requires relic: Hull Shard' });
+    ec.relics.push('hull_shard');
+    expect(canUnlock(ec, 'pulse_detector').ok).toBe(true);
+  });
+  it('unlockTech emits TECH_UNLOCKED', () => {
+    const ec = mk(); ec.tech.push('bloomery', 'solder', 'radio'); ec.relics = ['hull_shard']; rich(ec, 'pulse_detector');
+    const got = []; ec.bus.on('tech:unlocked', (id) => got.push(id));
+    unlockTech(ec, 'pulse_detector');
+    expect(got).toEqual(['pulse_detector']);
+  });
+  it('pulse resistance stacks to 1', () => {
+    expect(techStat(['faraday_shielding', 'pulse_hardening'], 'pulseResist', 0)).toBe(1);
   });
 });

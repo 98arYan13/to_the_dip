@@ -383,6 +383,16 @@ const O_ = ORE; const I_ = ITEM;
 /** Shorthand for a tech cost. @param {number} cash @param {Record<number, number>} ores */
 const tc = (cash, ores) => ({ cash, ores });
 
+/** Alien relics (blueprints). layer = world layer holding the ruin; -1 = not in the world. */
+export const RELICS = Object.freeze([
+  { id: 'hull_shard', name: 'Hull Shard', layer: 0 },
+  { id: 'shield_lattice', name: 'Shielding Lattice', layer: 1 },
+  { id: 'thermal_siphon', name: 'Thermal Siphon', layer: 2 },
+  { id: 'matter_loom', name: 'Matter Loom', layer: 3 },
+  { id: 'control_key', name: 'Control Key', layer: 4 },
+  { id: 'seed_core', name: 'Seed Core', layer: -1 },
+].map((r) => Object.freeze(r)));
+
 /**
  * Era-based tech graph. requires = all must be owned (real logic); parent = UI placement only; key = reaching
  * the next era. Rewards are found by reverse lookup (systems/Tech.js unlocksOf): every recipe, building level,
@@ -400,6 +410,7 @@ export const TECH = Object.freeze([
   { id: 'radio', era: 2, name: 'Radio', desc: 'Copper coils and soldered joints make a simple ground radar.', requires: ['bloomery', 'solder'], cost: tc(140, { [I_.COPPER_WIRE]: 4, [I_.SOLDER]: 2 }) },
   { id: 'pack_1', era: 2, name: 'Bigger Pack I', desc: 'An iron-framed pack carries more ore.', requires: ['bloomery'], cost: tc(330, { [O_.NICKEL]: 4, [I_.WROUGHT_IRON]: 2 }), effect: { stat: 'capacity', add: 25 } },
   { id: 'battery_1', era: 2, name: 'Battery Cell I', desc: 'Extra lead-acid cells for the rig.', requires: ['bloomery'], cost: tc(260, { [O_.LEAD]: 6, [I_.COPPER_WIRE]: 2 }), effect: { stat: 'maxEnergy', add: 50 } },
+  { id: 'pulse_detector', era: 2, name: 'Pulse Detector', desc: 'Tuned to the ring of the Hull Shard: warns of pulses early and pings the nearest ruin.', requires: ['radio'], relic: 'hull_shard', cost: tc(150, { [I_.COPPER_WIRE]: 4, [I_.SOLDER]: 2 }), effect: { unlock: 'pulse_detector' } },
   { id: 'blast_furnace', era: 2, key: true, name: 'Blast Furnace', desc: 'Forced air and coke melt iron fully, the first step to steel.', requires: ['bloomery'], cost: tc(380, { [I_.WROUGHT_IRON]: 20, [I_.BRONZE]: 4, [O_.COAL]: 10 }) },
   // Era 3 — Industrial
   { id: 'steelmaking', era: 3, name: 'Steelmaking', desc: 'Controlled carbon content turns iron into hard steel.', requires: ['blast_furnace'], cost: tc(2000, { [I_.STEEL]: 6 }) },
@@ -408,6 +419,7 @@ export const TECH = Object.freeze([
   { id: 'gas_mask', era: 3, parent: 'oil_refining', name: 'Gas Mask', desc: 'Plastic seals and a charcoal filter keep toxic gas out.', requires: ['oil_refining'], cost: tc(2000, { [I_.PLASTIC]: 2, [O_.COAL]: 4 }), effect: { unlock: 'gas_mask' } },
   { id: 'big_bomb', era: 3, parent: 'oil_refining', name: 'Big Bomb Recipe', desc: 'Fuel oil and fertilizer (ANFO): a much bigger blast.', requires: ['oil_refining'], cost: tc(2400, { [I_.FUEL]: 4, [O_.COAL]: 4 }), effect: { unlock: 'big_bomb' } },
   { id: 'diesel_power', era: 3, name: 'Diesel Power', desc: 'A diesel generator burns refined fuel for far more power.', requires: ['oil_refining'], cost: tc(2800, { [I_.STEEL]: 20, [I_.COPPER_WIRE]: 10, [I_.FUEL]: 10 }) },
+  { id: 'faraday_shielding', era: 3, name: 'Faraday Shielding', desc: 'A copy of the alien lattice in copper and steel: the pulse cannot cross it.', requires: ['blast_furnace'], relic: 'shield_lattice', cost: tc(2400, { [I_.COPPER_WIRE]: 10, [I_.STAINLESS]: 4 }), effect: { stat: 'pulseResist', add: 0.5 } },
   { id: 'heat_suit', era: 3, name: 'Heat Suit', desc: 'Stainless mesh and insulation reflect deep-rock heat.', requires: ['blast_furnace'], cost: tc(3000, { [I_.STAINLESS]: 6, [I_.COPPER_WIRE]: 4 }), effect: { stat: 'heatResist', add: 0.5 } },
   { id: 'padded_suit_2', era: 3, name: 'Padded Suit II', desc: 'Steel plates and plastic foam absorb big falls.', requires: ['padded_suit_1', 'oil_refining'], cost: tc(2400, { [I_.STEEL]: 4, [I_.PLASTIC]: 4 }), effect: { stat: 'fallDamage', mul: 0.6 } },
   { id: 'battery_2', era: 3, name: 'Battery Cell II', desc: 'Nickel-cobalt cells hold far more charge.', requires: ['battery_1', 'blast_furnace'], cost: tc(2300, { [O_.NICKEL]: 4, [O_.COBALT]: 3 }), effect: { stat: 'maxEnergy', add: 200 } },
@@ -415,14 +427,15 @@ export const TECH = Object.freeze([
   { id: 'led_lamp', era: 3, name: 'LED Headlamp', desc: 'Efficient LEDs throw the headlamp beam 30% further.', requires: ['radio', 'blast_furnace'], cost: tc(1800, { [I_.COPPER_WIRE]: 4, [I_.SOLDER]: 3 }), effect: { stat: 'headlamp', mul: 1.3 } },
   { id: 'arc_furnace', era: 3, key: true, name: 'Arc Furnace', desc: 'An electric arc beyond 3000 °C smelts aluminium, titanium and tungsten.', requires: ['diesel_power'], cost: tc(7600, { [I_.STEEL]: 30, [I_.COPPER_WIRE]: 20 }) },
   // Era 4 — Electric
-  { id: 'electronics', era: 4, name: 'Electronics', desc: 'Printed circuit boards and lithium-ion cells.', requires: ['arc_furnace'], cost: tc(32000, { [I_.ALUMINIUM]: 20, [I_.COPPER_WIRE]: 10, [O_.GOLD]: 4 }) },
-  { id: 'titanium_drill', era: 4, name: 'Titanium Drill', desc: 'A battery-powered drill with a titanium head.', requires: ['electronics', 'machining'], cost: tc(35000, { [I_.TITANIUM]: 6, [I_.LI_ION_CELL]: 2 }) },
+  { id: 'electronics', era: 4, name: 'Electronics', desc: 'Circuits that only survive inside the grounded cage of the camp.', requires: ['arc_furnace'], cost: tc(32000, { [I_.ALUMINIUM]: 20, [I_.COPPER_WIRE]: 10, [O_.GOLD]: 4 }) },
+  { id: 'titanium_drill', era: 4, name: 'Titanium Drill', desc: 'A battery-powered drill with a titanium head.', requires: ['electronics', 'machining', 'faraday_shielding'], cost: tc(35000, { [I_.TITANIUM]: 6, [I_.LI_ION_CELL]: 2 }) },
   { id: 'jetpack', era: 4, name: 'Jetpack', desc: 'Light aluminium thrusters fed by lithium cells.', requires: ['electronics'], cost: tc(35000, { [I_.ALUMINIUM]: 4, [I_.LI_ION_CELL]: 2, [I_.COPPER_WIRE]: 2 }) },
   { id: 'jet_tank_1', era: 4, parent: 'jetpack', name: 'Jet Tank I', desc: 'Better nozzles waste less energy.', requires: ['jetpack'], cost: tc(26000, { [I_.ALUMINIUM]: 4, [I_.LI_ION_CELL]: 1 }), effect: { stat: 'jetDrain', mul: 0.8 } },
   { id: 'jet_thrust_1', era: 4, parent: 'jetpack', name: 'Jet Thrusters', desc: 'Titanium combustion chambers take more thrust.', requires: ['jetpack'], cost: tc(24000, { [I_.TITANIUM]: 4, [I_.CIRCUIT]: 2 }), effect: { stat: 'jetThrust', mul: 1.2 } },
-  { id: 'charge_station', era: 4, name: 'Field Charging Station', desc: 'Portable chargers wired back to the camp generator.', requires: ['electronics'], cost: tc(35000, { [I_.LI_ION_CELL]: 4, [I_.COPPER_WIRE]: 6 }), effect: { unlock: 'charge_station' } },
-  { id: 'heat_suit_2', era: 4, name: 'Heat Suit II', desc: 'Aluminized layers and active cooling.', requires: ['heat_suit', 'electronics'], cost: tc(33000, { [I_.ALUMINIUM]: 8, [I_.STAINLESS]: 4, [I_.CIRCUIT]: 2 }), effect: { stat: 'heatResist', add: 0.3 } },
-  { id: 'precision', era: 4, name: 'Precision Machining', desc: 'CNC tools cut titanium to fine tolerances.', requires: ['electronics', 'machining'], cost: tc(24000, { [I_.TITANIUM]: 20, [I_.CIRCUIT]: 10 }) },
+  { id: 'charge_station', era: 4, name: 'Field Charging Station', desc: 'Portable chargers wired back to the camp generator.', requires: ['electronics', 'faraday_shielding'], cost: tc(35000, { [I_.LI_ION_CELL]: 4, [I_.COPPER_WIRE]: 6 }), effect: { unlock: 'charge_station' } },
+  { id: 'heat_suit_2', era: 4, name: 'Heat Suit II', desc: 'Aluminized layers and active cooling.', requires: ['heat_suit', 'electronics', 'thermal_power'], cost: tc(33000, { [I_.ALUMINIUM]: 8, [I_.STAINLESS]: 4, [I_.CIRCUIT]: 2 }), effect: { stat: 'heatResist', add: 0.3 } },
+  { id: 'thermal_power', era: 4, name: 'Thermal Power', desc: 'Alien siphon plates trickle-charge the suit from rock heat: a bigger effective battery.', requires: ['electronics'], relic: 'thermal_siphon', cost: tc(28000, { [I_.ALUMINIUM]: 6, [I_.CIRCUIT]: 4, [I_.COPPER_WIRE]: 6 }), effect: { stat: 'maxEnergy', mul: 1.25 } },
+  { id: 'precision', era: 4, name: 'Precision Machining', desc: 'CNC tools cut titanium to fine tolerances.', requires: ['electronics', 'machining', 'faraday_shielding'], cost: tc(24000, { [I_.TITANIUM]: 20, [I_.CIRCUIT]: 10 }) },
   { id: 'battery_3', era: 4, name: 'Battery Cell III', desc: 'Lithium-ion packs with platinum contacts.', requires: ['battery_2', 'electronics'], cost: tc(25000, { [I_.LI_ION_CELL]: 4, [O_.PLATINUM]: 2 }), effect: { stat: 'maxEnergy', add: 800 } },
   { id: 'pack_2', era: 4, name: 'Bigger Pack II', desc: 'Aluminium and titanium frame, same weight, more room.', requires: ['pack_1', 'arc_furnace'], cost: tc(26000, { [I_.ALUMINIUM]: 6, [I_.TITANIUM]: 4 }), effect: { stat: 'capacity', add: 75 } },
   { id: 'fission', era: 4, key: true, name: 'Nuclear Fission', desc: 'Enriched uranium splits in a reactor for huge power.', requires: ['electronics', 'arc_furnace'], cost: tc(77000, { [I_.STAINLESS]: 30, [O_.LEAD]: 40, [I_.CIRCUIT]: 10, [O_.URANIUM]: 10 }) },
@@ -434,13 +447,15 @@ export const TECH = Object.freeze([
   { id: 'jet_tank_2', era: 5, parent: 'jetpack', name: 'Jet Tank II', desc: 'Carbon-fiber tanks store more propellant.', requires: ['jet_tank_1', 'carbon_fiber'], cost: tc(890000, { [I_.CARBON_FIBER]: 4, [I_.LI_ION_CELL]: 2 }), effect: { stat: 'jetDrain', mul: 0.75 } },
   { id: 'isotope_rig', era: 5, name: 'Isotope Rig', desc: 'A radioisotope core powers a carbon-fiber pod.', requires: ['carbon_fiber', 'fission'], cost: tc(890000, { [I_.CARBON_FIBER]: 6, [I_.ENRICHED_URANIUM]: 2 }) },
   { id: 'rocketry', era: 5, key: true, name: 'Rocketry', desc: 'Light airframes and liquid fuel reach orbit.', requires: ['carbon_fiber', 'fission'], cost: tc(1800000, { [I_.CARBON_FIBER]: 40, [I_.ALUMINIUM]: 40, [I_.CIRCUIT]: 20, [I_.FUEL]: 60 }) },
+  { id: 'pulse_hardening', era: 5, name: 'Pulse Hardening', desc: 'Carbon-fiber shells and shielded circuits make gear immune to the pulse.', requires: ['faraday_shielding', 'carbon_fiber'], cost: tc(880000, { [I_.CARBON_FIBER]: 6, [I_.CIRCUIT]: 6 }), effect: { stat: 'pulseResist', add: 0.5 } },
+  { id: 'exotic_materials', era: 5, name: 'Exotic Materials', desc: 'Re-forging Seed hull fragments with rhodium and platinum.', requires: ['fission'], relic: 'matter_loom', cost: tc(880000, { [O_.METEORITE]: 4, [O_.RHODIUM]: 2, [O_.PLATINUM]: 2 }) },
+  { id: 'core_interface', era: 5, name: 'Core Interface', desc: 'A device that speaks the handshake of the Seed. Without it the machine will not listen.', requires: ['exotic_materials'], relic: 'control_key', cost: tc(850000, { [I_.EXOTIC_ALLOY]: 4, [I_.CIRCUIT]: 10, [I_.ENRICHED_URANIUM]: 4 }), effect: { unlock: 'core_interface' } },
   // Era 6 — Space (chain; nodes other than warp_drive and exotic_materials are placeholders until the space update)
-  { id: 'orbital_station', era: 6, name: 'Orbital Station', desc: 'A crewed station in low orbit.', requires: ['rocketry'], cost: tc(800000, { [I_.CARBON_FIBER]: 30, [I_.TITANIUM]: 30, [I_.CIRCUIT]: 20, [I_.LI_ION_CELL]: 10 }), effect: { unlock: 'coming_soon' } },
-  { id: 'lunar_landing', era: 6, name: 'Lunar Landing', desc: 'A lander that can reach the Moon and come back.', requires: ['orbital_station'], cost: tc(1200000, { [I_.ALUMINIUM]: 40, [I_.TITANIUM]: 20, [I_.FUEL]: 80, [I_.CIRCUIT]: 20 }), effect: { unlock: 'coming_soon' } },
-  { id: 'mars_mission', era: 6, name: 'Mars Mission', desc: 'Nuclear propulsion for the long trip to Mars.', requires: ['lunar_landing'], cost: tc(2000000, { [I_.CARBON_FIBER]: 40, [I_.ENRICHED_URANIUM]: 20, [I_.CIRCUIT]: 30, [I_.STAINLESS]: 20 }), effect: { unlock: 'coming_soon' } },
-  { id: 'exotic_materials', era: 6, name: 'Exotic Materials', desc: 'Alloys of meteoric iron and platinum-group metals.', requires: ['rocketry'], cost: tc(600000, { [O_.METEORITE]: 4, [O_.RHODIUM]: 2, [O_.PLATINUM]: 2 }) },
-  { id: 'warp_drive', era: 6, name: 'Warp Drive', desc: 'Folds space for an instant trip home: portable warp charges.', requires: ['mars_mission', 'exotic_materials'], cost: tc(3000000, { [I_.EXOTIC_ALLOY]: 10, [I_.ENRICHED_URANIUM]: 30, [I_.CIRCUIT]: 40 }) },
-  { id: 'interstellar', era: 6, name: 'Interstellar Travel', desc: 'Ships that can reach other stars.', requires: ['warp_drive'], cost: tc(5000000, { [I_.EXOTIC_ALLOY]: 20, [I_.ENRICHED_URANIUM]: 40, [I_.CARBON_FIBER]: 60 }), effect: { unlock: 'coming_soon' } },
+  { id: 'orbital_station', era: 6, name: 'Orbital Station', desc: 'A crewed station that triangulates the source of the signal.', requires: ['rocketry'], cost: tc(800000, { [I_.CARBON_FIBER]: 30, [I_.TITANIUM]: 30, [I_.CIRCUIT]: 20, [I_.LI_ION_CELL]: 10 }), effect: { unlock: 'coming_soon' } },
+  { id: 'lunar_landing', era: 6, name: 'Lunar Landing', desc: 'A lander to the first relay of the alien signal.', requires: ['orbital_station'], cost: tc(1200000, { [I_.ALUMINIUM]: 40, [I_.TITANIUM]: 20, [I_.FUEL]: 80, [I_.CIRCUIT]: 20 }), effect: { unlock: 'coming_soon' } },
+  { id: 'mars_mission', era: 6, name: 'Mars Mission', desc: 'Nuclear propulsion to the second relay of the signal.', requires: ['lunar_landing'], cost: tc(2000000, { [I_.CARBON_FIBER]: 40, [I_.ENRICHED_URANIUM]: 20, [I_.CIRCUIT]: 30, [I_.STAINLESS]: 20 }), effect: { unlock: 'coming_soon' } },
+  { id: 'warp_drive', era: 6, name: 'Warp Drive', desc: 'Folds space for an instant trip home: portable warp charges.', requires: ['mars_mission', 'exotic_materials'], relic: 'seed_core', cost: tc(3000000, { [I_.EXOTIC_ALLOY]: 10, [I_.ENRICHED_URANIUM]: 30, [I_.CIRCUIT]: 40 }) },
+  { id: 'interstellar', era: 6, name: 'Interstellar Travel', desc: 'Ships that can reach the source of the signal.', requires: ['warp_drive'], cost: tc(5000000, { [I_.EXOTIC_ALLOY]: 20, [I_.ENRICHED_URANIUM]: 40, [I_.CARBON_FIBER]: 60 }), effect: { unlock: 'coming_soon' } },
 ]);
 
 export const CONSUMABLES = Object.freeze({

@@ -55,6 +55,14 @@ export const EV = Object.freeze({
   TILE_WARN: 'tile:warn',                // payload: {x,y} unstable tile cracking
   TILE_FELL: 'tile:fell',                // payload: {x,y} new position
   TILE_CRUSH: 'tile:crush',              // payload: {x,y} a falling tile landed on the player
+  TECH_UNLOCKED: 'tech:unlocked',         // payload: tech id
+  RELIC_FOUND: 'relic:found',            // payload: {id}
+  PULSE_WARN: 'pulse:warn',              // payload: {seconds}
+  PULSE: 'pulse',                        // payload: {strength}
+  CORE_DENIED: 'core:denied',
+  CRAFTED: 'crafted',                    // payload: recipe id
+  LOG_ENTRY: 'story:log',                // payload: {id}
+  MISSION_DONE: 'story:mission',         // payload: {index}
 });
 
 /**
