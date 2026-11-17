@@ -91,23 +91,25 @@ describe('caves', () => {
   it('a cave never reaches more than 2 rows into a harder stratum from above', () => {
     const planet = PLANETS.earth;
     for (const s of seeds) {
-      const d = world(s), seen = new Uint8Array(W * H), stack = [];
+      const d = world(s), seen = new Uint8Array(W * H);
       const k = (x, y) => stratumIndexAt(d.starts, x, y, W, planet);
-      for (let y = WORLD.SURFACE_ROWS; y < H - 1; y++) for (let x = 1; x < W - 1; x++) if (isAir(d, x, y) && k(x, y) === 0) { seen[y * W + x] = 1; stack.push(y * W + x); }
-      while (stack.length) {
-        const i = stack.pop(), x = i % W, y = (i / W) | 0;
-        for (const [dx, dy] of [[0, -1], [0, 1], [-1, 0], [1, 0]]) {
-          const nx = x + dx, ny = y + dy;
-          if (nx < 1 || nx >= W - 1 || ny < WORLD.SURFACE_ROWS || ny >= H - 1 || seen[ny * W + nx] || !isAir(d, nx, ny)) continue;
-          seen[ny * W + nx] = 1; stack.push(ny * W + nx);
+      const inb = (x, y) => x >= 1 && x < W - 1 && y >= WORLD.SURFACE_ROWS && y < H - 1;
+      const nb = [[0, -1], [0, 1], [-1, 0], [1, 0]];
+      for (let kk = 1; kk < planet.strata.length; kk++) {
+        seen.fill(0);
+        const stack = [];
+        for (let y = WORLD.SURFACE_ROWS; y < H - 1; y++) for (let x = 1; x < W - 1; x++) {
+          if (k(x, y) !== kk || !isAir(d, x, y)) continue;
+          if (nb.some(([dx, dy]) => inb(x + dx, y + dy) && isAir(d, x + dx, y + dy) && k(x + dx, y + dy) < kk)) { seen[y * W + x] = 1; stack.push(y * W + x); }
         }
-      }
-      // connected to the surface-side stratum 0 air; a tile in stratum kk>=1 reached this way must lie within 2 rows of its boundary
-      // unless a deeper stratum's own air links it (checked by the direct neighbour test below)
-      for (let y = WORLD.SURFACE_ROWS; y < H - 1; y++) for (let x = 1; x < W - 1; x++) {
-        const kk = k(x, y);
-        if (kk < 1 || !isAir(d, x, y) || y <= d.starts[kk * W + x] + 2) continue;
-        for (const [dx, dy] of [[0, -1], [-1, 0], [1, 0]]) if (isAir(d, x + dx, y + dy)) expect(k(x + dx, y + dy), `seed ${s} ${x},${y}`).toBeGreaterThanOrEqual(kk);
+        while (stack.length) {
+          const i = stack.pop(), x = i % W, y = (i / W) | 0;
+          if (k(x, y) === kk) expect(y, `seed ${s} stratum ${kk} ${x},${y}`).toBeLessThanOrEqual(d.starts[kk * W + x] + 2);
+          for (const [dx, dy] of nb) {
+            const nx = x + dx, ny = y + dy;
+            if (inb(nx, ny) && !seen[ny * W + nx] && isAir(d, nx, ny) && k(nx, ny) >= kk) { seen[ny * W + nx] = 1; stack.push(ny * W + nx); }
+          }
+        }
       }
     }
   });
@@ -120,6 +122,7 @@ describe('caves', () => {
         wet++;
         expect(d.tileType[(y - 1) * W + x], `seed ${s} ${x},${y}`).not.toBe(TILE.WATER);
         expect(d.tileType[(y + 1) * W + x], `seed ${s} ${x},${y}`).not.toBe(TILE.WATER);
+        expect(open(d, x, y + 1) && d.tileType[(y + 1) * W + x] !== TILE.AIR, `seed ${s} ${x},${y} floor`).toBe(false);
       }
     }
     expect(wet).toBeGreaterThan(0);

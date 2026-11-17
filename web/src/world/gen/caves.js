@@ -1,5 +1,5 @@
 /** @module world/gen/caves Cave styles per stratum, carved under an open-space budget (spec 6). */
-import { WORLD, TILE, PLANETS } from '../../config.js';
+import { WORLD, TILE, PLANETS, GAS } from '../../config.js';
 import { RNG } from '../../core/RNG.js';
 import { createNoise2D, fbm } from '../../core/Noise.js';
 import { stratumIndexAt } from './strata.js';
@@ -153,6 +153,7 @@ export function carveCaves(d, starts, seed) {
   });
 }
 
+const GAS_FREQ = 0.2, GAS_THRESHOLD = 0.2, PUDDLE_MIN_WIDTH = 6, PUDDLE_CHANCE = 0.3;
 const NB = [[0, -1], [0, 1], [-1, 0], [1, 0]];
 
 /** Spec 6.3: air deeper than 2 rows into stratum k that is reachable from a higher stratum is filled with host rock. */
@@ -195,7 +196,7 @@ export function placeFluids(d, starts, seed) {
       const i = y * W + x, st = planet.strata[sIdx(x, y)];
       if (d.tileType[i] !== TILE.AIR || nearShaft(x, y)) continue;
       if (st.water && fbm(waterNoise, x * WORLD.WATER_FREQ, y * WORLD.WATER_FREQ, 2) > WORLD.WATER_THRESHOLD) d.tileType[i] = TILE.WATER;
-      else if (st.gas && d.gas && fbm(gasNoise, x * 0.2, y * 0.2, 2) > 0.2) d.gas[i] = 8;
+      else if (st.gas && d.gas && fbm(gasNoise, x * GAS_FREQ, y * GAS_FREQ, 2) > GAS_THRESHOLD) d.gas[i] = GAS.MAX;
     }
   }
   // Karst floors wider than 6: 30% chance the one-tile floor row floods.
@@ -206,7 +207,7 @@ export function placeFluids(d, starts, seed) {
       if (!floor(x, y)) continue;
       let e = x;
       while (e < W - 1 && floor(e, y)) e++;
-      if (e - x > 6 && rng.chance(0.3)) for (let xx = x; xx < e; xx++) d.tileType[y * W + xx] = TILE.WATER;
+      if (e - x > PUDDLE_MIN_WIDTH && rng.chance(PUDDLE_CHANCE)) for (let xx = x; xx < e; xx++) d.tileType[y * W + xx] = TILE.WATER;
       x = e;
     }
   }
