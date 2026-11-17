@@ -4,7 +4,7 @@
  * The world grid is RLE-compressed and base64-encoded per typed array, with an FNV-1a checksum.
  * The codec functions are pure and unit-tested.
  */
-import { SAVE, WORLD, FLAG, TECH, RELICS, ITEM, START_BUILDINGS, POWER } from '../config.js';
+import { SAVE, WORLD, FLAG, TECH, RELICS, HAZARD, ITEM, START_BUILDINGS, POWER } from '../config.js';
 import { computeBandStarts, bandMaterialAt } from '../world/WorldGen.js';
 
 /** RLE as (count ≤ 255, value) byte pairs. @param {Uint8Array} bytes */
@@ -172,7 +172,13 @@ export function migrateEconomyV6(ec) {
   const tech = new Set(/** @type {string[]} */ (ec.tech || []));
   const relics = new Set(TECH.filter((t) => t.relic && tech.has(t.id)).map((t) => t.relic));
   if (ec.completed) { RELICS.forEach((r) => relics.add(r.id)); tech.add('core_interface'); }
-  return { ...ec, tech: [...tech], relics: RELICS.map((r) => r.id).filter((id) => relics.has(id)), story: { seen: [], read: [], flags: [], mission: 0 } };
+  const owned = RELICS.map((r) => r.id).filter((id) => relics.has(id));
+  // Pre-read + pre-flag what the old save already did, so loading doesn't flood modals or stall missions.
+  const flags = [];
+  if (tech.size) flags.push('sold');
+  if ((ec.collect?.maxDepth || 0) >= HAZARD.PULSE.SAFE_DEPTH_M) flags.push('pulse');
+  if (tech.has('core_interface')) flags.push('exotic');
+  return { ...ec, tech: [...tech], relics: owned, story: { seen: [], read: ['intro', ...owned.map((id) => 'relic_' + id)], flags, mission: 0 } };
 }
 
 /**

@@ -7,7 +7,7 @@ export class StoryModal {
   constructor(root, hooks) {
     this.open = false;
     this.el = document.createElement('div');
-    this.el.className = 'modal hidden';
+    this.el.className = 'modal story hidden';
     this.el.setAttribute('role', 'dialog');
     this.el.innerHTML = '<div class="modal-box"><header><h2></h2></header><section class="tab-body"><div class="story-text"></div><button class="btn primary" data-close></button></section></div>';
     root.appendChild(this.el);

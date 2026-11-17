@@ -134,7 +134,7 @@ describe('New map carry-over', () => {
 
 describe('v6 migration', () => {
   it('fresh fields', () => {
-    expect(migrateEconomyV6({ tech: ['bloomery'] })).toMatchObject({ relics: [], story: { seen: [], read: [], flags: [], mission: 0 } });
+    expect(migrateEconomyV6({ tech: ['bloomery'] })).toMatchObject({ relics: [], story: { seen: [], read: ['intro'], flags: ['sold'], mission: 0 } });
   });
   it('a completed save owns every relic and the interface', () => {
     const e = migrateEconomyV6({ completed: true, tech: ['heat_suit'] });
@@ -147,5 +147,18 @@ describe('v6 migration', () => {
   });
   it('migrate() steps v5 to current', () => {
     expect(migrate({ version: 5, economy: { tech: [] } }).economy.story.mission).toBe(0);
+  });
+  it('migrated completed v5 save: no modal flood, missions advance', async () => {
+    const { Story } = await import('../src/systems/Story.js');
+    const bus = new EventBus();
+    const ec = new Economy(bus, { ...createEconomyState(), ...migrateEconomyV6({ completed: true, tech: ['bloomery'], collect: { ore: {}, maxDepth: 900 } }) });
+    const st = new Story(bus, ec); st.sync(true);
+    expect(st.pendingModals()).toEqual([]);
+    expect(ec.story.mission).toBeGreaterThan(2);
+    expect(ec.story.flags).toEqual(expect.arrayContaining(['sold', 'pulse', 'exotic']));
+  });
+  it('collect.pulses round-trips', () => {
+    const ec = new Economy(new EventBus(), createEconomyState()); ec.collect.pulses = 7;
+    expect(new Economy(new EventBus(), ec.toJSON()).collect.pulses).toBe(7);
   });
 });

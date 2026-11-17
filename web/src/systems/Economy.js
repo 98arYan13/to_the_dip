@@ -167,7 +167,7 @@ export class Economy {
   }
 
   toJSON() {
-    return { credits: this.credits, cargo: Array.from(this.cargo), stash: Array.from(this.stash), tech: [...this.tech], buildings: { ...this.buildings }, power: this.power, stations: this.stations.map((p) => ({ ...p })), fieldCamps: this.fieldCamps.map((p) => ({ ...p })), contracts: { active: [...this.contracts.active], done: [...this.contracts.done] }, achievements: [...this.achievements], collect: { ore: { ...this.collect.ore }, maxDepth: this.collect.maxDepth }, completed: this.completed, levels: { ...this.levels }, consumables: { ...this.consumables }, relics: [...this.relics], story: { seen: [...this.story.seen], read: [...this.story.read], flags: [...this.story.flags], mission: this.story.mission } };
+    return { credits: this.credits, cargo: Array.from(this.cargo), stash: Array.from(this.stash), tech: [...this.tech], buildings: { ...this.buildings }, power: this.power, stations: this.stations.map((p) => ({ ...p })), fieldCamps: this.fieldCamps.map((p) => ({ ...p })), contracts: { active: [...this.contracts.active], done: [...this.contracts.done] }, achievements: [...this.achievements], collect: { ore: { ...this.collect.ore }, maxDepth: this.collect.maxDepth, pulses: this.collect.pulses }, completed: this.completed, levels: { ...this.levels }, consumables: { ...this.consumables }, relics: [...this.relics], story: { seen: [...this.story.seen], read: [...this.story.read], flags: [...this.story.flags], mission: this.story.mission } };
   }
 
   /** State for a fresh map that keeps progress (cash, stash, tech, buildings, gear, power, consumables). */

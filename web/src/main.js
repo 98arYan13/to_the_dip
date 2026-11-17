@@ -387,7 +387,8 @@ function boot() {
     player.setHP(PHYSICS.SUIT_HP);
     warpHome(`You died (${cause})! Ores lost, the rest of your pack kept.`, 'bad');
   });
-  bus.on(EV.NEW_GAME, () => pulse.reset());
+  bus.on(EV.CORE_DENIED, () => toast.show('The machine does not answer. You need its key.', 'warn'));
+  bus.on(EV.RELIC_FOUND, (p) => toast.show(`Relic recovered: ${RELICS.find((r) => r.id === p.id)?.name} — decode it at camp`, 'good'));
   bus.on(EV.RESCUE, () => {
     const lost = economy.applyRescueLoss();
     dynamites.clear();

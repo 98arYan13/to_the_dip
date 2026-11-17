@@ -60,7 +60,7 @@ export const EV = Object.freeze({
   PULSE_WARN: 'pulse:warn',              // payload: {seconds}
   PULSE: 'pulse',                        // payload: {sheltered}
   CORE_DENIED: 'core:denied',
-  CRAFTED: 'crafted',                    // payload: recipe id
+  CRAFTED: 'crafted',                    // payload: output item id
   LOG_ENTRY: 'story:log',                // payload: {id}
   MISSION_DONE: 'story:mission',         // payload: {index}
 });
