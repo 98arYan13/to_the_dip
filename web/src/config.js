@@ -432,13 +432,13 @@ const stratum = (tile, cave, extra = {}) => {
   return { tile, from: m.band?.[0], to: m.band?.[1], tier: m.tier, cave, water: false, magma: false, gas: false, ...extra };
 };
 
-/** Planet profiles. strata: top to bottom, `from`/`to` as fractions of underground rows; cave.open = open-space budget [min, max] as a fraction of the stratum. */
 /** Launch pad travel: cost per destination (Earth is free) and the tech effect that makes a destination known. */
 export const TRAVEL = Object.freeze({
   COST: Object.freeze({ moon: { [ITEM.PROPELLANT]: 10 }, mars: { [ITEM.PROPELLANT]: 25 }, tessera: { [ITEM.WARP_CHARGE]: 3 }, earth: {} }),
   FLAG: Object.freeze({ moon: 'dest_moon', mars: 'dest_mars', tessera: 'dest_tessera' }),
 });
 
+/** Planet profiles. strata: top to bottom, `from`/`to` as fractions of underground rows; cave.open = open-space budget [min, max] as a fraction of the stratum. */
 export const PLANETS = Object.freeze({
   earth: {
     id: 'earth', name: 'Earth', eras: [1, 2, 3, 4, 5], H: WORLD.H, gravity: 1, air: 'breathable', pulse: { mul: 1 }, quake: { mul: 1 }, hpMul: 1,

@@ -37,7 +37,7 @@ import { goalChamber, inZone } from './world/Zones.js';
 import { Ending } from './ui/Ending.js';
 import { StoryModal } from './ui/StoryModal.js';
 import { TravelScreen } from './ui/TravelScreen.js';
-import { travelState, canTravel, has as hasEffect } from './systems/Travel.js';
+import { launch, has as hasEffect } from './systems/Travel.js';
 import { Economy, createEconomyState } from './systems/Economy.js';
 import { Renderer } from './render/Renderer.js';
 import { Camera } from './render/Camera.js';
@@ -195,13 +195,11 @@ function boot() {
   };
   const ending = new Ending(hudRoot, { onClose: () => { input.clear(); canvas.focus(); } });
   const shop = new Shop(hudRoot, bus, economy, { seed: () => seed, onClose: () => { input.clear(); canvas.focus(); }, click: () => sfx.uiClick() });
-  let travelling = false; // one launch only: a double click must not pay twice
   const travelScreen = new TravelScreen(hudRoot, economy, {
     onClose: () => { input.clear(); canvas.focus(); },
     onTravel: (dest) => {
-      if (travelling || !canTravel(economy, dest).ok) return;
-      travelling = true;
-      saves.setCarry(travelState(economy, dest)); saves.clear(); restart();
+      const st = launch(economy, dest); if (!st) return;
+      saves.setCarry(st); saves.clear(); restart();
     },
   });
   const settings = new Settings(hudRoot, settingsValues, {

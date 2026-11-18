@@ -2,7 +2,7 @@
  * @module systems/Travel
  * Launch pad travel: which worlds are reachable, what they cost, and the carry state for the new map.
  */
-import { TRAVEL, PLANETS, TECH, ITEM, isOre } from '../config.js';
+import { TRAVEL, PLANETS, TECH, ITEM } from '../config.js';
 
 /** True if an owned tech has effect {unlock: name}. */
 export const has = (ec, name) => ec.tech.some((id) => TECH.find((t) => t.id === id)?.effect?.unlock === name);
@@ -31,6 +31,15 @@ export function destinations(ec) {
 export function travelState(ec, dest) {
   ec.pay(asCost(TRAVEL.COST[dest]));
   const s = ec.newMapState();
-  s.cargo = s.cargo.map((_, o) => (isOre(o) ? 0 : ec.cargo[o])); // materials travel, raw ore does not
+  s.cargo = Array.from(ec.cargo); // the whole cargo travels (after paying)
   return { ...s, planet: dest, elevatorStops: [] };
 }
+
+let launched = false;
+/** Guarded launch: returns the carry state once, null for a repeat call or a refused trip (a double click must not pay twice). */
+export function launch(ec, dest) {
+  if (launched || !canTravel(ec, dest).ok) return null;
+  launched = true;
+  return travelState(ec, dest);
+}
+export const resetLaunch = () => { launched = false; }; // tests only

@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { ITEM } from '../src/config.js';
 import { Economy, createEconomyState } from '../src/systems/Economy.js';
 import { EventBus } from '../src/core/EventBus.js';
-import { destinations, canTravel, travelState } from '../src/systems/Travel.js';
+import { destinations, canTravel, travelState, launch, resetLaunch } from '../src/systems/Travel.js';
 import { generateWorld } from '../src/world/WorldGen.js';
 import { clearOwnedRelics } from '../src/world/Ruins.js';
 import { TILE } from '../src/config.js';
@@ -49,5 +49,14 @@ describe('travel', () => {
     expect(count(w)).toBe(1);
     const w2 = generateWorld(900, 'moon'); clearOwnedRelics(w2, ['relay_alpha']);
     expect(count(w2)).toBe(0);
+  });
+
+  it('the whole cargo (ore and materials) travels; a second launch is refused and pays nothing', () => {
+    const ec = mk(ready); ec.stash[ITEM.PROPELLANT] = 20; ec.cargo[1] = 5; ec.cargo[ITEM.FUEL] = 3;
+    resetLaunch();
+    const s = launch(ec, 'moon');
+    expect(s.cargo[1]).toBe(5); expect(s.cargo[ITEM.FUEL]).toBe(3);
+    expect(launch(ec, 'moon')).toBeNull(); expect(ec.stash[ITEM.PROPELLANT]).toBe(10);
+    resetLaunch();
   });
 });
