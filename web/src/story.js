@@ -19,6 +19,13 @@ export const LOG_ENTRIES = [
   E('core_denied', 5, 'Ignored', 'It did not even notice me.', { flag: 'core_denied' }),
   E('ending', 6, 'The Hum Stops', "The hum stops. The tremors fade; far above, compass needles steady. In the silence the Seed's core is still warm in your hands — a drive that folds space. Then the last line of its log decodes: one transmission sent, relayed by the Moon and by Mars, to a star 40 light-years away. It called home. We had better answer in person.", { completed: true }),
   E('ch6_relays', 6, 'Relays', 'Orbit first, to triangulate. Then the relays. Then the source.', { tech: 'rocketry' }),
+  E('land_moon', 6, 'Grey Silence', 'No sky, no wind, no pulses worth the name. Earth hangs small and blue overhead. Somewhere in this dust the first relay is still transmitting, patient as a lighthouse.', { flag: 'landed_moon' }),
+  E('relic_relay_alpha', 6, 'Relay Alpha', 'The relay is older than the Seed, and it is still listening. Inside is a containment design for a sun in a bottle. Whoever built the Seed left us a way to power the next step.', { relic: 'relay_alpha' }, true),
+  E('land_mars', 7, 'Red Dust', 'Rust-coloured rock, thin air, a sky the colour of old copper. The signal is louder here. We are following a trail that was laid long before we could read it.', { flag: 'landed_mars' }),
+  E('relic_relay_beta', 7, 'Relay Beta', 'A star map with one route marked, ending at a world 40 light-years away. It is not a warning, and it is not a lure. It reads like an invitation, and I do not like how much I want to accept.', { relic: 'relay_beta' }, true),
+  E('land_tessera', 8, 'Tessera', 'A planet with no rock left in it. Every layer has been drawn thin, hollowed, ordered. Strata run like circuitry. This is not a world. It is a workshop, and it has been waiting.', { flag: 'landed_tessera' }),
+  E('relic_origin_core', 8, 'Origin Core', 'It is warm, and it fits the Control Key exactly. The pattern inside is a blueprint of the Seed we destroyed, and of the ship that carried us here. Of course it fits.', { relic: 'origin_core' }, true),
+  E('final', 8, 'Seed 4,117', 'The Mind did not fight. It copied our ship, our crew, our hope, into every Seed it will ever launch. A century of digging, a planet saved, and we understood too late. We were supposed to be its children. We turned out to be its cure.', { finished: true }, true),
 ];
 
 const M = (id, chapter, text, when) => ({ id, chapter, text, when });
@@ -43,4 +50,18 @@ export const MISSIONS = [
   M('ch5_interface', 5, 'Build the Core Interface', { tech: 'core_interface' }),
   M('ch6_core', 6, 'Reach the Core and shut down the Seed', { completed: true }),
   M('ch6_relays', 6, 'Research Rocketry and follow the signal', { tech: 'rocketry' }),
+  M('ch6_pad', 6, 'Build the Launch Pad', { tech: 'orbital_station' }),
+  M('ch6_elevator', 6, 'Build the Cargo Elevator', { tech: 'elevator' }),
+  M('ch6_moon', 6, 'Land on the Moon', { flag: 'landed_moon' }),
+  M('ch6_alpha', 6, 'Recover Relay Alpha', { relic: 'relay_alpha' }),
+  M('ch6_fusion', 6, 'Achieve Fusion Power', { tech: 'fusion_power' }),
+  M('ch6_plasma', 6, 'Forge the Plasma Cutter', { tech: 'plasma_cutter' }),
+  M('ch7_mars', 7, 'Land on Mars', { flag: 'landed_mars' }),
+  M('ch7_beta', 7, 'Recover Relay Beta', { relic: 'relay_beta' }),
+  M('ch7_lattice', 7, 'Forge the Lattice Cutter', { tech: 'lattice_cutter' }),
+  M('ch7_warp', 7, 'Build the Warp Drive', { tech: 'warp_drive' }),
+  M('ch8_tessera', 8, 'Reach Tessera', { flag: 'landed_tessera' }),
+  M('ch8_core', 8, 'Take the Origin Core', { relic: 'origin_core' }),
+  M('ch8_mind', 8, 'Reach the Mind', { flag: 'mind_greeted' }),
+  M('ch8_siphons', 8, 'Reverse the three siphons', { finished: true }),
 ];

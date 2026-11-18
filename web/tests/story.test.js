@@ -15,12 +15,12 @@ describe('story', () => {
     for (const list of [LOG_ENTRIES, MISSIONS]) {
       expect(new Set(list.map((x) => x.id)).size).toBe(list.length);
       for (const x of list) {
-        expect(x.chapter).toBeGreaterThanOrEqual(1); expect(x.chapter).toBeLessThanOrEqual(6);
+        expect(x.chapter).toBeGreaterThanOrEqual(1); expect(x.chapter).toBeLessThanOrEqual(8);
         if (x.when.tech) expect(TECH.some((t) => t.id === x.when.tech)).toBe(true);
         if (x.when.relic) expect(RELICS.some((r) => r.id === x.when.relic)).toBe(true);
       }
     }
-    expect(MISSIONS.length).toBe(19); expect(LOG_ENTRIES.length).toBe(15);
+    expect(MISSIONS.length).toBe(33); expect(LOG_ENTRIES.length).toBe(22);
   });
   it('fresh game: intro seen, first mission pending', () => {
     const { ec } = setup();
@@ -71,5 +71,21 @@ describe('story ui', () => {
   });
   it('tech panel names a missing relic and its layer', () => {
     expect(renderTech(ecWith({}), { era: 3, selected: 'faraday_shielding' })).toContain('not found (ruin in layer 2)');
+  });
+  it('chapters 6-8: missions reach the end when every condition is met', () => {
+    const bus = new EventBus(); const ec = new Economy(bus, createEconomyState());
+    ec.story.mission = MISSIONS.findIndex((m) => m.id === 'ch6_pad');
+    const st = new Story(bus, ec); st.sync(true);
+    for (const m of MISSIONS.slice(ec.story.mission)) {
+      const w = m.when;
+      if (w.tech) ec.tech.push(w.tech); else if (w.relic) ec.relics.push(w.relic); else if (w.flag === 'mind_greeted') ec.mind.greeted = true;
+      else if (w.flag) ec.story.flags.push(w.flag); else ec.finished = true;
+      st.sync(true); expect(ec.story.mission).toBe(MISSIONS.indexOf(m) + 1);
+    }
+    expect(currentMission(ec)).toBeNull(); expect(ec.story.seen).toContain('final');
+  });
+  it('final log entry ends with the fixed line; new entries are at most 60 words', () => {
+    expect(LOG_ENTRIES.find((e) => e.id === 'final').text.endsWith('We were supposed to be its children. We turned out to be its cure.')).toBe(true);
+    for (const e of LOG_ENTRIES.slice(LOG_ENTRIES.findIndex((x) => x.id === 'land_moon'))) expect(e.text.split(/\s+/).length).toBeLessThanOrEqual(60);
   });
 });

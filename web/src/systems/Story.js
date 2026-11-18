@@ -11,7 +11,8 @@ export function met(when, ec) {
   if (when.start) return true;
   if (when.tech) return ec.tech.includes(when.tech);
   if (when.relic) return ec.relics.includes(when.relic);
-  if (when.flag) return ec.story.flags.includes(when.flag);
+  if (when.flag) return ec.story.flags.includes(when.flag) || (when.flag === 'mind_greeted' && ec.mind.greeted); // ec.mind covers loaded saves
+  if (when.finished) return ec.finished || ec.story.flags.includes('finished');
   if (when.depthM !== undefined) return ec.collect.maxDepth >= when.depthM;
   return ec.completed || ec.story.flags.includes('completed'); // {completed:true}; ec.completed covers loaded saves
 }

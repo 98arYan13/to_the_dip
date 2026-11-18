@@ -191,7 +191,7 @@ export const RECIPES = Object.freeze(RECIPE_DEFS.map(([key, building, level, tec
 export const CONTRACTS = Object.freeze({ MAX_ACTIVE: 3, OFFERS: 4, PREMIUM: 0.25 });
 
 /** Cash paid for completing a mission, by chapter (index = chapter - 1). */
-export const STORY = Object.freeze({ REWARD_BY_CHAPTER: Object.freeze([10, 30, 250, 3000, 80000, 0]) });
+export const STORY = Object.freeze({ REWARD_BY_CHAPTER: Object.freeze([10, 30, 250, 3000, 80000, 200000, 500000, 0]) });
 
 /** test: {event:'ore', ore, count} | {depth, depthM} | {completed} | {relic, count | id[, unlessFlag | dry]} | {pulse, count} | {tech, stat, min} */
 export const ACHIEVEMENTS = Object.freeze([
