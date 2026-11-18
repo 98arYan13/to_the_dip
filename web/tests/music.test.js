@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { degreeToSemis } from '../src/audio/Music.js';
-import { THEMES, SIGNAL_MOTIF, zoneOf, themeFor, signalLength } from '../src/audio/musicThemes.js';
+import { THEMES, SCALES, SIGNAL_MOTIF, zoneOf, themeFor, signalLength } from '../src/audio/musicThemes.js';
 
 const PLANETS = ['earth', 'moon', 'mars', 'tessera'], ZONES = ['camp', 'shallow', 'mid', 'deep'];
 
@@ -24,10 +24,30 @@ describe('music themes', () => {
     }
   });
   it('spec table values', () => {
-    expect(THEMES.earth.camp.bpm).toBe(66); expect(THEMES.earth.camp.lead).toBe('piano');
-    expect(THEMES.moon.deep.bpm).toBe(46); expect(THEMES.moon.deep.padChance).toBe(0.5);
-    expect(THEMES.mars.mid.lead).toBe('reed');
+    const rows = { // key pitch class, scale, lead, bpm
+      'earth.camp': [0, 'majorPent', 'piano', 66], 'earth.shallow': [7, 'majorPent', 'piano', 76], 'earth.mid': [9, 'dorian', 'glass', 68], 'earth.deep': [4, 'phrygian', 'glass', 54],
+      'moon.camp': [2, 'lydian', 'glass', 52], 'moon.shallow': [2, 'lydian', 'glass', 56], 'moon.mid': [11, 'aeolian', 'glass', 52], 'moon.deep': [11, 'aeolian', 'glass', 46],
+      'mars.camp': [6, 'dorian', 'reed', 60], 'mars.shallow': [6, 'dorian', 'reed', 66], 'mars.mid': [1, 'phrygianDominant', 'reed', 60], 'mars.deep': [1, 'phrygian', 'reed', 52],
+      'tessera.camp': [0, 'augmented', 'bell', 58], 'tessera.shallow': [0, 'augmented', 'bell', 62], 'tessera.mid': [5, 'augmented', 'bell', 58], 'tessera.deep': [8, 'augmented', 'bell', 50],
+    };
+    for (const [id, [pc, sc, lead, bpm]] of Object.entries(rows)) {
+      const [p, z] = id.split('.'), th = THEMES[p][z];
+      expect(th.root % 12).toBe(pc); expect(th.scale).toEqual(SCALES[sc]); expect(th.lead).toBe(lead); expect(th.bpm).toBe(bpm);
+    }
+    expect(THEMES.moon.deep.padChance).toBe(0.5);
     expect(THEMES.tessera.shallow.scale).toEqual([0, 3, 4, 7, 8, 11]);
+  });
+  it('motifs are integer degrees or rests; motif and progression lists are unique per theme', () => {
+    const seenM = new Set(), seenP = new Set();
+    for (const p of PLANETS) for (const z of ZONES) {
+      const th = THEMES[p][z];
+      expect(th.motifs.length).toBeLessThanOrEqual(6); expect(th.progressions.length).toBeGreaterThanOrEqual(3);
+      for (const m of th.motifs) for (const [d] of m) expect(d === null || Number.isInteger(d)).toBe(true);
+      for (const pr of th.progressions) { expect(pr.length).toBeGreaterThanOrEqual(2); expect(pr.length).toBeLessThanOrEqual(4); }
+      const km = JSON.stringify(th.motifs), kp = JSON.stringify(th.progressions);
+      expect(seenM.has(km)).toBe(false); expect(seenP.has(kp)).toBe(false);
+      seenM.add(km); seenP.add(kp);
+    }
   });
   it('zoneOf', () => {
     expect(zoneOf(0.5, true)).toBe('camp');

@@ -2,7 +2,7 @@
 
 const deepFreeze = (o) => { Object.values(o).forEach((v) => typeof v === 'object' && v && deepFreeze(v)); return Object.freeze(o); };
 
-export const MUSIC = Object.freeze({
+export const MUSIC = deepFreeze({
   PIECE_SEC: [120, 180], GAP_SEC: [30, 60], CAMP_GAP_SEC: [20, 40],
   SWITCH_HOLD: 6, FADE_OUT: 4, SWITCH_GAP_SEC: 8, FIRST_DELAY: 2,
   ZONE_MID: 0.35, ZONE_DEEP: 0.78,
@@ -27,56 +27,66 @@ export const SCALES = deepFreeze({
   augmented: [0, 3, 4, 7, 8, 11],
 });
 
-// Motif sets by character: [degree|null, beats], 2-5 notes, <= 8 beats. Degrees are scale steps.
-const M = {
-  warm: [[[0, 2], [2, 1], [4, 1]], [[4, 2], [2, 1], [0, 1], [1, 2]], [[0, 1], [1, 1], [2, 2]], [[2, 1], [null, 1], [4, 2], [3, 2]]],
-  light: [[[2, 1], [3, 1], [4, 2]], [[0, 1], [2, 1], [4, 1], [3, 1]], [[4, 1], [3, 1], [2, 1], [0, 1]], [[1, 2], [null, 1], [2, 1], [0, 2]]],
-  cool: [[[0, 2], [2, 2], [4, 2]], [[4, 3], [2, 1], [1, 2]], [[0, 1], [3, 1], [2, 2], [null, 2]], [[6, 2], [4, 2], [2, 2]]],
-  heavy: [[[0, 3], [1, 1], [0, 3]], [[4, 2], [3, 2], [1, 3]], [[0, 2], [null, 2], [2, 2]], [[1, 3], [0, 3]]],
-  still: [[[0, 4], [2, 3]], [[4, 3], [2, 3], [0, 2]], [[2, 4], [null, 2], [4, 2]], [[0, 3], [1, 2], [0, 3]]],
-  lonely: [[[4, 3], [2, 3]], [[0, 2], [2, 2], [1, 4]], [[2, 4], [0, 4]], [[4, 2], [null, 2], [3, 3]]],
-  dry: [[[0, 1], [2, 1], [4, 2]], [[4, 1], [3, 1], [2, 2], [0, 2]], [[0, 2], [null, 1], [1, 1], [0, 2]], [[2, 2], [4, 2], [3, 2]]],
-  arid: [[[0, 1], [1, 1], [2, 1], [1, 1]], [[4, 2], [2, 1], [1, 1], [0, 2]], [[0, 2], [2, 2], [1, 3]], [[3, 1], [2, 1], [1, 1], [0, 3]]],
-  press: [[[0, 4], [1, 2]], [[2, 3], [1, 3], [0, 2]], [[0, 2], [null, 2], [1, 4]], [[3, 2], [2, 2], [0, 4]]],
-  machine: [[[0, 1], [1, 1], [2, 1], [3, 1]], [[3, 1], [2, 1], [1, 1], [0, 1], [2, 2]], [[0, 2], [2, 2], [4, 2]], [[5, 1], [3, 1], [1, 1], [null, 1], [0, 2]]],
-};
-const P = { // chord-root degree progressions
-  sweet: [[0, 3, 4, 3], [0, 4], [0, 2, 3, 4]],
-  curious: [[0, 2, 4, 2], [0, 3, 0, 4], [2, 4, 0]],
-  modal: [[0, 3, 5, 3], [0, 5, 3, 4], [0, 2, 3]],
-  dark: [[0, 1, 0, 5], [0, 5, 4], [0, 1, 4, 0]],
-  wide: [[0, 4], [0, 3, 4], [0, 2, 4, 3]],
-  odd: [[0, 2, 1, 4], [0, 3, 2], [0, 1, 3, 5]],
-};
-
-// shortcut: themes of one planet share motif/progression sets by character; give a theme its own set if it needs to differ.
+// Per-theme motifs ([degree|null, beats], 2-5 notes, <= 8 beats) and chord-root degree progressions.
 const mk = (id, name, root, scale, lead, bpm, padCutoff, motifs, progressions, extra = {}) =>
-  ({ id, name, root, scale: SCALES[scale], lead, bpm, padCutoff, padChance: 1, colour: false, motifs: M[motifs], progressions: P[progressions], ...extra });
+  ({ id, name, root, scale: SCALES[scale], lead, bpm, padCutoff, padChance: 1, colour: false, motifs, progressions, ...extra });
 
 export const THEMES = deepFreeze({
   earth: {
-    camp: mk('earth.camp', 'Home', 48, 'majorPent', 'piano', 66, 900, 'warm', 'sweet'),
-    shallow: mk('earth.shallow', 'Curious', 43, 'majorPent', 'piano', 76, 1000, 'light', 'curious'),
-    mid: mk('earth.mid', 'Patient', 45, 'dorian', 'glass', 68, 800, 'cool', 'modal'),
-    deep: mk('earth.deep', 'Heavy', 40, 'phrygian', 'glass', 54, 600, 'heavy', 'dark', { colour: true }),
+    camp: mk('earth.camp', 'Home', 48, 'majorPent', 'piano', 66, 900,
+      [[[0, 2], [2, 1], [4, 1]], [[4, 2], [2, 1], [0, 1], [1, 2]], [[0, 1], [1, 1], [2, 2]], [[2, 1], [null, 1], [4, 2], [3, 2]]],
+      [[0, 3, 4, 3], [0, 4], [0, 2, 3, 4]]),
+    shallow: mk('earth.shallow', 'Curious', 43, 'majorPent', 'piano', 76, 1000,
+      [[[2, 1], [3, 1], [4, 2]], [[0, 1], [2, 1], [4, 1], [3, 1]], [[4, 1], [3, 1], [2, 1], [0, 1]], [[1, 2], [null, 1], [2, 1], [0, 2]], [[3, 1], [4, 1], [2, 2]]],
+      [[0, 2, 4, 2], [0, 3, 0, 4], [2, 4, 0]]),
+    mid: mk('earth.mid', 'Patient', 45, 'dorian', 'glass', 68, 800,
+      [[[0, 2], [2, 2], [4, 2]], [[4, 3], [2, 1], [1, 2]], [[0, 1], [3, 1], [2, 2], [null, 2]], [[6, 2], [4, 2], [2, 2]]],
+      [[0, 3, 5, 3], [0, 5, 3, 4], [0, 2, 3]]),
+    deep: mk('earth.deep', 'Heavy', 40, 'phrygian', 'glass', 54, 600,
+      [[[0, 3], [1, 1], [0, 3]], [[4, 2], [3, 2], [1, 3]], [[0, 2], [null, 2], [2, 2]], [[1, 3], [0, 3]]],
+      [[0, 1, 0, 5], [0, 5, 4], [0, 1, 4, 0]], { colour: true }),
   },
   moon: {
-    camp: mk('moon.camp', 'Still', 50, 'lydian', 'glass', 52, 800, 'still', 'wide'),
-    shallow: mk('moon.shallow', 'Held', 50, 'lydian', 'glass', 56, 800, 'still', 'wide'),
-    mid: mk('moon.mid', 'Lonely', 47, 'aeolian', 'glass', 52, 700, 'lonely', 'modal'),
-    deep: mk('moon.deep', 'Almost Silence', 47, 'aeolian', 'glass', 46, 500, 'lonely', 'dark', { padChance: 0.5, colour: true }),
+    camp: mk('moon.camp', 'Still', 50, 'lydian', 'glass', 52, 800,
+      [[[0, 4], [2, 3]], [[4, 3], [2, 3], [0, 2]], [[2, 4], [null, 2], [4, 2]], [[0, 3], [3, 2], [0, 3]]],
+      [[0, 4], [0, 1, 4], [0, 3, 4]]),
+    shallow: mk('moon.shallow', 'Held', 50, 'lydian', 'glass', 56, 800,
+      [[[4, 4], [2, 4]], [[0, 4], [4, 3]], [[2, 3], [null, 3], [6, 2]], [[5, 4], [3, 2], [1, 2]], [[1, 3], [2, 3]]],
+      [[0, 1], [0, 4, 1], [0, 2, 4, 1]]),
+    mid: mk('moon.mid', 'Lonely', 47, 'aeolian', 'glass', 52, 700,
+      [[[4, 3], [2, 3]], [[0, 2], [2, 2], [1, 4]], [[2, 4], [0, 4]], [[4, 2], [null, 2], [3, 3]]],
+      [[0, 5, 3], [0, 3, 4, 0], [0, 6, 5, 4]]),
+    deep: mk('moon.deep', 'Almost Silence', 47, 'aeolian', 'glass', 46, 500,
+      [[[0, 4], [null, 2]], [[2, 3], [null, 4]], [[4, 2], [0, 5]], [[1, 4], [0, 3]]],
+      [[0, 5], [0, 1, 0], [0, 6, 5]], { padChance: 0.5, colour: true }),
   },
   mars: {
-    camp: mk('mars.camp', 'Windy', 42, 'dorian', 'reed', 60, 900, 'dry', 'modal'),
-    shallow: mk('mars.shallow', 'Dusty', 42, 'dorian', 'reed', 66, 1000, 'dry', 'curious'),
-    mid: mk('mars.mid', 'Ancient', 49, 'phrygianDominant', 'reed', 60, 800, 'arid', 'odd'),
-    deep: mk('mars.deep', 'Pressure', 37, 'phrygian', 'reed', 52, 600, 'press', 'dark', { colour: true }),
+    camp: mk('mars.camp', 'Windy', 42, 'dorian', 'reed', 60, 900,
+      [[[4, 1], [3, 1], [4, 2]], [[0, 2], [4, 2], [3, 1], [2, 1]], [[2, 1], [null, 2], [0, 1], [1, 2]], [[6, 2], [4, 1], [3, 1]]],
+      [[0, 4, 3], [0, 6, 4], [0, 3, 6, 4]]),
+    shallow: mk('mars.shallow', 'Dusty', 42, 'dorian', 'reed', 66, 1000,
+      [[[0, 1], [2, 1], [4, 2]], [[4, 1], [3, 1], [2, 2], [0, 2]], [[0, 2], [null, 1], [1, 1], [0, 2]], [[2, 2], [4, 2], [3, 2]]],
+      [[0, 2, 4, 2], [0, 3], [0, 4, 2, 3]]),
+    mid: mk('mars.mid', 'Ancient', 49, 'phrygianDominant', 'reed', 60, 800,
+      [[[0, 1], [1, 1], [2, 1], [1, 1]], [[4, 2], [2, 1], [1, 1], [0, 2]], [[0, 2], [2, 2], [1, 3]], [[3, 1], [2, 1], [1, 1], [0, 3]]],
+      [[0, 1, 0, 3], [0, 4, 1], [0, 5, 1, 4]]),
+    deep: mk('mars.deep', 'Pressure', 37, 'phrygian', 'reed', 52, 600,
+      [[[0, 4], [1, 2]], [[2, 3], [1, 3], [0, 2]], [[0, 2], [null, 2], [1, 4]], [[3, 2], [2, 2], [0, 4]]],
+      [[0, 1, 5, 1], [0, 4, 5], [0, 5, 0, 1]], { colour: true }),
   },
   tessera: {
-    camp: mk('tessera.camp', 'Cold', 48, 'augmented', 'bell', 58, 900, 'machine', 'odd'),
-    shallow: mk('tessera.shallow', 'Mechanical', 48, 'augmented', 'bell', 62, 1000, 'machine', 'odd'),
-    mid: mk('tessera.mid', 'Ordered', 41, 'augmented', 'bell', 58, 800, 'machine', 'wide'),
-    deep: mk('tessera.deep', 'Vast Machine', 44, 'augmented', 'bell', 50, 600, 'machine', 'dark', { colour: true }),
+    camp: mk('tessera.camp', 'Cold', 48, 'augmented', 'bell', 58, 900,
+      [[[0, 1], [1, 1], [2, 1], [3, 1]], [[3, 1], [2, 1], [1, 1], [0, 1], [2, 2]], [[0, 2], [2, 2], [4, 2]], [[5, 1], [3, 1], [1, 1], [null, 1], [0, 2]]],
+      [[0, 2, 4], [0, 3, 1], [0, 4, 2, 5]]),
+    shallow: mk('tessera.shallow', 'Mechanical', 48, 'augmented', 'bell', 62, 1000,
+      [[[0, 1], [0, 1], [2, 1], [2, 1], [4, 2]], [[4, 1], [2, 1], [0, 1], [2, 1], [4, 2]], [[1, 1], [3, 1], [5, 1], [3, 1]], [[0, 2], [null, 1], [3, 1], [null, 1], [0, 1]]],
+      [[0, 1, 2, 3], [0, 3, 0, 3], [0, 2, 4, 2]]),
+    mid: mk('tessera.mid', 'Ordered', 41, 'augmented', 'bell', 58, 800,
+      [[[0, 2], [3, 2], [1, 2], [4, 2]], [[5, 2], [4, 2], [3, 2]], [[2, 1], [null, 1], [2, 2], [5, 2]], [[0, 1], [2, 1], [1, 1], [3, 1], [2, 1]]],
+      [[0, 3, 1, 4], [0, 2, 5, 3], [0, 5, 4]]),
+    deep: mk('tessera.deep', 'Vast Machine', 44, 'augmented', 'bell', 50, 600,
+      [[[0, 4], [3, 4]], [[5, 3], [null, 2], [2, 3]], [[1, 4], [4, 2], [0, 2]], [[0, 2], [2, 2], [4, 2], [null, 2]]],
+      [[0, 5, 0, 4], [0, 1, 4], [0, 3, 5, 2]], { colour: true }),
   },
 });
 
@@ -92,7 +102,8 @@ export function zoneOf(depth01, onSurface) {
 
 /** Unknown planet falls back to Earth. */
 export function themeFor(planet, zone) {
-  return (THEMES[planet] ?? THEMES.earth)[zone] ?? THEMES.earth.shallow;
+  const pl = Object.hasOwn(THEMES, planet) ? THEMES[planet] : THEMES.earth;
+  return Object.hasOwn(pl, zone) ? pl[zone] : THEMES.earth.shallow;
 }
 
 /** Signal notes audible with this many relics: min(7, 2 + relics), relics >= 0. */
