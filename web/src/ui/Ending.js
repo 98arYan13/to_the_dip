@@ -19,6 +19,13 @@ export class Ending {
     this.el.querySelector('[data-close]')?.addEventListener('click', () => { this.close(); hooks.onClose(); });
   }
 
-  show() { this.open = true; this.el.classList.remove('hidden'); /** @type {HTMLElement} */ (this.el.querySelector('button'))?.focus(); }
+  /** @param {{title:string,text:string}} [custom] replaces the Core text (Tessera's ending, no cash reward) */
+  show(custom) {
+    if (custom) {
+      this.el.querySelector('h2').textContent = custom.title;
+      this.el.querySelector('.end-text').textContent = custom.text;
+      this.el.querySelector('.end-note').textContent = 'Keep digging — every depth is yours now.';
+    }
+    this.open = true; this.el.classList.remove('hidden'); /** @type {HTMLElement} */ (this.el.querySelector('button'))?.focus(); }
   close() { this.open = false; this.el.classList.add('hidden'); }
 }

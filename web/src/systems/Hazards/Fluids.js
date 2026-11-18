@@ -25,6 +25,17 @@ export class Fluids {
     for (let i = 0; i < w.tileType.length; i++) if ((w.tileType[i] === TILE.WATER || w.tileType[i] === TILE.MAGMA) && !w.fluid[i]) w.fluid[i] = F.MAX;
   }
 
+  /** Fill the lowest `rows` rows of rect r with water: open air only (walls stay), already-full tiles untouched. */
+  raiseRows(r, rows) {
+    const w = this.world;
+    for (let y = r.y + r.h - Math.min(rows, r.h); y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) {
+      const i = y * w.W + x;
+      if (w.tileType[i] !== TILE.AIR && w.tileType[i] !== TILE.WATER) continue;
+      w.tileType[i] = TILE.WATER; w.fluid[i] = F.MAX; w.gas[i] = 0; w.flags[i] |= FLAG.DIRTY;
+      this._emit(i); this._near(i);
+    }
+  }
+
   _near(i) {
     const w = this.world; const x = i % w.W; const y = (i / w.W) | 0;
     this.dirty.add(i);

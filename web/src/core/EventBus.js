@@ -60,6 +60,8 @@ export const EV = Object.freeze({
   PULSE_WARN: 'pulse:warn',              // payload: {seconds}
   PULSE: 'pulse',                        // payload: {sheltered}
   CORE_DENIED: 'core:denied',
+  MIND_GREETING: 'mind:greeting',        // first entry to the Mind's chamber with the Origin Core
+  FINISHED: 'game:finished',             // third siphon node reversed
   CRAFTED: 'crafted',                    // payload: output item id
   LOG_ENTRY: 'story:log',                // payload: {id}
   MISSION_DONE: 'story:mission',         // payload: {index}

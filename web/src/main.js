@@ -28,13 +28,15 @@ import { Gas } from './systems/Hazards/Gas.js';
 import { Quake } from './systems/Hazards/Quake.js';
 import { Pulse } from './systems/Hazards/Pulse.js';
 import { CoreGoal } from './systems/CoreGoal.js';
+import { MindGoal } from './systems/MindGoal.js';
 import { Collectibles } from './systems/Collectibles.js';
 import { Story } from './systems/Story.js';
 import { FallingLadders, pickUpLadder } from './systems/Items.js';
 import { placeChargeStation, nearStation, placeFieldCamp, nearFieldCamp } from './systems/Camp.js';
 import { dailySeed, dailyScore, dateKey } from './systems/Daily.js';
-import { goalChamber, inZone } from './world/Zones.js';
+import { goalChamber, inZone, mindChamber } from './world/Zones.js';
 import { Ending } from './ui/Ending.js';
+import { MIND_PAGES, ENDING_PAGES, FINAL_LINE } from './story.js';
 import { StoryModal } from './ui/StoryModal.js';
 import { TravelScreen } from './ui/TravelScreen.js';
 import { ElevatorScreen } from './ui/ElevatorScreen.js';
@@ -126,6 +128,9 @@ function boot() {
   const coreGoal = new CoreGoal(world, bus, economy);
   coreGoal.onQuake = () => quake.trigger(0.8);
   coreGoal.onFail = () => player.die('core heat');
+  const mindGoal = new MindGoal(world, bus, economy);
+  mindGoal.onPulse = () => pulse.trigger();
+  mindGoal.onRaiseCoolant = (rows) => fluids.raiseRows(mindChamber(world.W, world.H), rows);
   new Collectibles(bus, economy, {
     ruinRect: (layer) => (world.planet === 'earth' ? planRuins(world.genSeed, world.W, world.H, PLANETS.earth).find((r) => r.layer === layer) : undefined), // layer achievements are Earth's
     waterIn: (r) => { let n = 0; for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) if (world.tileType[y * world.W + x] === TILE.WATER) n++; return n; },
@@ -187,8 +192,12 @@ function boot() {
   const minimap = new Minimap(hud.minimapParent, bus, economy, () => world.genSeed);
   minimap.setWorld(world);
   const storyModal = new StoryModal(hudRoot, { onClose: () => { if (!showStory()) { input.clear(); if (!shop.open) canvas.focus(); } } });
+  const pages = /** @type {{title:string,text:string}[]} */ ([]); let afterPages = /** @type {(()=>void)|null} */ (null);
   const showStory = () => {
     if (storyModal.open) return true;
+    const page = pages.shift();
+    if (page) { storyModal.show(page.title, page.text, pages.length ? 'Continue' : 'Close'); return true; }
+    if (afterPages) { const f = afterPages; afterPages = null; f(); return true; }
     const e = story.pendingModals()[0]; if (!e) return false;
     const relic = e.when.relic ? RELICS.find((r) => r.id === e.when.relic) : null;
     story.markRead(e.id); // marked on show: a reload mid-modal must not replay it
@@ -331,7 +340,7 @@ function boot() {
         w.flags[i] |= FLAG.SOLID | FLAG.DIRTY | FLAG.DISCOVERED;
       }
     }
-    collapse.setWorld(w); fluids.setWorld(w); gas.setWorld(w); quake.world = w; coreGoal.world = w;
+    collapse.setWorld(w); fluids.setWorld(w); gas.setWorld(w); quake.world = w; coreGoal.world = w; mindGoal.world = w; mindGoal.reapply();
     vis.setWorld(w); physics.world = w; mining.setWorld(w); chunks.setWorld(w);
     particles.world = w; renderer.setWorld(w); minimap.setWorld(w);
   }
@@ -383,6 +392,11 @@ function boot() {
   bus.on(EV.QUAKE_WARN, () => { camera.addTrauma(0.3); sfx.rumble(0.3); }); // foreshock, main quake follows after WARN_S
   bus.on(EV.QUAKE, (q) => { camera.addTrauma(0.4 + 0.6 * q.strength); sfx.rumble(0.8 + 0.2 * q.strength); });
   bus.on(EV.COMPLETED, () => { ending.show(); input.clear(); });
+  bus.on(EV.MIND_GREETING, () => { pages.push(...MIND_PAGES); showStory(); input.clear(); });
+  bus.on(EV.FINISHED, () => {
+    pages.push(...ENDING_PAGES); afterPages = () => { ending.show({ title: 'THE SEED IS SILENT — FOR GOOD', text: FINAL_LINE }); input.clear(); };
+    saveGame(false); showStory(); input.clear();
+  });
   bus.on(EV.HINT, (text) => toast.show(text, 'warn'));
   bus.on(EV.CARGO_FULL, () => toast.show('Cargo hold full! Ore dropped on the ground.', 'warn'));
   bus.on(EV.EXPLOSION, (p) => {
@@ -636,6 +650,8 @@ function boot() {
     pulse.update(dt, meters, onSurface || nearShop || atCamp);
     player.gearOffline = pulse.stun > 0;
     coreGoal.update(dt, player.cx, player.cy);
+    mindGoal.update(dt, player.cx, player.cy);
+    hud.setSiphon(mindGoal.activeNode >= 0 || (mindGoal.inChamber(player.cx, player.cy) && economy.mind.greeted && !economy.finished) ? `Siphons ${economy.mind.nodes.length}/3${mindGoal.activeNode >= 0 ? ` · ${Math.round(mindGoal.progress * 100)}%` : ''}` : null);
     const atField = nearStation(economy, player.cx, player.cy);
     energy.update(dt, { jetting: player.jetting, atStation: atStation || atField, onSurface, coldTrap: inZone(world, 'cold_trap', ptx, pty) });
     player.burn(dt, world, g.depth01);

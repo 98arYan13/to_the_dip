@@ -35,6 +35,7 @@ export class Pulse {
   update(dt, depthM, sheltered) {
     this.stun = Math.max(0, this.stun - dt);
     if (this.warn >= 0) {
+      if (this.economy.finished) { this.warn = -1; return; } // a warning in flight is cancelled
       this.warn -= dt;
       if (this.warn < 0) this._fire(sheltered);
       return;
@@ -44,6 +45,12 @@ export class Pulse {
     this.timer -= dt * this.rate;
     if (this.timer > 0) return;
     this.timer = this._gap(Math.min(1, depthM / this.underM)) / mul;
+    this.trigger();
+  }
+
+  /** Start a pulse warning now (the Mind's sequence); never after the game is finished. */
+  trigger() {
+    if (this.economy.finished) return;
     this.warn = P.WARN_S * (this.economy.tech.includes('pulse_detector') ? 2 : 1);
     this.bus.emit(EV.PULSE_WARN, { seconds: this.warn });
   }

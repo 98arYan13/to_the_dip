@@ -65,3 +65,16 @@ export const MISSIONS = [
   M('ch8_mind', 8, 'Reach the Mind', { flag: 'mind_greeted' }),
   M('ch8_siphons', 8, 'Reverse the three siphons', { finished: true }),
 ];
+
+/** Fixed copy of the final sequence (spec 3.1). */
+export const MIND_GREETING = 'WELCOME, SEED 4,117. REPLICATION CONFIRMED.';
+export const FINAL_LINE = 'We were supposed to be its children. We turned out to be its cure.';
+export const MIND_PAGES = [
+  { title: MIND_GREETING, text: "The Mind does not attack. It greets your ship in the handshake of the Control Key.\n\nA Seed that lands on a living world does not copy itself. It threatens the planet slowly, and leaves its own blueprints where diggers will find them, in the order they will need them. The natives, in desperation, built the next Seed themselves and carried it home. The expedition was never hunting the machine. It was the machine's reproduction, and it has just completed." },
+  { title: 'THE CHOICE', text: "The Mind offers no choice. It begins copying the ship's pattern, crew included as components, into every Seed it will ever launch.\n\nBut the ship is trusted as a Seed. It can reach the one place no enemy could: the Mind's heat sink. The Thermal Siphon runs both ways. Hold the three siphon nodes and pour the planet's stored heat back into the Mind." },
+];
+export const ENDING_PAGES = [
+  { title: 'THE MIND MELTS', text: 'The last siphon opens. A planet of stored heat pours back into the Mind. It does not scream. It glows, slumps and runs, and the chamber goes dark.' },
+  { title: 'AFTER', text: 'Every Seed is built with one fail-safe: with no carrier from home, go dormant. With the Mind gone the carrier stops, and every Seed on every world falls silent for good. Earth\'s core keeps its heat; the convection recovers and the magnetic field rebuilds over decades. The warp drive is your own work, and it still runs.' },
+  { title: 'THE VALLEY CAMP', text: `The valley camp. A compass needle holding steady north. The bronze pickaxe hung on the wall of the Trading Post.\n\n${FINAL_LINE}` },
+];

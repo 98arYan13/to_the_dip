@@ -119,6 +119,8 @@ export const ELEVATOR = Object.freeze({ STOP_COST: { ores: { [ITEM.STEEL]: 10, [
 
 export const CORE_GOAL = Object.freeze({ HOLD_S: 20, REWARD_CASH: 100000, QUAKE_EVERY_S: 4 });
 
+export const MIND_GOAL = Object.freeze({ NODE_S: 20, PULSE_EVERY_S: 8, COOLANT_ROWS: 2, NODE_RANGE: 1.5 });
+
 export const CAMP = Object.freeze({ STATION_MIN_GAP: 12, MAX_STATIONS: Object.freeze({ earth: 4, moon: 6, mars: 8, tessera: 10 }), STATION_RANGE: 1.6, STATION_COST: { ores: { 29: 4, 27: 2 } }, // 4 steel + 2 copper wire (ITEM ids)
   /** Placed field camp: W x H open tiles with (x, y) the bottom-left; RANGE tiles from its centre to rest. */
   FIELD_CAMP: Object.freeze({ W: 4, H: 4, MAX: Object.freeze({ earth: 3, moon: 5, mars: 7, tessera: 9 }), RANGE: 2 }) });
