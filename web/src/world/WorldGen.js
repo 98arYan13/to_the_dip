@@ -22,11 +22,16 @@ import { carveCaves, applyCaveRules, placeFluids } from './gen/caves.js';
  */
 
 /** Max HP of a tile with the given type and ore. */
-export function maxHPFor(type, ore) {
+export function maxHPFor(type, ore, hpMul = 1) {
   const m = MATERIALS[type];
   if (!m || !m.solid) return 0;
   if (m.hp >= 65535) return m.hp; // bedrock and alien hull: unbreakable, must not scale past Uint16
-  return Math.round(m.hp * MINING.HP_MULT * (ore ? ORE_HP_MUL : 1));
+  return Math.round(m.hp * MINING.HP_MULT * (ore ? ORE_HP_MUL : 1) * hpMul);
+}
+
+/** planet.hpMul x the hpMul of the stratum whose rock is `bandTile`. */
+export function hpMulAt(planet, bandTile) {
+  return planet.hpMul * (planet.strata.find((s) => s.tile === bandTile)?.hpMul ?? 1);
 }
 
 export { computeBandStarts, bandMaterialAt };
@@ -120,7 +125,7 @@ function buildWorld(seed, planetId, W, H) {
   if (!oresOk()) problems.push('ore floor not met');
 
   // 4. HP
-  for (let i = 0; i < n; i++) tileHP[i] = maxHPFor(tileType[i], oreType[i]);
+  for (let i = 0; i < n; i++) tileHP[i] = maxHPFor(tileType[i], oreType[i], hpMulAt(planet, band[i]));
 
   return { W, H, seed, planet: planetId, tileType, tileHP, oreType, flags, band, fluid, gas, protect: d.protect, problems };
 }

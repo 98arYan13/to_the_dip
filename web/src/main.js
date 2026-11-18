@@ -5,7 +5,7 @@
  */
 import {
   WORLD, TILE, FLAG, CAMP_BUILDINGS, MATERIALS, PHYSICS, CAMERA, MINING, ENERGY, RADAR, TELEPORT, CONSUMABLES, GAMEPAD,
-  PARTICLES, QUALITY, SAVE, SETTINGS_DEFAULT, PICKAXES, RELICS, underM,
+  PARTICLES, QUALITY, SAVE, SETTINGS_DEFAULT, PICKAXES, RELICS, underM, planetGravity,
 } from './config.js';
 import { EventBus, EV } from './core/EventBus.js';
 import { GameLoop } from './core/GameLoop.js';
@@ -115,7 +115,7 @@ function boot() {
   const gas = new Gas(world, bus, player);
   gas.mining = mining; /** @type {any} */ (mining).gas = gas;
   gas.hasMask = () => economy.tech.includes('gas_mask');
-  const quake = new Quake(world, bus, collapse, new RNG((seed ^ 0x9e37) >>> 0));
+  const quake = new Quake(world, bus, collapse, new RNG((seed ^ 0x9e37) >>> 0), economy);
   const pulse = new Pulse(bus, new RNG((seed ^ 0x5eed) >>> 0), economy);
   pulse.onDrain = (f) => energy.drain(f * energy.max);
   const coreGoal = new CoreGoal(world, bus, economy);
@@ -550,9 +550,9 @@ function boot() {
     }
     if (g.radarCd > 0) g.radarCd = Math.max(0, g.radarCd - dt);
 
-    pickups.update(dt, player);
-    dynamites.update(dt, PHYSICS.GRAVITY);
-    fallingLadders.update(dt, PHYSICS.GRAVITY * player.fallMult, PHYSICS.MAX_FALL * Math.sqrt(player.fallMult)); // same fall speed as the player
+    pickups.update(dt, player, planetGravity(economy.planet));
+    dynamites.update(dt, PHYSICS.GRAVITY * planetGravity(economy.planet));
+    fallingLadders.update(dt, PHYSICS.GRAVITY * player.fallMult * planetGravity(economy.planet), PHYSICS.MAX_FALL * Math.sqrt(player.fallMult * planetGravity(economy.planet))); // same fall speed as the player
     particles.update(dt);
     mining.update(dt);
     collapse.update(dt);

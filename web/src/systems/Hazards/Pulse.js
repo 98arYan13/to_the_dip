@@ -37,10 +37,11 @@ export class Pulse {
       if (this.warn < 0) this._fire(sheltered);
       return;
     }
-    if (depthM < P.SAFE_DEPTH_M) return;
+    const mul = PLANETS[this.economy.planet ?? 'earth'].pulse.mul;
+    if (depthM < P.SAFE_DEPTH_M || !mul || this.economy.finished) return;
     this.timer -= dt;
     if (this.timer > 0) return;
-    this.timer = this._gap(Math.min(1, depthM / this.underM));
+    this.timer = this._gap(Math.min(1, depthM / this.underM)) / mul;
     this.warn = P.WARN_S * (this.economy.tech.includes('pulse_detector') ? 2 : 1);
     this.bus.emit(EV.PULSE_WARN, { seconds: this.warn });
   }

@@ -370,9 +370,21 @@ export const PLANETS = Object.freeze({
     setPieces: {}, relic: 'per-layer', goal: 'core',
   },
   // Stub until the Tessera task replaces it: Earth's profile on a 1000-row map.
-  tessera: { id: 'tessera', name: 'Tessera', eras: [1, 2, 3, 4, 5], H: 1000, gravity: 1, air: 'breathable', pulse: { mul: 1 }, quake: { mul: 1 }, hpMul: 1, strata: null, setPieces: {}, relic: 'per-layer', goal: 'core' },
+  tessera: { id: 'tessera', name: 'Tessera', eras: [1, 2, 3, 4, 5], H: 1000, gravity: 1.4, air: 'thin', pulse: { mul: 3 }, quake: { mul: 0 }, hpMul: 3, strata: null, setPieces: {}, relic: 'per-layer', goal: 'core' },
+  // STUBS (physics-only; Task 4 replaces them with full profiles).
+  moon: { id: 'moon', name: 'Moon', eras: [1, 2, 3, 4, 5], H: 448, strata: null, setPieces: {}, relic: 'per-layer', goal: 'core', gravity: 0.4, air: 'vacuum', pulse: { mul: 0.5 }, quake: { mul: 1.5 }, hpMul: 1.5 },
+  mars: { id: 'mars', name: 'Mars', eras: [1, 2, 3, 4, 5], H: 704, strata: null, setPieces: {}, relic: 'per-layer', goal: 'core', gravity: 0.6, air: 'thin', pulse: { mul: 1 }, quake: { mul: 0.5 }, hpMul: 2 },
 });
-PLANETS.tessera.strata = PLANETS.earth.strata;
+for (const id of ['tessera', 'moon', 'mars']) PLANETS[id].strata = PLANETS.earth.strata;
+
+/** Gravity multiplier of a planet. @param {string} planetId */
+export const planetGravity = (planetId) => PLANETS[planetId]?.gravity ?? 1;
+
+/** Idle-drain multiplier of the suit's life support by air type; fusion power halves the surcharge. @param {string} planetId @param {string[]} tech */
+export function lifeSupportMul(planetId, tech) {
+  const extra = { breathable: 0, thin: 0.5, vacuum: 1 }[PLANETS[planetId]?.air ?? 'breathable'] ?? 0;
+  return 1 + (tech.includes('fusion_power') ? extra / 2 : extra);
+}
 
 /** Underground depth in metres of a world `H` rows tall. */
 export const underM = (H) => (H - 1 - WORLD.SURFACE_ROWS) * WORLD.METERS_PER_TILE;

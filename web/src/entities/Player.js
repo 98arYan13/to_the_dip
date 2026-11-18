@@ -2,7 +2,7 @@
  * @module entities/Player
  * Explorer movement (walk + jetpack) and the mining state machine (IDLE → SWING → STRIKE).
  */
-import { PHYSICS, WORLD, MINING, TILE, GEAR } from '../config.js';
+import { PHYSICS, WORLD, MINING, TILE, GEAR, planetGravity } from '../config.js';
 import { EV } from '../core/EventBus.js';
 import { defaultOutfit } from '../anim/Outfit.js';
 
@@ -11,9 +11,9 @@ export const MINE_IDLE = 0;
 /**
  * Damage = max(5, round((fallenTiles - threshold) * 18 * sqrt(fallMult))), or 0 below the threshold.
  */
-export function hardLandingDamage(fallenTiles, threshold, fallMult) {
+export function hardLandingDamage(fallenTiles, threshold, fallMult, planetG = 1) {
   if (fallenTiles <= threshold) return 0;
-  return Math.max(PHYSICS.HARD_LANDING_MIN_DMG, Math.round((fallenTiles - threshold) * PHYSICS.HARD_LANDING_DMG_PER_TILE * Math.sqrt(fallMult)));
+  return Math.max(PHYSICS.HARD_LANDING_MIN_DMG, Math.round((fallenTiles - threshold) * PHYSICS.HARD_LANDING_DMG_PER_TILE * Math.sqrt(fallMult) * planetG));
 }
 
 /** Contact temperature (°C) of a tile type at depth01 (0..1), or 0 if not hot. Magma channels get hotter with depth. */
@@ -128,15 +128,15 @@ export class Player {
     const onLadder = isLadder(pty) || isLadder(ftY);
     this.onLadder = onLadder;
     if (this.hurtTimer > 0) this.hurtTimer -= dt;
-    if (this.onGround && !onLadder && input.wasPressed('jet')) this.vy = -jumpVelocity(PHYSICS.JUMP_H, PHYSICS.GRAVITY * this.fallMult);
+    if (this.onGround && !onLadder && input.wasPressed('jet')) this.vy = -jumpVelocity(PHYSICS.JUMP_H, PHYSICS.GRAVITY * this.fallMult * planetGravity(economy.planet));
     this.jetting = economy.hasJetpack && !this.gearOffline && !onLadder && input.isDown('jet') && energy.value > 0;
     if (this.jetting) {
       this.vy -= economy.stat('jetThrust', jp.thrust) * dt;
       if (this.vy < -jp.maxUp * slow) this.vy = -jp.maxUp * slow;
     }
-    const grav = PHYSICS.GRAVITY * this.fallMult;
+    const pg = planetGravity(economy.planet), grav = PHYSICS.GRAVITY * this.fallMult * pg;
     this.vy += grav * dt;
-    const maxFall = PHYSICS.MAX_FALL * Math.sqrt(this.fallMult);
+    const maxFall = PHYSICS.MAX_FALL * Math.sqrt(this.fallMult * pg);
     if (this.vy > maxFall) this.vy = maxFall;
     if (onLadder) {
       this.vy = (input.isDown('jet') ? -1 : input.isDown('down') ? 1 : 0) * PHYSICS.LADDER_SPEED;
@@ -208,7 +208,7 @@ export class Player {
     if (!this.onGround) return;
     const tiles = (this.unbrakedFallPx + Math.max(0, dy)) / WORLD.TILE_PX;
     this.unbrakedFallPx = 0;
-    const dmg = Math.round(hardLandingDamage(tiles, this.hardLandingTiles, this.fallMult) * this.d.economy.stat('fallDamage', 1));
+    const dmg = Math.round(hardLandingDamage(tiles, this.hardLandingTiles, this.fallMult, planetGravity(this.d.economy.planet)) * this.d.economy.stat('fallDamage', 1));
     if (dmg > 0) {
       this.d.bus.emit(EV.HARD_LANDING, { damage: dmg, tiles, vy: this.impactVY });
       this.setHP(this.hp - dmg);

@@ -49,3 +49,22 @@ describe('Pulse', () => {
     expect(ev).toEqual([]);
   });
 });
+
+import { Quake } from '../src/systems/Hazards/Quake.js';
+describe('planet scaling', () => {
+  const count = (economy) => { const { p, ev } = setup(economy); run(p, 400, false, 20000); return ev.filter((e) => e[0] === 'pulse').length; };
+  it('Tessera pulses come about three times as often; a finished game has none', () => {
+    const e = count({ ...eco(), planet: 'earth' }), t = count({ ...eco(), planet: 'tessera' });
+    expect(t / e).toBeGreaterThan(2.5); expect(t / e).toBeLessThan(3.5);
+    expect(count({ ...eco(), planet: 'tessera', finished: true })).toBe(0);
+  });
+  it('quake mul 0 or finished disables the scheduler', () => {
+    const w = { H: 256 }; const ev = [];
+    const bus = new EventBus(); bus.on(EV.QUAKE_WARN, () => ev.push(1));
+    for (const economy of [{ planet: 'tessera' }, { planet: 'earth', finished: true }]) {
+      const q = new Quake(w, bus, {}, new RNG(1), economy);
+      for (let i = 0; i < 100000; i++) q.update(0.1, 0.9);
+    }
+    expect(ev).toEqual([]);
+  });
+});

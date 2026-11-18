@@ -6,7 +6,6 @@
  */
 import { TILE, FLAG, HAZARD } from '../../config.js';
 import { EV } from '../../core/EventBus.js';
-import { maxHPFor } from '../../world/WorldGen.js';
 
 const F = HAZARD.FLUID;
 
@@ -96,7 +95,7 @@ export class Fluids {
   /** Magma cell m meets water cell q: m turns to basalt, q loses a unit. */
   _quench(m, q) {
     const w = this.world;
-    w.tileType[m] = TILE.BASALT; w.fluid[m] = 0; w.oreType[m] = 0; w.tileHP[m] = maxHPFor(TILE.BASALT, 0);
+    w.tileType[m] = TILE.BASALT; w.fluid[m] = 0; w.oreType[m] = 0; w.tileHP[m] = w.maxHP(m);
     w.flags[m] |= FLAG.SOLID | FLAG.DIRTY;
     if (--w.fluid[q] <= 0) { w.fluid[q] = 0; w.tileType[q] = TILE.AIR; w.flags[q] |= FLAG.DIRTY; }
     this._emit(m); this._emit(q);

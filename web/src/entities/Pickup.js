@@ -48,13 +48,13 @@ export class PickupSystem {
    * @param {number} dt
    * @param {{x:number,y:number,w:number,h:number}} player
    */
-  update(dt, player) {
+  update(dt, player, gravity = 1) {
     const m = PICKUPS.MAGNET;
     for (let k = this.active.length - 1; k >= 0; k--) {
       const p = this.active[k];
       p.prevX = p.x; p.prevY = p.y;
       p.age += dt;
-      p.vy += PHYSICS.GRAVITY * dt;
+      p.vy += PHYSICS.GRAVITY * gravity * dt;
       const vy = p.vy;
       this.physics.move(p, dt);
       if (p.hitY) { p.vy = Math.abs(vy) > 80 ? -vy * PICKUPS.BOUNCE : 0; p.vx *= 0.7; }

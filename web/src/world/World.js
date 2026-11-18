@@ -2,8 +2,8 @@
  * @module world/World
  * Tile grid stored in flat typed arrays indexed `y * W + x`.
  */
-import { WORLD, TILE, FLAG, MATERIALS } from '../config.js';
-import { generateWorld, maxHPFor } from './WorldGen.js';
+import { WORLD, TILE, FLAG, MATERIALS, PLANETS } from '../config.js';
+import { generateWorld, maxHPFor, hpMulAt } from './WorldGen.js';
 
 export class World {
   /** @param {import('./WorldGen.js').WorldData} data */
@@ -45,7 +45,7 @@ export class World {
     return this.isSolid(Math.floor(px / this.T), Math.floor(py / this.T));
   }
 
-  maxHP(i) { return maxHPFor(this.tileType[i], this.oreType[i]); }
+  maxHP(i) { return maxHPFor(this.tileType[i], this.oreType[i], hpMulAt(PLANETS[this.planet], this.band[i])); }
 
   /** Remove a solid tile (mined/blasted). */
   clear(i) {

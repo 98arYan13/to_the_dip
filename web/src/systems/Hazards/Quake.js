@@ -3,7 +3,7 @@
  * Seeded earthquake scheduler: a small foreshock, a few calm seconds, then weak ceiling tiles near the player fall (rockfall).
  * Never above SAFE_DEPTH_M or at camp.
  */
-import { underM, HAZARD, MATERIALS, TILE } from '../../config.js';
+import { underM, PLANETS, HAZARD, MATERIALS, TILE } from '../../config.js';
 import { EV } from '../../core/EventBus.js';
 import { isCampGround } from '../Mining.js';
 
@@ -15,9 +15,10 @@ export class Quake {
    * @param {import('../../core/EventBus.js').EventBus} bus
    * @param {import('./Collapse.js').Collapse} collapse
    * @param {import('../../core/RNG.js').RNG} rng
+   * @param {any} [economy] source of planet and finished
    */
-  constructor(world, bus, collapse, rng) {
-    this.world = world; this.bus = bus; this.collapse = collapse; this.rng = rng;
+  constructor(world, bus, collapse, rng, economy = null) {
+    this.economy = economy; this.world = world; this.bus = bus; this.collapse = collapse; this.rng = rng;
     this.timer = Q.MAX_GAP_S * (0.5 + 0.5 * rng.float());
     this.warn = -1; this.pending = 0; this.shake = 0;
     /** Tile the rockfall centres on (set each frame to the player's tile). */
@@ -33,10 +34,11 @@ export class Quake {
       if (this.warn < 0) this.trigger(this.pending);
       return;
     }
-    if (depth01 <= 0 || depth01 * underM(this.world.H) < Q.SAFE_DEPTH_M) return;
+    const mul = PLANETS[this.economy?.planet ?? 'earth'].quake.mul;
+    if (!mul || this.economy?.finished || depth01 <= 0 || depth01 * underM(this.world.H) < Q.SAFE_DEPTH_M) return;
     this.timer -= dt;
     if (this.timer > 0) return;
-    this.timer = this._gap(depth01);
+    this.timer = this._gap(depth01) / mul;
     this.pending = Math.min(1, 0.3 + 0.7 * depth01 * (0.5 + 0.5 * this.rng.float()));
     this.warn = Q.WARN_S;
     this.bus.emit(EV.QUAKE_WARN, { strength: this.pending });

@@ -12,8 +12,8 @@ export function blockEnergy(hard, depthM, eff) {
 }
 
 /** E_idle/sec = 0.2 * (1 + D/300) * (1 + 0.5 * W/C) */
-export function idleDrain(depthM, loadFrac) {
-  return ENERGY.IDLE_BASE * (1 + depthM / ENERGY.IDLE_DEPTH) * (1 + ENERGY.IDLE_LOAD * loadFrac);
+export function idleDrain(depthM, loadFrac, lifeSupport = 1) {
+  return lifeSupport * ENERGY.IDLE_BASE * (1 + depthM / ENERGY.IDLE_DEPTH) * (1 + ENERGY.IDLE_LOAD * loadFrac);
 }
 
 /** H_mat of a tile: the ore's hardness if it holds one, else the host rock's. */
