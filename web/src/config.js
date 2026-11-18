@@ -235,7 +235,7 @@ export const WORLD = Object.freeze({
   ORE_ATTEMPT_MULT: 20,
   BASE_CAMP: Object.freeze({ SPAWN_X: 29, SHOP_X: 24, STATION_X: 36, SHAFT_X: 31, INTERACT_RANGE: 2.2,
     /** Centre tile of each processing building (2 tiles wide), clear of the shop, shaft and station. */
-    BUILDING_SLOTS: Object.freeze({ generator: 13, furnace: 16, refinery: 19, lab: 41, workshop: 44 }),
+    BUILDING_SLOTS: Object.freeze({ generator: 13, furnace: 16, refinery: 19, lab: 41, workshop: 44, launch_pad: 8 }),
     /** Unbreakable foundation under the camp buildings: columns PAD_X0..PAD_X1, PAD_DEPTH rows deep. */
     PAD_X0: 11, PAD_X1: 46, PAD_DEPTH: 3 }),
   TOP_LIMIT_PX: -200,
@@ -433,6 +433,12 @@ const stratum = (tile, cave, extra = {}) => {
 };
 
 /** Planet profiles. strata: top to bottom, `from`/`to` as fractions of underground rows; cave.open = open-space budget [min, max] as a fraction of the stratum. */
+/** Launch pad travel: cost per destination (Earth is free) and the tech effect that makes a destination known. */
+export const TRAVEL = Object.freeze({
+  COST: Object.freeze({ moon: { [ITEM.PROPELLANT]: 10 }, mars: { [ITEM.PROPELLANT]: 25 }, tessera: { [ITEM.WARP_CHARGE]: 3 }, earth: {} }),
+  FLAG: Object.freeze({ moon: 'dest_moon', mars: 'dest_mars', tessera: 'dest_tessera' }),
+});
+
 export const PLANETS = Object.freeze({
   earth: {
     id: 'earth', name: 'Earth', eras: [1, 2, 3, 4, 5], H: WORLD.H, gravity: 1, air: 'breathable', pulse: { mul: 1 }, quake: { mul: 1 }, hpMul: 1,

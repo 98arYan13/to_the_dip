@@ -7,6 +7,7 @@ import { SURFACE, WORLD, CAMERA, CAMP_BUILDINGS } from '../config.js';
 import { RNG } from '../core/RNG.js';
 import { createNoise2D, fbm } from '../core/Noise.js';
 import { createCanvas, get2D, hexToRgb } from './canvas.js';
+import { has as hasEffect } from '../systems/Travel.js';
 
 const T = WORLD.TILE_PX;
 const GROUND = WORLD.SURFACE_ROWS * T;
@@ -203,6 +204,13 @@ export class Background {
     let calls = 0;
     ctx.font = '7px monospace'; ctx.textBaseline = 'top';
     for (const [id, tx] of Object.entries(WORLD.BASE_CAMP.BUILDING_SLOTS)) {
+      if (id === 'launch_pad') { // placeholder: flat pad plus a rocket silhouette once the Orbital Station tech is owned
+        if (!hasEffect(ec, 'launch_pad')) continue;
+        const px = tx * T - T / 2 + 4;
+        r(px - 4, GROUND - 3, 2 * T, 3, '#6b7385'); r(px + 8, GROUND - 40, 8, 37, '#d8dde6'); r(px + 10, GROUND - 46, 4, 6, '#d8dde6'); r(px + 6, GROUND - 10, 3, 7, '#ff8a3a'); r(px + 15, GROUND - 10, 3, 7, '#ff8a3a');
+        ctx.fillStyle = '#e8eef5'; ctx.fillText('LAUNCH PAD', px - 2, GROUND - 56); calls++;
+        continue;
+      }
       const b = /** @type {any} */ (CAMP_BUILDINGS)[id]; const lvl = ec.buildings[id] || 0;
       const x = tx * T - T / 2 + 4; const w = 2 * T - 8; const h = 24 + 14 * lvl;
       const tech = b.levels[0].tech;

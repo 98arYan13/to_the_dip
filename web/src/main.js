@@ -36,6 +36,8 @@ import { dailySeed, dailyScore, dateKey } from './systems/Daily.js';
 import { goalChamber, inZone } from './world/Zones.js';
 import { Ending } from './ui/Ending.js';
 import { StoryModal } from './ui/StoryModal.js';
+import { TravelScreen } from './ui/TravelScreen.js';
+import { travelState, canTravel, has as hasEffect } from './systems/Travel.js';
 import { Economy, createEconomyState } from './systems/Economy.js';
 import { Renderer } from './render/Renderer.js';
 import { Camera } from './render/Camera.js';
@@ -100,6 +102,7 @@ function boot() {
   let world = loaded.ok ? new World(loaded.data.world) : World.generate(seed, planet);
   const economy = new Economy(bus, loaded.ok ? loaded.data.economy : carry || createEconomyState());
   if (!loaded.ok) clearOwnedRelics(world, economy.relics); // a new map starts without relics the player already holds
+  if (economy.planet !== 'earth' && !economy.story.flags.includes(`landed_${economy.planet}`)) economy.story.flags.push(`landed_${economy.planet}`);
   const vis = new Visibility(world, bus);
   const physics = new Physics(world);
   const pickups = new PickupSystem(physics, bus);
@@ -192,6 +195,15 @@ function boot() {
   };
   const ending = new Ending(hudRoot, { onClose: () => { input.clear(); canvas.focus(); } });
   const shop = new Shop(hudRoot, bus, economy, { seed: () => seed, onClose: () => { input.clear(); canvas.focus(); }, click: () => sfx.uiClick() });
+  let travelling = false; // one launch only: a double click must not pay twice
+  const travelScreen = new TravelScreen(hudRoot, economy, {
+    onClose: () => { input.clear(); canvas.focus(); },
+    onTravel: (dest) => {
+      if (travelling || !canTravel(economy, dest).ok) return;
+      travelling = true;
+      saves.setCarry(travelState(economy, dest)); saves.clear(); restart();
+    },
+  });
   const settings = new Settings(hudRoot, settingsValues, {
     onChange: (s) => { settingsValues = s; applySettings(s); },
     onClose: () => { input.clear(); },
@@ -411,13 +423,15 @@ function boot() {
     else if (a === 'zoomIn' || a === 'zoomOut') setZoom(a === 'zoomIn' ? 1 : -1);
     else if (a === 'pause') {
       if (minimap.big) minimap.toggleBig(false);
+      else if (travelScreen.open) travelScreen.close();
       else if (shop.open) shop.close();
       else if (saveMenu.open) saveMenu.close();
       else if (settings.open) settings.close();
       else openSettings();
     } else if (a === 'interact') {
-      if (settings.open || saveMenu.open) return;
+      if (settings.open || saveMenu.open || travelScreen.open) return;
       if (shop.open) shop.close();
+      else if (g.prompt === 'pad') { travelScreen.show(); input.clear(); }
       else if (g.prompt === 'shop') { shop.show(); input.clear(); }
       else if (g.prompt.startsWith('bld:')) { shop.show({ tab: 'craft', building: g.prompt.slice(4) }); input.clear(); }
       else if (g.prompt === 'camp') { player.setHP(PHYSICS.SUIT_HP); shop.show({ only: 'stash' }); input.clear(); } // rest heals, not energy
@@ -523,7 +537,7 @@ function boot() {
   }
 
   function update(dt) {
-    if (!g.started || g.tabHidden || shop.open || settings.open || saveMenu.open || ending.open || storyModal.open) { input.endStep(); return; }
+    if (!g.started || g.tabHidden || shop.open || travelScreen.open || settings.open || saveMenu.open || ending.open || storyModal.open) { input.endStep(); return; }
     if (g.hitStop > 0) { g.hitStop--; return; }
     input.pollGamepad();
     g.time += dt;
@@ -582,11 +596,11 @@ function boot() {
     const atStation = onSurface && Math.abs(player.cx / T - (bc.STATION_X + 0.5)) < bc.INTERACT_RANGE;
     const atCamp = !onSurface && nearFieldCamp(economy, player.cx, player.cy);
     let bld = ''; let bd = bc.INTERACT_RANGE;
-    if (onSurface) for (const [id, x] of Object.entries(bc.BUILDING_SLOTS)) { const d = Math.abs(player.cx / T - (x + 0.5)); if (d < bd) { bd = d; bld = id; } }
-    const prompt = nearShop ? 'shop' : atStation ? 'station' : bld ? `bld:${bld}` : atCamp ? 'camp' : '';
+    if (onSurface) for (const [id, x] of Object.entries(bc.BUILDING_SLOTS)) { if (id === 'launch_pad' && !hasEffect(economy, 'launch_pad')) continue; const d = Math.abs(player.cx / T - (x + 0.5)); if (d < bd) { bd = d; bld = id; } }
+    const prompt = nearShop ? 'shop' : atStation ? 'station' : bld === 'launch_pad' ? 'pad' : bld ? `bld:${bld}` : atCamp ? 'camp' : '';
     if (prompt !== g.prompt) {
       g.prompt = prompt;
-      bus.emit(EV.PROMPT, prompt === 'shop' ? '[E] Open Trading Post terminal' : prompt === 'station' ? 'Recharging suit energy…' : prompt === 'camp' ? '[E] Rest at camp (heal, open stash)' : bld ? `[E] ${/** @type {any} */ (CAMP_BUILDINGS)[bld].name}` : null);
+      bus.emit(EV.PROMPT, prompt === 'shop' ? '[E] Open Trading Post terminal' : prompt === 'station' ? 'Recharging suit energy…' : prompt === 'camp' ? '[E] Rest at camp (heal, open stash)' : prompt === 'pad' ? '[E] Launch pad' : bld ? `[E] ${/** @type {any} */ (CAMP_BUILDINGS)[bld].name}` : null);
     }
     energy.depthM = meters;
     quake.focus.x = ptx; quake.focus.y = pty;
