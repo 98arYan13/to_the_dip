@@ -86,6 +86,7 @@ describe('story ui', () => {
   });
   it('final log entry ends with the fixed line; new entries are at most 60 words', () => {
     expect(LOG_ENTRIES.find((e) => e.id === 'final').text.endsWith('We were supposed to be its children. We turned out to be its cure.')).toBe(true);
+    // older entries (intro, ending) are exempt from the 60-word cap
     for (const e of LOG_ENTRIES.slice(LOG_ENTRIES.findIndex((x) => x.id === 'land_moon'))) expect(e.text.split(/\s+/).length).toBeLessThanOrEqual(60);
   });
 });

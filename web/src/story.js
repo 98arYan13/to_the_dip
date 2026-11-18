@@ -25,7 +25,7 @@ export const LOG_ENTRIES = [
   E('relic_relay_beta', 7, 'Relay Beta', 'A star map with one route marked, ending at a world 40 light-years away. It is not a warning, and it is not a lure. It reads like an invitation, and I do not like how much I want to accept.', { relic: 'relay_beta' }, true),
   E('land_tessera', 8, 'Tessera', 'A planet with no rock left in it. Every layer has been drawn thin, hollowed, ordered. Strata run like circuitry. This is not a world. It is a workshop, and it has been waiting.', { flag: 'landed_tessera' }),
   E('relic_origin_core', 8, 'Origin Core', 'It is warm, and it fits the Control Key exactly. The pattern inside is a blueprint of the Seed we destroyed, and of the ship that carried us here. Of course it fits.', { relic: 'origin_core' }, true),
-  E('final', 8, 'Seed 4,117', 'The Mind did not fight. It copied our ship, our crew, our hope, into every Seed it will ever launch. A century of digging, a planet saved, and we understood too late. We were supposed to be its children. We turned out to be its cure.', { finished: true }, true),
+  E('final', 8, 'Seed 4,117', 'The Mind did not fight. It copied our ship, our crew, our hope, into every Seed it will ever launch. A century of digging, a planet saved, and we understood too late. We were supposed to be its children. We turned out to be its cure.', { finished: true }),
 ];
 
 const M = (id, chapter, text, when) => ({ id, chapter, text, when });
