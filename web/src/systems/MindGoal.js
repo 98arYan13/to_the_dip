@@ -23,6 +23,13 @@ export class MindGoal {
   /** Re-apply the saved coolant level (load, or arriving on Tessera). */
   reapply() { if (this.world.planet === 'tessera' && this.economy.mind.coolant) this.onRaiseCoolant(this.economy.mind.coolant); }
 
+  /** HUD readout while the sequence is live in the chamber, else null. */
+  hudText(px, py) {
+    const m = this.economy.mind;
+    if (this.economy.finished || !m.greeted || !this.inChamber(px, py)) return null;
+    return `Siphons ${m.nodes.length}/3${this.activeNode >= 0 ? ` · ${Math.round(this.progress * 100)}%` : ''}`;
+  }
+
   inChamber(px, py) {
     if (this.world.planet !== 'tessera') return false;
     const c = mindChamber(this.world.W, this.world.H); const x = px / WORLD.TILE_PX; const y = py / WORLD.TILE_PX;
@@ -49,11 +56,7 @@ export class MindGoal {
     const near = nodes.findIndex((n, i) => !m.nodes.includes(i) && Math.hypot(px / T - (n.x + 0.5), py / T - (n.y + 0.5)) <= MIND_GOAL.NODE_RANGE);
     if (near !== this.activeNode) { this.hold = 0; this.activeNode = near; }
     if (near < 0) return;
-    if (!ec.tech.includes('heat_suit_3')) {
-      this.hold = 0;
-      if (!this.warned) { this.warned = true; this.bus.emit(EV.HINT, 'The chamber heat is too much. You need Heat Suit III.'); }
-      return;
-    }
+    if (!ec.tech.includes('heat_suit_3') && !this.warned) { this.warned = true; this.bus.emit(EV.HINT, 'The chamber heat will hurt. Heat Suit III protects you.'); } // no gate: existing heat damage applies
     this.hold += dt;
     if (this.hold < MIND_GOAL.NODE_S) return;
     m.nodes.push(near); m.coolant += MIND_GOAL.COOLANT_ROWS;

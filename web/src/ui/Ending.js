@@ -12,8 +12,8 @@ export class Ending {
     this.el.className = 'modal hidden';
     this.el.setAttribute('role', 'dialog');
     this.el.innerHTML = `<div class="modal-box"><header><h2>THE SEED IS SILENT</h2></header>
-      <section class="tab-body"><p>${LOG_ENTRIES.find((e) => e.id === 'ending')?.text ?? ''}</p>
-      <p>Reward: $100,000. Keep digging — every depth is yours now.</p>
+      <section class="tab-body"><p class="end-text">${LOG_ENTRIES.find((e) => e.id === 'ending')?.text ?? ''}</p>
+      <p class="end-note">Reward: $100,000. Keep digging — every depth is yours now.</p>
       <button class="btn primary" data-close>Keep digging</button></section></div>`;
     root.appendChild(this.el);
     this.el.querySelector('[data-close]')?.addEventListener('click', () => { this.close(); hooks.onClose(); });

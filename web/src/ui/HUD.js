@@ -93,7 +93,13 @@ export class HUD {
     this.refreshAll();
   }
 
-  setMission() { const m = currentMission(this.d.economy); this.el.mission.textContent = m ? `▸ ${m.text}` : ''; }
+  setMission() {
+    const m = currentMission(this.d.economy);
+    this.el.mission.textContent = this.d.economy.finished ? '▸ All objectives complete' : m ? `▸ ${m.text}` : '';
+  }
+
+  /** Final sequence readout (`Siphons 1/3 · 45%`); null hides it. @param {string|null} text */
+  setSiphon(text) { this.el.siphon.textContent = text ?? ''; this.el.siphon.classList.toggle('hidden', !text); }
 
   get minimapParent() { return this.el.minimapWrap; }
 

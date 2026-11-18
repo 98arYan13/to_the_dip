@@ -131,6 +131,7 @@ function boot() {
   const mindGoal = new MindGoal(world, bus, economy);
   mindGoal.onPulse = () => pulse.trigger();
   mindGoal.onRaiseCoolant = (rows) => fluids.raiseRows(mindChamber(world.W, world.H), rows);
+  mindGoal.reapply(); // a loaded mid-sequence save
   new Collectibles(bus, economy, {
     ruinRect: (layer) => (world.planet === 'earth' ? planRuins(world.genSeed, world.W, world.H, PLANETS.earth).find((r) => r.layer === layer) : undefined), // layer achievements are Earth's
     waterIn: (r) => { let n = 0; for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) if (world.tileType[y * world.W + x] === TILE.WATER) n++; return n; },
@@ -651,7 +652,7 @@ function boot() {
     player.gearOffline = pulse.stun > 0;
     coreGoal.update(dt, player.cx, player.cy);
     mindGoal.update(dt, player.cx, player.cy);
-    hud.setSiphon(mindGoal.activeNode >= 0 || (mindGoal.inChamber(player.cx, player.cy) && economy.mind.greeted && !economy.finished) ? `Siphons ${economy.mind.nodes.length}/3${mindGoal.activeNode >= 0 ? ` · ${Math.round(mindGoal.progress * 100)}%` : ''}` : null);
+    hud.setSiphon(mindGoal.hudText(player.cx, player.cy));
     const atField = nearStation(economy, player.cx, player.cy);
     energy.update(dt, { jetting: player.jetting, atStation: atStation || atField, onSurface, coldTrap: inZone(world, 'cold_trap', ptx, pty) });
     player.burn(dt, world, g.depth01);

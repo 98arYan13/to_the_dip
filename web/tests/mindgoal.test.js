@@ -7,6 +7,9 @@ import { mindChamber, mindNodes } from '../src/world/Zones.js';
 import { Pulse } from '../src/systems/Hazards/Pulse.js';
 import { Quake } from '../src/systems/Hazards/Quake.js';
 import { Fluids } from '../src/systems/Hazards/Fluids.js';
+import { HUD } from '../src/ui/HUD.js';
+import { Ending } from '../src/ui/Ending.js';
+import { FINAL_LINE } from '../src/story.js';
 import { Economy } from '../src/systems/Economy.js';
 
 const T = WORLD.TILE_PX;
@@ -57,8 +60,14 @@ describe('MindGoal', () => {
     hold(g, [(N[0].x + 4) * T, (N[0].y + 0.5) * T], 25, 0.1); // inside the chamber, away from nodes
     expect(g.pulses).toBe(3);
   });
-  it('without heat_suit_3 the hold does not advance', () => {
-    const { g } = mk({ tech: [] }); greet(g); hold(g, at(0), 10); expect(g.progress).toBe(0);
+  it('without heat_suit_3 the hold still advances (heat damage is the cost), with one hint', () => {
+    const { g, ev } = mk({ tech: [] }); greet(g); hold(g, at(0), 10);
+    expect(g.progress).toBeCloseTo(0.5); expect(ev.filter((e) => e[0] === 'HINT')).toHaveLength(1);
+  });
+  it('hudText shows the counter and progress only inside the live sequence', () => {
+    const { g } = mk(); expect(g.hudText(...at(0))).toBe(null); greet(g);
+    expect(g.hudText(...at(0))).toBe('Siphons 0/3'); hold(g, at(0), 5);
+    expect(g.hudText(...at(0))).toBe('Siphons 0/3 · 25%'); expect(g.hudText(0, 0)).toBe(null);
   });
   it('nodes complete in any order; the third sets finished and emits FINISHED once', () => {
     const { g, ev, economy } = mk(); greet(g);
@@ -94,5 +103,25 @@ describe('after the game is finished', () => {
     p.trigger(); expect(p.warn).toBe(-1);
     for (let i = 0; i < 100000; i++) { p.update(0.1, 400, false); q.update(0.1, 0.8); }
     expect(ev).toEqual([]);
+  });
+});
+
+const stubEl = () => ({ textContent: '', classes: new Set(), classList: { add() {}, remove() {}, toggle(c, on) { on ? this.s.add(c) : this.s.delete(c); }, s: new Set() }, addEventListener() {}, focus() {} });
+
+describe('final UI', () => {
+  it('HUD.setSiphon sets and hides the readout', () => {
+    const hud = Object.create(HUD.prototype); hud.el = { siphon: stubEl() };
+    hud.setSiphon('Siphons 1/3'); expect(hud.el.siphon.textContent).toBe('Siphons 1/3'); expect(hud.el.siphon.classList.s.has('hidden')).toBe(false);
+    hud.setSiphon(null); expect(hud.el.siphon.textContent).toBe(''); expect(hud.el.siphon.classList.s.has('hidden')).toBe(true);
+  });
+  it('Ending.show(custom) fills the final screen', () => {
+    const parts = { h2: stubEl(), '.end-text': stubEl(), '.end-note': stubEl(), button: stubEl() };
+    const root = { appendChild() {} };
+    globalThis.document = { createElement: () => ({ classList: stubEl().classList, setAttribute() {}, set innerHTML(h) { this.html = h; }, querySelector: (s) => parts[s] ?? stubEl() }) };
+    const e = new Ending(root, { onClose() {} });
+    for (const c of ['end-text', 'end-note', 'Keep digging']) expect(e.el.html).toContain(c);
+    e.show({ title: 'THE SEED IS SILENT — FOR GOOD', text: FINAL_LINE });
+    expect(parts.h2.textContent).toBe('THE SEED IS SILENT — FOR GOOD'); expect(parts['.end-text'].textContent).toBe(FINAL_LINE);
+    delete globalThis.document;
   });
 });
