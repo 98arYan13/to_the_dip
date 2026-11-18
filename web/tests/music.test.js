@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { degreeToSemis } from '../src/audio/Music.js';
+import { degreeToSemis, dueEvents } from '../src/audio/Music.js';
 import { composePiece, depthParams, peakPolyphony } from '../src/audio/Composer.js';
 import { mulberry32 } from '../src/core/RNG.js';
 import { MUSIC, THEMES, SCALES, SIGNAL_MOTIF, zoneOf, themeFor, signalLength } from '../src/audio/musicThemes.js';
@@ -136,4 +136,12 @@ it('deeper means lower lead for the same seed', () => {
   const mean = d => { const l = composePiece(THEMES.earth.deep, { depth01: d, targetSec: 150 }, mulberry32(9)).events.filter(e => e.voice === 'lead'); return l.reduce((s, e) => s + e.midi, 0) / l.length; };
   expect(mean(1)).toBeLessThan(mean(0));
 });
+});
+
+describe('music playback', () => {
+  it('dueEvents drops the backlog instead of bursting', () => {
+    const q = [0, 1, 2, 9.99, 10.1, 10.4].map(t => ({ t }));
+    const r = dueEvents(q, 10, 0.25);
+    expect(r.play.map(e => e.t)).toEqual([9.99, 10.1]); expect(r.rest.map(e => e.t)).toEqual([10.4]); expect(r.dropped).toBe(3);
+  });
 });

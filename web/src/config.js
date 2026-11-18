@@ -944,35 +944,6 @@ export const AUDIO = Object.freeze({
   }),
   JET_GAIN: 0.22,
   LOW_BEEP_HZ: 440,
-  MUSIC: Object.freeze({
-    // One theme per layer, keyed by band material id (0 = surface). root = key MIDI note, scale = semitones,
-    // melody = 16 steps of scale degrees ('0'-'9', wrapping into higher octaves) or '.' for rest,
-    // lead = root + oct + degree. wave 'piano' = soft piano-like tone; gain scales the lead.
-    THEMES: Object.freeze({
-      0: { name: 'Base Camp', root: 48, scale: [0, 2, 4, 7, 9], beat: 0.6, wave: 'piano', oct: 12, decay: 2.6, gain: 0.7,
-        melody: '0.2...4.3...2...' },
-      1: { name: 'Topsoil', root: 43, scale: [0, 2, 4, 7, 9], beat: 0.4, wave: 'triangle', oct: 24, decay: 1.8,
-        melody: '0.4.3.2.1.2.3...' },
-      2: { name: 'Sedimentary', root: 50, scale: [0, 2, 4, 6, 7, 9, 11], beat: 0.3, wave: 'sine', oct: 12, decay: 1.6,
-        melody: '0246420135753102' },
-      3: { name: 'Crust', root: 45, scale: [0, 3, 5, 7, 10], beat: 0.48, wave: 'triangle', oct: 24, decay: 2.4,
-        melody: '0..2.3..4.3.2.1.' },
-      4: { name: 'Deep Crust', root: 40, scale: [0, 2, 3, 5, 7, 8, 10], beat: 0.6, wave: 'triangle', oct: 24, decay: 3,
-        melody: '4..3.2..0...1.2.' },
-      5: { name: 'Mantle', root: 40, scale: [0, 1, 3, 5, 7, 8, 10], beat: 0.7, wave: 'sine', oct: 12, decay: 3.5, dissonant: true,
-        melody: '0.1...0...3.1...' },
-      9: { name: 'Molten Core', root: 37, scale: [0, 1, 4, 5, 7, 8, 10], beat: 0.85, wave: 'sine', oct: 12, decay: 4, dissonant: true,
-        melody: '0..1..4...1..0..' },
-    }),
-    SWITCH_HOLD: 1.5, // seconds a new layer must persist before the theme changes (band edges are noisy)
-    VARY: 0.12, // chance per note to skip or step to a neighbour degree
-    DISSONANT: [1, 6],
-    LOOKAHEAD: 0.25,
-    TICK_MS: 25,
-    LEAD_GAIN: 0.07,
-    DELAY_TIME: 0.43,
-    DELAY_FB: 0.42,
-  }),
 });
 
 export const SAVE = Object.freeze({

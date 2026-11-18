@@ -671,7 +671,7 @@ function boot() {
       audio.listenerX = player.cx; audio.listenerY = player.cy;
       sfx.setJet(player.jetting ? 1 : 0);
       audio.setDepth(onSurface ? 0 : g.depth01 + 0.02);
-      music.setLayer(onSurface ? 0 : band || -1); // cave air underground: keep current theme
+      music.setContext({ planet: economy.planet ?? 'earth', depth01: g.depth01, onSurface, nearRuin: false, relics: 0, finaleLevel: 0 });
       ambience.update(dt, g.depth01, onSurface);
     }
 
