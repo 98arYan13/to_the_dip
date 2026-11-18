@@ -115,11 +115,13 @@ export const ZONES = Object.freeze({
   RUIN: { SIZE: [9, 6] },
 });
 
+export const ELEVATOR = Object.freeze({ STOP_COST: { ores: { [ITEM.STEEL]: 10, [ITEM.CARBON_FIBER]: 4 } }, MAX: Object.freeze({ earth: 4, moon: 8, mars: 12, tessera: 16 }), MIN_GAP: 20, SPEED_TILES_S: 30, POWER_PER_10_TILES: 1 });
+
 export const CORE_GOAL = Object.freeze({ HOLD_S: 20, REWARD_CASH: 100000, QUAKE_EVERY_S: 4 });
 
-export const CAMP = Object.freeze({ STATION_MIN_GAP: 12, MAX_STATIONS: 4, STATION_RANGE: 1.6, STATION_COST: { ores: { 29: 4, 27: 2 } }, // 4 steel + 2 copper wire (ITEM ids)
+export const CAMP = Object.freeze({ STATION_MIN_GAP: 12, MAX_STATIONS: Object.freeze({ earth: 4, moon: 6, mars: 8, tessera: 10 }), STATION_RANGE: 1.6, STATION_COST: { ores: { 29: 4, 27: 2 } }, // 4 steel + 2 copper wire (ITEM ids)
   /** Placed field camp: W x H open tiles with (x, y) the bottom-left; RANGE tiles from its centre to rest. */
-  FIELD_CAMP: Object.freeze({ W: 4, H: 4, MAX: 3, RANGE: 2 }) });
+  FIELD_CAMP: Object.freeze({ W: 4, H: 4, MAX: Object.freeze({ earth: 3, moon: 5, mars: 7, tessera: 9 }), RANGE: 2 }) });
 
 /**
  * Upgradeable camp buildings: level i+1 needs level i. levels[i] is level i+1: cost, tech (required tech id),
@@ -1005,6 +1007,7 @@ export const KEYBINDS = Object.freeze({
   slot6: ['Digit6'],
   down: ['KeyS', 'ArrowDown'],
   station: ['KeyG'],
+  place_stop: ['KeyH'],
   interact: ['KeyE'],
   pause: ['Escape'],
   debug: ['F3'],

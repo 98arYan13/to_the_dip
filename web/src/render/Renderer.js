@@ -233,6 +233,11 @@ export class Renderer {
       ctx.fillStyle = `rgba(90,220,255,${0.6 + 0.3 * Math.sin(this.time * 4)})`; ctx.fillRect(s.x * T + 12, s.y * T + 14, T - 24, 6);
     }
 
+    for (const s of this.d.economy.elevatorStops) { // placeholder lift marker
+      ctx.fillStyle = '#3a4a5a'; ctx.fillRect(s.x * T + 2, (s.y - 1) * T, T - 4, 2 * T);
+      ctx.fillStyle = `rgba(255,200,80,${0.6 + 0.3 * Math.sin(this.time * 4)})`; ctx.fillRect(s.x * T + 5, (s.y - 1) * T + 4, T - 10, 5);
+    }
+
     // Entities
     calls += this._drawPickups(ctx, alpha);
     calls += this._drawDynamites(ctx, alpha);

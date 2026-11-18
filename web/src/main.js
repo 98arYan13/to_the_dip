@@ -37,6 +37,8 @@ import { goalChamber, inZone } from './world/Zones.js';
 import { Ending } from './ui/Ending.js';
 import { StoryModal } from './ui/StoryModal.js';
 import { TravelScreen } from './ui/TravelScreen.js';
+import { ElevatorScreen } from './ui/ElevatorScreen.js';
+import { placeStop, stops } from './systems/Elevator.js';
 import { launch, has as hasEffect } from './systems/Travel.js';
 import { Economy, createEconomyState } from './systems/Economy.js';
 import { Renderer } from './render/Renderer.js';
@@ -200,6 +202,21 @@ function boot() {
     onTravel: (dest) => {
       const st = launch(economy, dest); if (!st) return;
       saves.setCarry(st); saves.clear(); restart();
+    },
+  });
+  const fade = document.createElement('div');
+  fade.style.cssText = 'position:fixed;inset:0;background:#000;opacity:0;pointer-events:none;transition:opacity .3s;z-index:50';
+  hudRoot.appendChild(fade);
+  const elevatorScreen = new ElevatorScreen(hudRoot, economy, {
+    here: () => ({ y: Math.floor((player.feetY - 1) / WORLD.TILE_PX) }),
+    onClose: () => { input.clear(); canvas.focus(); },
+    onRide: (to, seconds) => { // hazards stay paused: the player is moved after the fade
+      fade.style.opacity = '1';
+      setTimeout(() => {
+        player.x = to.x * WORLD.TILE_PX + (WORLD.TILE_PX - player.w) / 2; player.y = (to.y + 1) * WORLD.TILE_PX - player.h;
+        player.vx = 0; player.vy = 0; player.prevX = player.x; player.prevY = player.y; player.unbrakedFallPx = 0;
+        camera.snap(player.cx, player.cy); fade.style.opacity = '0';
+      }, 300 + Math.min(seconds, 3) * 100);
     },
   });
   const settings = new Settings(hudRoot, settingsValues, {
@@ -422,13 +439,15 @@ function boot() {
     else if (a === 'pause') {
       if (minimap.big) minimap.toggleBig(false);
       else if (travelScreen.open) travelScreen.close();
+      else if (elevatorScreen.open) elevatorScreen.close();
       else if (shop.open) shop.close();
       else if (saveMenu.open) saveMenu.close();
       else if (settings.open) settings.close();
       else openSettings();
     } else if (a === 'interact') {
-      if (settings.open || saveMenu.open || travelScreen.open) return;
+      if (settings.open || saveMenu.open || travelScreen.open || elevatorScreen.open) return;
       if (shop.open) shop.close();
+      else if (g.prompt === 'lift') { elevatorScreen.show(); input.clear(); }
       else if (g.prompt === 'pad') { travelScreen.show(); input.clear(); }
       else if (g.prompt === 'shop') { shop.show(); input.clear(); }
       else if (g.prompt.startsWith('bld:')) { shop.show({ tab: 'craft', building: g.prompt.slice(4) }); input.clear(); }
@@ -476,6 +495,11 @@ function boot() {
     if (input.wasPressed('station')) {
       const r = placeChargeStation(economy, world, Math.floor(player.cx / T), Math.floor((player.feetY - 1) / T));
       toast.show(r.ok ? 'Charging station placed' : r.reason, r.ok ? 'good' : 'warn');
+      if (r.ok) { bus.emit(EV.CARGO_CHANGED); bus.emit(EV.CREDITS_CHANGED, economy.credits); }
+    }
+    if (input.wasPressed('place_stop')) {
+      const r = placeStop(economy, world, Math.floor(player.cx / T), Math.floor((player.feetY - 1) / T));
+      toast.show(r.ok ? 'Elevator stop placed' : r.reason, r.ok ? 'good' : 'warn');
       if (r.ok) { bus.emit(EV.CARGO_CHANGED); bus.emit(EV.CREDITS_CHANGED, economy.credits); }
     }
     if (input.wasPressed('slot2')) {
@@ -535,7 +559,7 @@ function boot() {
   }
 
   function update(dt) {
-    if (!g.started || g.tabHidden || shop.open || travelScreen.open || settings.open || saveMenu.open || ending.open || storyModal.open) { input.endStep(); return; }
+    if (!g.started || g.tabHidden || shop.open || travelScreen.open || elevatorScreen.open || settings.open || saveMenu.open || ending.open || storyModal.open) { input.endStep(); return; }
     if (g.hitStop > 0) { g.hitStop--; return; }
     input.pollGamepad();
     g.time += dt;
@@ -595,10 +619,11 @@ function boot() {
     const atCamp = !onSurface && nearFieldCamp(economy, player.cx, player.cy);
     let bld = ''; let bd = bc.INTERACT_RANGE;
     if (onSurface) for (const [id, x] of Object.entries(bc.BUILDING_SLOTS)) { if (id === 'launch_pad' && !hasEffect(economy, 'launch_pad')) continue; const d = Math.abs(player.cx / T - (x + 0.5)); if (d < bd) { bd = d; bld = id; } }
-    const prompt = nearShop ? 'shop' : atStation ? 'station' : bld === 'launch_pad' ? 'pad' : bld ? `bld:${bld}` : atCamp ? 'camp' : '';
+    const nearLift = hasEffect(economy, 'elevator') && stops(economy).some((s) => Math.abs(player.cx / T - (s.x + 0.5)) < 1.2 && Math.abs((player.feetY - 1) / T - s.y) < 2);
+    const prompt = nearLift ? 'lift' : nearShop ? 'shop' : atStation ? 'station' : bld === 'launch_pad' ? 'pad' : bld ? `bld:${bld}` : atCamp ? 'camp' : '';
     if (prompt !== g.prompt) {
       g.prompt = prompt;
-      bus.emit(EV.PROMPT, prompt === 'shop' ? '[E] Open Trading Post terminal' : prompt === 'station' ? 'Recharging suit energy…' : prompt === 'camp' ? '[E] Rest at camp (heal, open stash)' : prompt === 'pad' ? '[E] Launch pad' : bld ? `[E] ${/** @type {any} */ (CAMP_BUILDINGS)[bld].name}` : null);
+      bus.emit(EV.PROMPT, prompt === 'shop' ? '[E] Open Trading Post terminal' : prompt === 'station' ? 'Recharging suit energy…' : prompt === 'camp' ? '[E] Rest at camp (heal, open stash)' : prompt === 'lift' ? '[E] Cargo elevator' : prompt === 'pad' ? '[E] Launch pad' : bld ? `[E] ${/** @type {any} */ (CAMP_BUILDINGS)[bld].name}` : null);
     }
     energy.depthM = meters;
     quake.focus.x = ptx; quake.focus.y = pty;

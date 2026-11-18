@@ -127,6 +127,8 @@ export class Minimap {
       ctx.fillStyle = SURFACE.BEACON_STATION;
       ctx.fillRect((WORLD.BASE_CAMP.STATION_X - sx) * s - 1, by - 1, 3, 3);
     }
+    ctx.fillStyle = '#ffc850';
+    for (const e of this.economy.elevatorStops) ctx.fillRect((e.x - sx) * s - 1, (e.y - sy) * s - 1, 3, 3);
     // ruin ping (pulse detector): violet blinking marker, clamped to the edge when out of view
     if (this.economy.tech.includes('pulse_detector') && Math.floor(this.time * 2) % 2 === 0) {
       const r = nearestRuin(this.getSeed(), w.W, w.H, this.economy.relics, ptx, pty, w.planet);
