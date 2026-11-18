@@ -5,7 +5,7 @@
 import { stops, ride } from '../systems/Elevator.js';
 
 export class ElevatorScreen {
-  /** @param {HTMLElement} root @param {any} economy @param {{onRide:(to:{x:number,y:number}, seconds:number)=>void, onClose:()=>void, here:()=>{y:number}}} hooks */
+  /** @param {HTMLElement} root @param {any} economy @param {{onRide:(to:{x:number,y:number}, seconds:number)=>void, onClose:()=>void, here:()=>{y:number}, world:()=>any}} hooks */
   constructor(root, economy, hooks) {
     this.economy = economy; this.hooks = hooks; this.open = false;
     this.el = document.createElement('div');
@@ -19,10 +19,10 @@ export class ElevatorScreen {
       const b = /** @type {HTMLElement} */ (e.target).closest('[data-stop]');
       if (!b) return;
       const to = stops(this.economy)[+(/** @type {HTMLElement} */ (b).dataset.stop || 0)];
-      const r = ride(this.economy, this.hooks.here(), to);
+      const r = ride(this.economy, this.hooks.world(), this.hooks.here(), to);
       if (r.ok) { this.close(); this.hooks.onRide(to, r.seconds); } else this.show(r.reason);
     });
-    window.addEventListener('keydown', (e) => { if (this.open && (e.key === 'Escape' || e.key === 'e')) { e.preventDefault(); e.stopPropagation(); this.close(); } }, true);
+    window.addEventListener('keydown', (e) => { if (this.open && (e.code === 'Escape' || e.code === 'KeyE')) { e.preventDefault(); e.stopPropagation(); this.close(); } }, true);
   }
 
   show(note = '') {

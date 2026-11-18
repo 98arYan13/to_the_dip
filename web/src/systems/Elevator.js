@@ -3,17 +3,20 @@
  * Cargo elevator: permanent stops underground, linked to the camp (stop 0). Riding costs camp power.
  */
 import { ELEVATOR, WORLD, TILE } from '../config.js';
+import { EV } from '../core/EventBus.js';
 import { has } from './Travel.js';
 import { drawPower, availablePower } from './Power.js';
 
 const camp = () => ({ x: WORLD.BASE_CAMP.SHAFT_X, y: WORLD.SURFACE_ROWS - 1, label: 'Camp' });
 
+/** Stop tile and the one above are air, floor below is solid. */
+const usable = (world, tx, ty) => [ty, ty - 1].every((y) => world.inBounds(tx, y) && world.tileType[y * world.W + tx] === TILE.AIR) && world.isSolid(tx, ty + 1);
+
 /** @returns {{ok:boolean, reason?:string}} */
 export function canPlaceStop(economy, world, tx, ty) {
   if (!has(economy, 'elevator')) return { ok: false, reason: 'Needs the Space Elevator tech' };
   if (economy.elevatorStops.length >= ELEVATOR.MAX[economy.planet ?? 'earth']) return { ok: false, reason: 'Elevator stop limit reached' };
-  const air = (y) => world.inBounds(tx, y) && world.tileType[y * world.W + tx] === TILE.AIR;
-  if (!air(ty) || !air(ty - 1) || !world.isSolid(tx, ty + 1)) return { ok: false, reason: 'Needs solid floor and 2 tiles of headroom' };
+  if (!usable(world, tx, ty)) return { ok: false, reason: 'Needs solid floor and 2 tiles of headroom' };
   if (ty - camp().y < ELEVATOR.MIN_GAP || economy.elevatorStops.some((s) => Math.abs(s.y - ty) < ELEVATOR.MIN_GAP)) return { ok: false, reason: 'Too close to another stop' };
   if (!economy.canAfford(ELEVATOR.STOP_COST)) return { ok: false, reason: 'Not enough steel or carbon fiber' };
   return { ok: true };
@@ -35,9 +38,11 @@ export function stops(economy) {
 }
 
 /** Pay power and report the trip. The caller moves the player. */
-export function ride(economy, from, to) {
+export function ride(economy, world, from, to) {
+  if (to.label !== 'Camp' && !usable(world, to.x, to.y)) return { ok: false, seconds: 0, power: 0, reason: 'Stop blocked' };
   const rows = Math.abs(to.y - from.y);
   const power = Math.ceil(rows / 10) * ELEVATOR.POWER_PER_10_TILES;
   if (availablePower(economy) < power || drawPower(economy, power) < power) return { ok: false, seconds: 0, power: 0, reason: 'Not enough camp power' };
+  economy.bus.emit(EV.CARGO_CHANGED); // a ride may burn stash fuel
   return { ok: true, seconds: rows / ELEVATOR.SPEED_TILES_S, power };
 }

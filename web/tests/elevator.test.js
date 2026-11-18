@@ -14,7 +14,7 @@ const mk = (planet = 'earth', tech = ['elevator']) => {
 // open column at x=5 with floor under y=floorY
 const mkWorld = () => {
   const W = 10, H = 400; const tileType = new Uint8Array(W * H).fill(TILE.AIR);
-  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if ((y >= 100 && y % 50 === 0) || y === S + 6) tileType[y * W + x] = TILE.STONE ?? 1;
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if ((y >= 100 && y % 50 === 0) || y === S + 6) tileType[y * W + x] = TILE.GRANITE;
   return { W, H, tileType, inBounds: (x, y) => x >= 0 && y >= 0 && x < W && y < H, isSolid: (x, y) => y >= H || tileType[y * W + x] !== TILE.AIR };
 };
 
@@ -43,10 +43,30 @@ describe('elevator', () => {
   });
   it('ride time and power', () => {
     const ec = mk(); ec.power = 100;
-    const r = ride(ec, { y: 0 }, { y: 300 });
+    const r = ride(ec, mkWorld(), { y: -1 }, { x: 5, y: 299, label: '9 m' });
     expect(r).toEqual({ ok: true, seconds: 10, power: 30 }); expect(ec.power).toBe(70);
     const e2 = mk(); e2.power = 0; e2.stash.fill(0);
-    expect(ride(e2, { y: 0 }, { y: 300 })).toMatchObject({ ok: false, reason: 'Not enough camp power' });
+    expect(ride(e2, mkWorld(), { y: -1 }, { x: 5, y: 299, label: '9 m' })).toMatchObject({ ok: false, reason: 'Not enough camp power' });
+  });
+  it('ride refuses a blocked stop without drawing power', () => {
+    const w = mkWorld(); const ec = mk(); ec.power = 100;
+    const to = { x: 5, y: 99, label: '1 m' };
+    w.tileType[99 * w.W + 5] = TILE.SAND; // filled stop tile
+    expect(ride(ec, w, { y: 0 }, to)).toMatchObject({ ok: false, reason: 'Stop blocked' }); expect(ec.power).toBe(100);
+    w.tileType[99 * w.W + 5] = TILE.AIR; w.tileType[98 * w.W + 5] = TILE.SAND; // headroom only
+    expect(ride(ec, w, { y: 0 }, to).reason).toBe('Stop blocked');
+  });
+  it('gap boundary is 20 rows', () => {
+    const w = mkWorld(); const ec = mk(); ec.elevatorStops.push({ x: 5, y: 99 });
+    w.tileType[120 * w.W + 5] = TILE.GRANITE;
+    w.tileType[119 * w.W + 5] = TILE.GRANITE;
+    expect(canPlaceStop(ec, w, 5, 118).reason).toMatch(/Too close/); // 19 rows
+    w.tileType[119 * w.W + 5] = TILE.AIR;
+    expect(canPlaceStop(ec, w, 5, 119).ok).toBe(true); // 20 rows
+  });
+  it('refused ride leaves a partial pool untouched', () => {
+    const ec = mk(); ec.power = 5; ec.stash.fill(0);
+    expect(ride(ec, mkWorld(), { y: 0 }, { x: 5, y: 300, label: 'Camp' }).ok).toBe(false); expect(ec.power).toBe(5);
   });
   it('travel clears stops; camp and station caps per planet', () => {
     const ec = mk(); ec.elevatorStops.push({ x: 1, y: 100 });

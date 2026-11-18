@@ -210,12 +210,14 @@ function boot() {
   const elevatorScreen = new ElevatorScreen(hudRoot, economy, {
     here: () => ({ y: Math.floor((player.feetY - 1) / WORLD.TILE_PX) }),
     onClose: () => { input.clear(); canvas.focus(); },
-    onRide: (to, seconds) => { // hazards stay paused: the player is moved after the fade
-      fade.style.opacity = '1';
+    world: () => world,
+    onRide: (to, seconds) => { // a pause: update is gated by g.riding until the teleport lands
+      const token = ++g.rideToken; g.riding = true; fade.style.opacity = '1';
       setTimeout(() => {
+        if (token !== g.rideToken) return;
         player.x = to.x * WORLD.TILE_PX + (WORLD.TILE_PX - player.w) / 2; player.y = (to.y + 1) * WORLD.TILE_PX - player.h;
         player.vx = 0; player.vy = 0; player.prevX = player.x; player.prevY = player.y; player.unbrakedFallPx = 0;
-        camera.snap(player.cx, player.cy); fade.style.opacity = '0';
+        camera.snap(player.cx, player.cy); fade.style.opacity = '0'; g.riding = false; input.clear();
       }, 300 + Math.min(seconds, 3) * 100);
     },
   });
@@ -263,7 +265,7 @@ function boot() {
   if (!loaded.ok && loaded.error) toast.show('Save data was corrupted — starting a new expedition.', 'bad');
 
   // ---------- State ----------
-  const g = {
+  const g = { riding: false, rideToken: 0,
     started: false, tabHidden: false, hitStop: 0, time: 0, radarCd: 0, warpTimer: -1,
     lastMeters: -1, lastLayer: '', prompt: '', hover: -2, aimX: 0, aimY: 0,
     jetAcc: 0, dustAcc: 0, dripAcc: 0, emberAcc: 0, vortexAcc: 0,
@@ -410,6 +412,7 @@ function boot() {
     toast.show(`Hard landing! Suit -${h.damage}%`, 'warn');
   });
   bus.on(EV.PLAYER_DEAD, (cause) => {
+    g.rideToken++; g.riding = false; fade.style.opacity = '0';
     pulse.reset();
     economy.applyDeath();
     energy.refill();
@@ -559,7 +562,7 @@ function boot() {
   }
 
   function update(dt) {
-    if (!g.started || g.tabHidden || shop.open || travelScreen.open || elevatorScreen.open || settings.open || saveMenu.open || ending.open || storyModal.open) { input.endStep(); return; }
+    if (!g.started || g.tabHidden || g.riding || shop.open || travelScreen.open || elevatorScreen.open || settings.open || saveMenu.open || ending.open || storyModal.open) { input.endStep(); return; }
     if (g.hitStop > 0) { g.hitStop--; return; }
     input.pollGamepad();
     g.time += dt;
