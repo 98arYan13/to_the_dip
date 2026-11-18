@@ -111,3 +111,29 @@ describe('composer', () => {
     expect(depthParams(THEMES.earth.deep, Infinity)).toEqual(depthParams(THEMES.earth.deep, 1));
   });
 });
+
+describe('composer lead', () => {
+it('comfort rules', () => {
+  for (const th of all()) for (let s = 1; s <= 20; s++) {
+    const p = composePiece(th, { depth01: th.colour ? 0.9 : 0.3 }, mulberry32(s));
+    const lead = p.events.filter(e => e.voice === 'lead');
+    expect(lead.length).toBeGreaterThan(0);
+    const barsWithLead = new Set(lead.flatMap(e => { const out = []; for (let b = e.bar; b * p.barSec < e.t + e.dur; b++) out.push(b); return out; }));
+    expect(barsWithLead.size / p.bars).toBeLessThanOrEqual(0.6);
+    const starts = lead.filter((e, i) => i === 0 || lead[i - 1].motifStart !== e.motifStart).map(e => e.motif);
+    for (let i = 2; i < starts.length; i++) expect(starts[i] === starts[i - 1] && starts[i] === starts[i - 2]).toBe(false);
+    const inScale = m => th.scale.includes(((m - th.root) % 12 + 12) % 12);
+    const colours = lead.filter(e => e.colour);
+    expect(colours.length / lead.length).toBeLessThanOrEqual(0.08);
+    lead.forEach((e, i) => { if (e.colour) { expect(inScale(lead[i + 1].midi)).toBe(true); expect(Math.abs(lead[i + 1].midi - e.midi)).toBeLessThanOrEqual(2); } else expect(inScale(e.midi)).toBe(true); });
+    for (const e of p.events) if (e.voice !== 'lead') expect(inScale(e.midi)).toBe(true);
+    if (!th.colour) expect(colours.length).toBe(0);
+    expect(peakPolyphony(p.events)).toBeLessThanOrEqual(MUSIC.MAX_VOICES);
+  }
+});
+it('avoid.motif is honoured', () => { for (let s = 1; s <= 20; s++) expect(composePiece(THEMES.moon.mid, { avoid: { motif: 1 } }, mulberry32(s)).firstMotif).not.toBe(1); });
+it('deeper means lower lead for the same seed', () => {
+  const mean = d => { const l = composePiece(THEMES.earth.deep, { depth01: d, targetSec: 150 }, mulberry32(9)).events.filter(e => e.voice === 'lead'); return l.reduce((s, e) => s + e.midi, 0) / l.length; };
+  expect(mean(1)).toBeLessThan(mean(0));
+});
+});

@@ -37,7 +37,7 @@ function pickIndex(rng, n, avoid) {
  * @param {() => number} rng
  */
 export function composePiece(theme, opts = {}, rng) {
-  const { bpm, shift, delayFb } = depthParams(theme, opts.depth01);
+  const { bpm, shift, delayFb, leadChance } = depthParams(theme, opts.depth01);
   const [minSec, maxSec] = MUSIC.PIECE_SEC;
   const barSec = (MUSIC.BEATS_PER_BAR * 60) / bpm, beat = 60 / bpm;
   const targetSec = opts.targetSec ?? minSec + rng() * (maxSec - minSec);
@@ -59,11 +59,12 @@ export function composePiece(theme, opts = {}, rng) {
   const firstMotif = pickIndex(rng, theme.motifs.length, opts.avoid?.motif);
   const len = theme.scale.length;
   const note = (deg, voice, oct = 0) => fold(theme.root + degreeToSemis(theme.scale, deg - shift + len) - 12 + oct, voice);
-  const events = [];
-  const add = (t, dur, midi, voice, bar) => events.push({ t, dur, midi, voice, gain: MUSIC.GAIN[voice], bar });
+  const events = [], progs = [];
+  const add = (t, dur, midi, voice, bar) => { const e = { t, dur, midi, voice, gain: MUSIC.GAIN[voice], bar }; events.push(e); return e; };
 
   sections.forEach((sec, si) => {
     const prog = theme.progressions[si === 0 ? firstProgression : pickIndex(rng, theme.progressions.length)];
+    progs.push(prog);
     const bass = sec.name === 'B' || sec.name === 'A2';
     for (let c = 0; c * MUSIC.CHORD_BARS < sec.bars; c++) {
       const deg = prog[c % prog.length], cBars = Math.min(MUSIC.CHORD_BARS, sec.bars - c * MUSIC.CHORD_BARS);
@@ -77,6 +78,63 @@ export function composePiece(theme, opts = {}, rng) {
       }
     }
   });
+  // Lead: one motif per chord (chance-gated), sparkle in B, then comfort rules.
+  const chordBeats = MUSIC.CHORD_BARS * MUSIC.BEATS_PER_BAR, nMotifs = theme.motifs.length;
+  const placed = [], seqA = []; // placed: { idx, evs }
+  sections.forEach((sec, si) => {
+    if (!['A', 'B', 'A2'].includes(sec.name)) return;
+    const chance = Math.min(0.9, leadChance * (sec.name === 'B' ? 1.3 : 1));
+    for (let c = 0; c * MUSIC.CHORD_BARS < sec.bars; c++) {
+      let idx = sec.name === 'A2' ? seqA[c] : undefined; // A2 reuses A's sequence (null = rest)
+      if (idx === undefined) idx = !placed.length ? firstMotif : rng() < chance ? pickIndex(rng, nMotifs) : null;
+      if (idx !== null && placed.length > 1 && placed.at(-1).idx === idx && placed.at(-2).idx === idx) idx = pickIndex(rng, nMotifs, idx);
+      if (sec.name === 'A') seqA.push(idx);
+      if (idx === null) continue;
+      const bar0 = sec.startBar + c * MUSIC.CHORD_BARS, t0 = bar0 * barSec, tr = Math.floor(rng() * 5);
+      const m = theme.motifs[idx], firstDeg = m.find(([d]) => d !== null)[0], evs = [];
+      let off = 0;
+      for (const [d, b] of m) {
+        if (d !== null && off < chordBeats) {
+          const deg = tr === 1 ? d + 2 : tr === 2 ? 2 * firstDeg - d : d, bt = tr === 3 ? 2 * b : b;
+          const e = add(t0 + off * beat, Math.min(bt, chordBeats - off) * beat, note(deg + len, 'lead', 12), 'lead', bar0 + Math.floor(off / MUSIC.BEATS_PER_BAR));
+          Object.assign(e, { motif: idx, motifStart: t0, colour: false, off });
+          evs.push(e);
+        }
+        off += tr === 3 ? 2 * b : b;
+      }
+      if (tr === 4) evs.at(-1).dur = (chordBeats - evs.at(-1).off) * beat;
+      placed.push({ idx, evs });
+    }
+    if (sec.name === 'B') for (let w = 0; w * 4 < Math.ceil(sec.bars / MUSIC.CHORD_BARS); w++) {
+      if (rng() >= 0.5) continue;
+      const bar = sec.startBar + (w * 4 + Math.floor(rng() * 4)) * MUSIC.CHORD_BARS;
+      if (bar + 1 >= sec.startBar + sec.bars) continue;
+      const pr = progs[si], deg = pr[((bar - sec.startBar) / MUSIC.CHORD_BARS) % pr.length], n = 2 + Math.floor(rng() * 2);
+      for (let k = 0; k < n; k++) add((bar + 1) * barSec + k * beat, beat, note(deg + 2 * k, 'sparkle', 24), 'sparkle', bar + 1);
+    }
+  });
+  // Comfort: lead must rest in >= LEAD_REST_MIN of bars; drop whole motifs, latest first, never the first.
+  const leadBars = () => { const s = new Set(); for (const { evs } of placed) for (const e of evs) for (let b = e.bar; b * barSec < e.t + e.dur; b++) s.add(b); return s.size; };
+  while (placed.length > 1 && leadBars() / bars > 1 - MUSIC.LEAD_REST_MIN) placed.pop();
+  const lead = placed.flatMap((p) => p.evs);
+  if (theme.colour) {
+    let budget = Math.floor(MUSIC.COLOUR_MAX * lead.length);
+    const inScale = (m) => theme.scale.includes((((m - theme.root) % 12) + 12) % 12);
+    for (let i = 0; budget > 0 && i < lead.length - 1; i++) {
+      const e = lead[i], nx = lead[i + 1];
+      if (nx.motifStart !== e.motifStart || rng() >= 0.3) continue;
+      const c = [e.midi - 1, e.midi + 1].find((x) => !inScale(x) && Math.abs(nx.midi - x) <= 2 && x >= MUSIC.RANGE.lead[0] && x <= MUSIC.RANGE.lead[1]);
+      if (c !== undefined) { e.midi = c; e.colour = true; budget--; i++; }
+    }
+  }
+  const keep = new Set(lead);
+  for (let i = events.length - 1; i >= 0; i--) if (events[i].voice === 'lead' && !keep.has(events[i])) events.splice(i, 1);
+  for (let pk = peakPolyphony(events); pk > MUSIC.MAX_VOICES; pk = peakPolyphony(events)) {
+    const at = events.map((e) => e.t).find((t) => events.filter((e) => e.t <= t && t < e.t + e.dur).length === pk);
+    const top = events.filter((e) => e.voice === 'pad' && e.t <= at && at < e.t + e.dur).sort((a, b) => b.midi - a.midi)[0];
+    if (!top) break;
+    events.splice(events.indexOf(top), 1);
+  }
   events.sort((a, b) => a.t - b.t);
   return { themeId: theme.id, bpm, barSec, bars, duration, delayFb, firstMotif, firstProgression, sections, events };
 }
