@@ -81,3 +81,17 @@ describe('collapse', () => {
     expect(isUnstable(w, x, y)).toBe(false);
   });
 });
+
+describe('loose rock (spec 5.3/5.4)', () => {
+  it('regolith falls like sand', () => {
+    for (const type of [TILE.REGOLITH, TILE.RUST_REGOLITH]) {
+      const { w, c, i, x, y } = setup(type);
+      for (let yy = y + 1; yy < y + 5; yy++) w.clear(yy * w.W + x);
+      expect(isUnstable(w, x, y)).toBe(true); // even with solid neighbours either side, like sand
+      c.markDirty(x, y + 1);
+      run(c, HAZARD.COLLAPSE.WARN_S + 2);
+      expect(w.tileType[i]).toBe(TILE.AIR);
+      expect(w.tileType[(y + 4) * w.W + x]).toBe(type);
+    }
+  });
+});

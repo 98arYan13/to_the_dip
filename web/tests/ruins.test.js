@@ -7,7 +7,7 @@ import { planRuins, relicIdAt, clearOwnedRelics, hasRuins, nearestRuin } from '.
 
 const rectsOverlap = (a, b, pad) => a.x - pad < b.x + b.w && b.x - pad < a.x + a.w && a.y - pad < b.y + b.h && b.y - pad < a.y + a.h;
 const seeds = Array.from({ length: 50 }, (_, k) => 1000 + k * 7919);
-const relicIds = (w) => { const ids = []; for (let i = 0; i < w.tileType.length; i++) if (w.tileType[i] === TILE.RELIC) ids.push(relicIdAt((i / w.W) | 0, w.H)); return ids; };
+const relicIds = (w) => { const ids = []; for (let i = 0; i < w.tileType.length; i++) if (w.tileType[i] === TILE.RELIC) ids.push(relicIdAt(w.planet ?? 'earth', (i / w.W) | 0, w.H)); return ids; };
 
 describe('ruins', () => {
   it('one ruin per layer, inside its layer band, clear of zones and the core', () => {
@@ -19,7 +19,7 @@ describe('ruins', () => {
         const [l0, l1] = ZONES.LAYERS[r.layer];
         expect(r.y).toBeGreaterThanOrEqual(WORLD.SURFACE_ROWS + Math.ceil(U * l0));
         expect(r.y + r.h).toBeLessThanOrEqual(WORLD.SURFACE_ROWS + Math.floor(U * l1));
-        expect(relicIdAt(r.y + r.h - 2, WORLD.H)).toBe(RELICS.find((x) => x.layer === r.layer).id);
+        expect(relicIdAt('earth', r.y + r.h - 2, WORLD.H)).toBe(RELICS.find((x) => x.layer === r.layer).id);
         for (const b of bl) expect(rectsOverlap(r, b, 3), `seed ${s} blocked`).toBe(false);
       }
       for (const r of rs) for (const z of zs) expect(rectsOverlap(r, z, 3), `seed ${s}`).toBe(false);
@@ -32,7 +32,7 @@ describe('ruins', () => {
         let relics = 0; let hull = 0;
         for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) {
           const t = w.tileType[y * w.W + x];
-          if (t === TILE.RELIC) { relics++; expect(relicIdAt(y, w.H)).toBe(RELICS.find((q) => q.layer === r.layer).id); }
+          if (t === TILE.RELIC) { relics++; expect(relicIdAt('earth', y, w.H)).toBe(RELICS.find((q) => q.layer === r.layer).id); }
           if (t === TILE.ALIEN_HULL && (x === r.x || y === r.y || x === r.x + r.w - 1 || y === r.y + r.h - 1)) hull++;
         }
         expect(relics, `seed ${s}`).toBe(1);
@@ -100,5 +100,59 @@ describe('ruin breach tier', () => {
         }
       }
     }
+  });
+});
+
+describe('ruins on other worlds', () => {
+  const ids = { moon: 'relay_alpha', mars: 'relay_beta', tessera: 'origin_core' };
+  const fills = { moon: (t, g) => t === TILE.AIR && !g, mars: (t, g) => t === TILE.AIR && g > 0, tessera: (t) => t === TILE.WATER };
+  const worlds = {}; for (const p of Object.keys(ids)) worlds[p] = Array.from({ length: 12 }, (_, k) => generateWorld(900 + k * 7919, p));
+
+  it('exactly one ruin in the profile stratum, one relic tile with the profile relic id, relicIdAt is planet-wide', () => {
+    for (const [p, ws] of Object.entries(worlds)) for (const w of ws) {
+      const rs = planRuins(w.genSeed, w.W, w.H, PLANETS[p]);
+      expect(rs.length, `${p} ${w.seed}`).toBe(1);
+      const [r] = rs; const st = PLANETS[p].strata[PLANETS[p].ruinStratum]; const U = w.H - 1 - WORLD.SURFACE_ROWS;
+      expect(r.y).toBeGreaterThanOrEqual(WORLD.SURFACE_ROWS + Math.floor(U * st.from));
+      expect(r.y + r.h).toBeLessThanOrEqual(WORLD.SURFACE_ROWS + Math.ceil(U * st.to) + 1);
+      expect(relicIdAt(p, r.y, w.H)).toBe(ids[p]);
+      const found = []; for (let i = 0; i < w.tileType.length; i++) if (w.tileType[i] === TILE.RELIC) found.push(relicIdAt(p, (i / w.W) | 0, w.H));
+      expect(found).toEqual([ids[p]]);
+    }
+  });
+  it('the ruin holds vacuum on the Moon, methane on Mars and coolant on Tessera', () => {
+    for (const [p, ws] of Object.entries(worlds)) for (const w of ws) {
+      const [r] = planRuins(w.genSeed, w.W, w.H, PLANETS[p]);
+      for (let y = r.y + 1; y < r.y + r.h - 1; y++) for (let x = r.x + 1; x < r.x + r.w - 1; x++) {
+        const i = y * w.W + x; if (w.tileType[i] === TILE.RELIC) continue;
+        expect(fills[p](w.tileType[i], w.gas[i]), `${p} ${w.seed} ${x},${y}`).toBe(true);
+      }
+    }
+  });
+  it('the Moon relay ruin sits inside the tube cathedral, Tessera origin core in the data vault', () => {
+    for (const w of worlds.moon) {
+      const [r] = planRuins(w.genSeed, w.W, w.H, PLANETS.moon);
+      const c = planZones(w.genSeed, w.W, w.H, PLANETS.moon).find((z) => z.kind === 'tube_cathedral');
+      expect([c.w, c.h]).toEqual([30, 9]);
+      expect(r.x > c.x && r.x + r.w <= c.x + c.w && r.y >= c.y && r.y + r.h <= c.y + c.h).toBe(true);
+    }
+    for (const w of worlds.tessera) {
+      const [r] = planRuins(w.genSeed, w.W, w.H, PLANETS.tessera);
+      const v = planZones(w.genSeed, w.W, w.H, PLANETS.tessera).find((z) => z.kind === 'data_vault');
+      expect([v.x, v.y]).toEqual([r.x, r.y]);
+    }
+  });
+  it('the breach needs no more than the ruin stratum tier; owned relics are removed on a new map', () => {
+    for (const [p, ws] of Object.entries(worlds)) for (const w of ws) {
+      const [r] = planRuins(w.genSeed, w.W, w.H, PLANETS[p]);
+      for (const y of [r.y + r.h - 2, r.y + r.h - 3]) { const i = y * w.W + r.x; expect(requiredTier(w.tileType[i], w.oreType[i]), `${p} ${w.seed}`).toBeLessThanOrEqual(PLANETS[p].strata[PLANETS[p].ruinStratum].tier); }
+      clearOwnedRelics(w, [ids[p]]);
+      expect(w.tileType.includes(TILE.RELIC)).toBe(false);
+    }
+  });
+  it('nearestRuin respects the planet', () => {
+    const w = worlds.mars[0]; const [r] = planRuins(w.genSeed, w.W, w.H, PLANETS.mars);
+    expect(nearestRuin(w.genSeed, w.W, w.H, [], 0, 0, 'mars').y).toBe(r.y + (r.h >> 1));
+    expect(nearestRuin(w.genSeed, w.W, w.H, ['relay_beta'], 0, 0, 'mars')).toBeNull();
   });
 });

@@ -46,7 +46,7 @@ export class Energy {
 
   /**
    * @param {number} dt
-   * @param {{jetting:boolean, atStation:boolean, onSurface?:boolean}} s
+   * @param {{jetting:boolean, atStation:boolean, onSurface?:boolean, coldTrap?:boolean}} s coldTrap: inside a Moon cold trap, where the suit's idle drain doubles
    */
   update(dt, s) {
     if (s.atStation) {
@@ -61,7 +61,7 @@ export class Energy {
       // Only the jetpack drains over time; hand tools are free, drills pay per block (drainBlock).
       // Thin/vacuum air: the suit's life support costs extra battery underground (Earth's surcharge is 0).
       const e = this.economy;
-      if (!s.onSurface && this.depthM > 0 && !this.god) this.value -= idleDrain(this.depthM, e.loadFrac ?? 0) * (lifeSupportMul(e.planet ?? 'earth', e.tech ?? []) - 1) * dt;
+      if (!s.onSurface && this.depthM > 0 && !this.god) this.value -= idleDrain(this.depthM, e.loadFrac ?? 0) * (lifeSupportMul(e.planet ?? 'earth', e.tech ?? []) - 1) * (s.coldTrap ? 2 : 1) * dt;
       if (s.jetting && !this.god) this.value -= this.economy.stat('jetDrain', this.economy.jetpack.drain) * dt;
     }
     this._clampAndReport();

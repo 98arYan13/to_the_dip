@@ -27,7 +27,7 @@ const STYLES = {
     const u = x * Math.cos(a) + y * Math.sin(a), v = -x * Math.sin(a) + y * Math.cos(a);
     return -Math.abs(fbm(noise, u * c.freq, v * c.freq, 2));
   },
-  pocket: (c, noise, x, y) => fbm(noise, x * c.freq, y * c.freq, 3),
+  pocket: (c, noise, x, y) => fbm(noise, x * c.freq, y * c.freq * (c.fyMul ?? 1), 3), // fyMul > 1 squashes pockets flat
 };
 
 /** Vertical random-walk shafts (karst). Writes +Infinity into score. */
@@ -93,7 +93,8 @@ function carveCorridors(d, starts, c, k, rng, score, ok) {
   for (let y = WORLD.SURFACE_ROWS + WORLD.CAVE_MIN_DEPTH; y < d.H - 1; y += rng.int(c.rowGap[0], c.rowGap[1])) ys.push(y);
   const xs = [];
   for (let x = 2; x < W - 1; x += rng.int(c.colGap[0], c.colGap[1])) xs.push(x);
-  for (const y of ys) for (let x = 1; x < W - 1; x += 6) mark(x, y, Math.min(W - 2, x + 5), y);
+  const thick = c.thick ?? 1; // halls are `thick` rows tall
+  for (const y of ys) for (let x = 1; x < W - 1; x += 6) mark(x, y, Math.min(W - 2, x + 5), y + thick - 1);
   for (const x of xs) for (let j = 0; j + 1 < ys.length; j++) mark(x, ys[j], x, ys[j + 1]);
 }
 
@@ -137,7 +138,7 @@ export function carveCaves(d, starts, seed) {
       for (const i of idx) { const o = score[i] > thr; d.tileType[i] = o ? (magma[i] ? TILE.MAGMA : TILE.AIR) : st.tile; if (o) open++; }
       return open / idx.length;
     };
-    if (!idx.length || lo > hi) { apply(Infinity); return; }
+    if (!idx.length || lo > hi || c.open[1] === 0) { apply(Infinity); return; }
     const [omin, omax] = c.open;
     let best = Infinity, bestThr = hi;
     let a = lo - 1e-6, b = hi; // open iff score > thr: a opens all, b opens least

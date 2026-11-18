@@ -7,6 +7,10 @@
 /** Tile type ids (stored in World.tileType). */
 export const TILE = Object.freeze({
   AIR: 0, SOIL: 1, LIMESTONE: 2, GRANITE: 3, BASALT: 4, MANTLE: 5, BEDROCK: 6, WATER: 7, MAGMA: 8, CORE: 9, SAND: 10, LADDER: 11, ALIEN_HULL: 12, RELIC: 13,
+  // Off-world rock (appended so saved tile ids stay valid)
+  REGOLITH: 14, BRECCIA: 15, MARE_BASALT: 16, ANORTHOSITE: 17, LUNAR_MANTLE: 18,
+  RUST_REGOLITH: 19, ICE_GROUND: 20, MARS_BASALT: 21, SULFATE: 22, MARS_CRUST: 23,
+  ASH: 24, HULL_PLATE: 25, LATTICE: 26, HEAT_SINK: 27, MIND: 28,
 });
 
 /** Ore ids (stored in World.oreType), in the design-table rank order. */
@@ -85,13 +89,28 @@ export const SET_PIECES = Object.freeze({
   karst_shaft: { size: [5, 16], strata: [1], hazard: 'fall', reward: 'ore', sign: 'moss' },
   lava_tube: { size: [26, 5], strata: [3], hazard: 'rockfall', reward: 'travel', sign: 'glint' },
   magma_chamber: { size: [9, 7], strata: [4], hazard: 'magma', reward: 'ore', sign: 'glow' },
+  // Off-world pieces: `planet` names the world (default earth); strata are that planet's stratum indices. hostsRuin = the planet's ruin sits in this piece; crossShaft = may span the shaft column.
+  cold_trap: { planet: 'moon', size: [9, 6], strata: [3], hazard: 'drain', reward: 'water ice', landmarkOf: 3, sign: 'glint' },
+  tube_cathedral: { planet: 'moon', size: [30, 9], strata: [2], hazard: 'none', reward: 'relic', landmarkOf: 2, sign: 'glint', hostsRuin: true, crossShaft: true }, // 30 wide cannot fit beside the shaft column in a 64-wide map
+  regolith_slide: { planet: 'moon', size: [8, 6], strata: [0, 1], hazard: 'collapse', reward: 'none', landmarkOf: 0, sign: 'none' },
+  ice_lens: { planet: 'mars', size: [14, 4], strata: [1], hazard: 'none', reward: 'water ice', landmarkOf: 1, sign: 'glint' },
+  brine_pocket: { planet: 'mars', size: [8, 5], strata: [1, 3], hazard: 'flood', reward: 'none', landmarkOf: 3, sign: 'moss' },
+  methane_vent: { planet: 'mars', size: [7, 6], strata: [2, 3, 4], hazard: 'gas', reward: 'none', landmarkOf: 2, sign: 'moss' },
+  dust_sink: { planet: 'mars', size: [6, 5], strata: [0, 1], hazard: 'collapse', reward: 'none', landmarkOf: 0, sign: 'none' },
+  fabricator_hall: { planet: 'tessera', size: [12, 6], strata: [1, 2, 3], hazard: 'pulse', reward: 'meteorite', landmarkOf: 1, sign: 'glint' },
+  coolant_channel: { planet: 'tessera', size: [14, 4], strata: [2, 3], hazard: 'flood', reward: 'none', landmarkOf: 2, sign: 'moss' },
+  data_vault: { planet: 'tessera', size: [9, 6], strata: [3], hazard: 'none', reward: 'relic', landmarkOf: 3, sign: 'none', hostsRuin: true },
 });
+
+/** Gap (rows) a deep map may go without a set piece and a flat 4x4 floor (spec 8.2). */
+export const PACING = Object.freeze({ WINDOW: 120 });
 
 export const ZONES = Object.freeze({
   PER_LAYER: 3,
   SPACING: 3,
   LAYERS: [[0, 0.15], [0.15, 0.35], [0.35, 0.55], [0.55, 0.78], [0.78, 0.92]],
   CORE_CHAMBER: { W: 9, H: 5 },
+  MIND_CHAMBER: { W: 15, H: 9 },
   /** One alien ruin per LAYERS entry (world/Ruins.js); SIZE is [w, h] incl. the hull ring. */
   RUIN: { SIZE: [9, 6] },
 });
@@ -211,7 +230,7 @@ export const WORLD = Object.freeze({
   FUNGI_CHANCE: 0.22,
   MOSS_CHANCE: 0.2,
   /** Fraction of host-rock tiles that become ore, per host band material id. */
-  BAND_ORE_FRACTION: Object.freeze({ 1: 0.06, 2: 0.07, 3: 0.07, 4: 0.08, 5: 0.09 }),
+  BAND_ORE_FRACTION: Object.freeze({ 1: 0.06, 2: 0.07, 3: 0.07, 4: 0.08, 5: 0.09, 14: 0.05, 15: 0.07, 16: 0.08, 17: 0.08, 18: 0.09, 19: 0.06, 20: 0.07, 21: 0.08, 22: 0.08, 23: 0.09, 24: 0.05, 25: 0.07, 26: 0.08, 27: 0.09 }),
   ORE_DEPTH_BIAS: 0.35,
   ORE_ATTEMPT_MULT: 20,
   BASE_CAMP: Object.freeze({ SPAWN_X: 29, SHOP_X: 24, STATION_X: 36, SHAFT_X: 31, INTERACT_RANGE: 2.2,
@@ -253,7 +272,7 @@ export const MATERIALS = Object.freeze([
     anim: { src: 'tiles/magma_anim.png', frames: 12, fps: 10 },
     colors: { base: '#3a2a2e', dark: '#1e1416', light: '#ff7a1a', accent: '#ff5a12', extra: '#ffc14a' } },
   // Loose sand pockets: no depth band; falls when unsupported (systems/Hazards/Collapse.js).
-  { id: 10, key: 'SAND', name: 'Loose Sand', layer: 'Sand', hp: 1, tier: 1, hard: 0.4, solid: true, sfx: 'soil',
+  { id: 10, key: 'SAND', name: 'Loose Sand', layer: 'Sand', hp: 1, tier: 1, hard: 0.4, solid: true, loose: true, sfx: 'soil',
     colors: { base: '#d6b66a', dark: '#a8863e', light: '#ecd596', accent: '#c19d52', extra: '#8a6a30' } },
   // Placed by the player (systems/Items.js); walkable, climbable.
   { id: 11, key: 'LADDER', name: 'Ladder', hp: 0, tier: 0, solid: false, sfx: 'none',
@@ -263,6 +282,37 @@ export const MATERIALS = Object.freeze([
     colors: { base: '#3a2a5c', dark: '#1e1433', light: '#6a4ea8', accent: '#b08cff', extra: '#120b20' } },
   { id: 13, key: 'RELIC', name: 'Alien Relic', hp: 12, tier: 1, hard: 9, solid: true, sfx: 'clink',
     colors: { base: '#2ac0d0', dark: '#156068', light: '#a0f8ff', accent: '#ffffff', extra: '#0b3034' } },
+  // Off-world rock: procedural colours. loose = falls like sand (systems/Hazards/Collapse.js). hp is tuned so a pick of the tier that reaches it needs ~10-30 hits.
+  { id: 14, key: 'REGOLITH', name: 'Lunar Regolith', layer: 'Regolith', hp: 20, tier: 5, hard: 1.8, solid: true, loose: true, sfx: 'soil',
+    colors: { base: '#9a9a9c', dark: '#6a6a6e', light: '#c4c4c6', accent: '#84848a', extra: '#4e4e54' } },
+  { id: 15, key: 'BRECCIA', name: 'Impact Breccia', layer: 'Megaregolith', hp: 50, tier: 6, hard: 2.4, solid: true, sfx: 'granite',
+    colors: { base: '#7c7a78', dark: '#52504e', light: '#a8a5a2', accent: '#64605c', extra: '#c8b8a0' } },
+  { id: 16, key: 'MARE_BASALT', name: 'Mare Basalt', layer: 'Mare Basalt', hp: 60, tier: 6, hard: 2.6, solid: true, sfx: 'basalt',
+    colors: { base: '#3c3e4a', dark: '#22242c', light: '#585b6a', accent: '#2c2e38', extra: '#6a6e80' } },
+  { id: 17, key: 'ANORTHOSITE', name: 'Anorthosite', layer: 'Anorthosite Crust', hp: 80, tier: 7, hard: 3.0, solid: true, sfx: 'granite',
+    colors: { base: '#c8ccd4', dark: '#8e929c', light: '#eef0f4', accent: '#a4a8b2', extra: '#7a7e88' } },
+  { id: 18, key: 'LUNAR_MANTLE', name: 'Lunar Mantle', layer: 'Lunar Mantle', hp: 100, tier: 7, hard: 3.4, solid: true, sfx: 'mantle',
+    colors: { base: '#2c3a34', dark: '#16201c', light: '#4a6056', accent: '#6a8a70', extra: '#8aa890' } },
+  { id: 19, key: 'RUST_REGOLITH', name: 'Rusty Regolith', layer: 'Rusty Regolith', hp: 30, tier: 6, hard: 2.0, solid: true, loose: true, sfx: 'soil',
+    colors: { base: '#a8553a', dark: '#74351f', light: '#d07e5a', accent: '#8c4128', extra: '#e8a078' } },
+  { id: 20, key: 'ICE_GROUND', name: 'Ice-Cemented Ground', layer: 'Ice Ground', hp: 70, tier: 7, hard: 2.6, solid: true, sfx: 'limestone',
+    colors: { base: '#8a6e66', dark: '#5a443e', light: '#c8d8e4', accent: '#a8c4d8', extra: '#e8f4fc' } },
+  { id: 21, key: 'MARS_BASALT', name: 'Martian Basalt', layer: 'Martian Basalt', hp: 80, tier: 7, hard: 3.0, solid: true, sfx: 'basalt',
+    colors: { base: '#4a3030', dark: '#2a1a1a', light: '#6e4a46', accent: '#382222', extra: '#8a6058' } },
+  { id: 22, key: 'SULFATE', name: 'Sulfate & Clay', layer: 'Sulfate Beds', hp: 90, tier: 8, hard: 3.2, solid: true, sfx: 'limestone',
+    colors: { base: '#c8a458', dark: '#8c6e30', light: '#ecd08c', accent: '#a8863e', extra: '#f4ecc8' } },
+  { id: 23, key: 'MARS_CRUST', name: 'Deep Martian Crust', layer: 'Deep Crust', hp: 110, tier: 8, hard: 3.6, solid: true, sfx: 'mantle',
+    colors: { base: '#3a2024', dark: '#1c0e10', light: '#5e3a3a', accent: '#c8542a', extra: '#ff8a4a' } },
+  { id: 24, key: 'ASH', name: 'Ash Crust', layer: 'Ash Crust', hp: 50, tier: 7, hard: 2.4, solid: true, sfx: 'soil',
+    colors: { base: '#5a5a5e', dark: '#38383c', light: '#84848a', accent: '#46464a', extra: '#a0a0a6' } },
+  { id: 25, key: 'HULL_PLATE', name: 'Hull Plating', layer: 'Hull Plating', hp: 70, tier: 8, hard: 3.4, solid: true, sfx: 'clink',
+    colors: { base: '#4a5666', dark: '#2a323e', light: '#7e8ea4', accent: '#36d0e0', extra: '#1c222c' } },
+  { id: 26, key: 'LATTICE', name: 'Lattice', layer: 'Lattice', hp: 70, tier: 8, hard: 3.4, solid: true, sfx: 'clink',
+    colors: { base: '#3a4a60', dark: '#1e2836', light: '#6a86aa', accent: '#46e0ff', extra: '#10161e' } },
+  { id: 27, key: 'HEAT_SINK', name: 'Heat Sink', layer: 'Heat Sink', hp: 70, tier: 8, hard: 3.4, solid: true, sfx: 'clink',
+    colors: { base: '#5a3a38', dark: '#301c1c', light: '#9a5e52', accent: '#ff7a2a', extra: '#1c0e0e' } },
+  { id: 28, key: 'MIND', name: 'The Mind', layer: 'The Mind', hp: 70, tier: 8, hard: 3.4, solid: true, sfx: 'clink',
+    colors: { base: '#2a2038', dark: '#140e1c', light: '#5a4a7c', accent: '#b08cff', extra: '#08040c' } },
 ]);
 
 /**
@@ -379,7 +429,7 @@ export const isOre = (id) => /** @type {any} */ (ORES[id])?.kind === 'ore';
 
 const stratum = (tile, cave, extra = {}) => {
   const m = MATERIALS[tile];
-  return { tile, from: m.band[0], to: m.band[1], tier: m.tier, cave, water: false, magma: false, gas: false, ...extra };
+  return { tile, from: m.band?.[0], to: m.band?.[1], tier: m.tier, cave, water: false, magma: false, gas: false, ...extra };
 };
 
 /** Planet profiles. strata: top to bottom, `from`/`to` as fractions of underground rows; cave.open = open-space budget [min, max] as a fraction of the stratum. */
@@ -396,13 +446,62 @@ export const PLANETS = Object.freeze({
     ],
     setPieces: {}, relic: 'per-layer', goal: 'core',
   },
-  // Stub until the Tessera task replaces it: Earth's profile on a 1000-row map.
-  tessera: { id: 'tessera', name: 'Tessera', eras: [1, 2, 3, 4, 5], H: 1000, gravity: 1.4, air: 'thin', pulse: { mul: 3 }, quake: { mul: 0 }, hpMul: 3, strata: null, setPieces: {}, relic: 'per-layer', goal: 'core' },
-  // STUBS (physics-only; Task 4 replaces them with full profiles).
-  moon: { id: 'moon', name: 'Moon', eras: [1, 2, 3, 4, 5], H: 448, strata: null, setPieces: {}, relic: 'per-layer', goal: 'core', gravity: 0.4, air: 'vacuum', pulse: { mul: 0.5 }, quake: { mul: 1.5 }, hpMul: 1.5 },
-  mars: { id: 'mars', name: 'Mars', eras: [1, 2, 3, 4, 5], H: 704, strata: null, setPieces: {}, relic: 'per-layer', goal: 'core', gravity: 0.6, air: 'thin', pulse: { mul: 1 }, quake: { mul: 0.5 }, hpMul: 2 },
+  moon: {
+    id: 'moon', name: 'Moon', eras: [6], H: 448, gravity: 0.4, air: 'vacuum', pulse: { mul: 0.5 }, quake: { mul: 1.5 }, hpMul: 1.5, goal: 'relic', relic: 'relay_alpha', ruinStratum: 2, ruinFill: 'air', setPieces: {},
+    strata: [
+      stratum(TILE.REGOLITH, { style: 'none', open: [0, 0.01] }, { from: 0, to: 0.08 }),
+      stratum(TILE.BRECCIA, { style: 'pocket', open: [0.06, 0.09], freq: 0.3 }, { from: 0.08, to: 0.30 }),
+      stratum(TILE.MARE_BASALT, { style: 'tube', open: [0.10, 0.14], count: [2, 5], len: [24, 44], radius: 3, slope: 0.15 }, { from: 0.30, to: 0.60 }),
+      stratum(TILE.ANORTHOSITE, { style: 'fissure', open: [0.02, 0.04], freq: 0.09, angleDeg: 30, width: 0.03 }, { from: 0.60, to: 0.88 }),
+      stratum(TILE.LUNAR_MANTLE, { style: 'none', open: [0, 0] }, { from: 0.88, to: 1 }),
+    ],
+    // Very rich = weight x3. Bauxite sits in the anorthosite only: the table's regolith + anorthosite pair is not two neighbouring strata.
+    ores: { [ORE.HELIUM3]: { strata: [0, 1], mul: 3 }, [ORE.IRON]: { strata: [0] }, [ORE.BAUXITE]: { strata: [3], mul: 3 },
+      [ORE.ILMENITE]: { strata: [1, 2], mul: 3 }, [ORE.RARE_EARTHS]: { strata: [1], mul: 3 }, [ORE.NICKEL]: { strata: [1] },
+      [ORE.COBALT]: { strata: [2] }, [ORE.PLATINUM]: { strata: [2] },
+      [ORE.URANIUM]: { strata: [3] }, [ORE.GOLD]: { strata: [3] }, [ORE.WATER_ICE]: { strata: [3] }, [ORE.DIAMOND]: { strata: [4] } },
+  },
+  mars: {
+    id: 'mars', name: 'Mars', eras: [7], H: 704, gravity: 0.6, air: 'thin', pulse: { mul: 1 }, quake: { mul: 0.5 }, hpMul: 2, goal: 'relic', relic: 'relay_beta', ruinStratum: 3, ruinFill: 'gas', setPieces: {},
+    strata: [
+      stratum(TILE.RUST_REGOLITH, { style: 'none', open: [0, 0.01] }, { from: 0, to: 0.06 }),
+      stratum(TILE.ICE_GROUND, { style: 'pocket', open: [0.06, 0.09], freq: 0.2, fyMul: 3 }, { from: 0.06, to: 0.25, water: true }),
+      stratum(TILE.MARS_BASALT, { style: 'tube', open: [0.08, 0.11], count: [2, 5], len: [20, 40], radius: 2, slope: 0.15 }, { from: 0.25, to: 0.55, gas: true }),
+      stratum(TILE.SULFATE, { style: 'karst', open: [0.08, 0.12], fx: 0.03, fy: 0.16, shaftsPer64: 2, shaftLen: [8, 16] }, { from: 0.55, to: 0.82, water: true }),
+      stratum(TILE.MARS_CRUST, { style: 'fissure', open: [0.03, 0.05], freq: 0.09, angleDeg: 30, width: 0.03 }, { from: 0.82, to: 1, magma: true }),
+    ],
+    ores: { [ORE.IRON]: { strata: [0], mul: 3 }, [ORE.PERCHLORATE]: { strata: [0] },
+      [ORE.WATER_ICE]: { strata: [1] }, [ORE.LEAD]: { strata: [1] }, [ORE.ZINC]: { strata: [1] },
+      [ORE.COPPER]: { strata: [2] }, [ORE.NICKEL]: { strata: [2] }, [ORE.COBALT]: { strata: [2] }, [ORE.TUNGSTEN]: { strata: [2] },
+      [ORE.LITHIUM]: { strata: [3] }, [ORE.URANIUM]: { strata: [3] }, [ORE.BLACK_OPAL]: { strata: [3] },
+      [ORE.PLATINUM]: { strata: [4] }, [ORE.RHODIUM]: { strata: [4] }, [ORE.DIAMOND]: { strata: [4] } },
+  },
+  tessera: {
+    id: 'tessera', name: 'Tessera', eras: [], needFrom: [7], needOres: [ORE.METEORITE, ORE.RHODIUM, ORE.PLATINUM, ORE.DIAMOND],
+    H: 1000, gravity: 1.4, air: 'thin', pulse: { mul: 3 }, quake: { mul: 0 }, hpMul: 3, goal: 'mind', relic: 'origin_core', ruinStratum: 3, ruinFill: 'water', setPieces: {},
+    strata: [
+      stratum(TILE.ASH, { style: 'pocket', open: [0.03, 0.05], freq: 0.22 }, { from: 0, to: 0.05 }),
+      stratum(TILE.HULL_PLATE, { style: 'corridor', open: [0.04, 0.06], rowGap: [8, 12], colGap: [12, 18], thick: 1 }, { from: 0.05, to: 0.30 }),
+      stratum(TILE.LATTICE, { style: 'corridor', open: [0.12, 0.16], rowGap: [6, 9], colGap: [8, 14], thick: 1 }, { from: 0.30, to: 0.62, hpMul: 1.5, water: true }),
+      stratum(TILE.HEAT_SINK, { style: 'corridor', open: [0.14, 0.18], rowGap: [8, 11], colGap: [10, 16], thick: 3 }, { from: 0.62, to: 0.92, hpMul: 2, magma: true }),
+      stratum(TILE.MIND, { style: 'corridor', open: [0, 0], rowGap: [8, 11], colGap: [10, 16], thick: 1 }, { from: 0.92, to: 1, hpMul: 3 }),
+    ],
+    ores: { [ORE.IRON]: { strata: [0] }, [ORE.COAL]: { strata: [0] }, [ORE.METEORITE]: { strata: [1, 2], mul: 3 }, [ORE.PLATINUM]: { strata: [1] },
+      [ORE.RHODIUM]: { strata: [2, 3] }, [ORE.DIAMOND]: { strata: [3] } },
+  },
 });
-for (const id of ['tessera', 'moon', 'mars']) PLANETS[id].strata = PLANETS.earth.strata;
+for (const p of Object.values(PLANETS)) {
+  for (const [id, e] of Object.entries(p.ores || {})) e.weight = /** @type {any} */ (ORES[+id]).weight * (e.mul ?? 1);
+}
+
+/** Host rock tile ids of `ore` on a planet: Earth uses ORES[].hosts, other worlds list strata in PLANETS[p].ores. */
+export function oreHosts(planetId, ore) {
+  const p = PLANETS[planetId];
+  if (!p.ores) return ore.hosts;
+  return (p.ores[ore.id]?.strata ?? []).map((k) => p.strata[k].tile);
+}
+/** Relative abundance of `ore` on a planet (profile override, else the ore's own weight). */
+export const oreWeight = (planetId, ore) => PLANETS[planetId].ores?.[ore.id]?.weight ?? ore.weight;
 
 /** Gravity multiplier of a planet. @param {string} planetId */
 export const planetGravity = (planetId) => PLANETS[planetId]?.gravity ?? 1;
@@ -563,9 +662,9 @@ export const TECH = Object.freeze([
   // Era 6 — Space
   { id: 'orbital_station', era: 6, name: 'Orbital Station', desc: 'A crewed station that triangulates the source of the signal.', requires: ['rocketry'], cost: tc(800000, { [I_.CARBON_FIBER]: 30, [I_.TITANIUM]: 30, [I_.CIRCUIT]: 20, [I_.LI_ION_CELL]: 10 }), effect: { unlock: 'launch_pad' } },
   { id: 'lunar_landing', era: 6, name: 'Lunar Landing', desc: 'A lander to the first relay of the alien signal, with a pressure suit.', requires: ['orbital_station'], cost: tc(1200000, { [I_.ALUMINIUM]: 40, [I_.TITANIUM]: 20, [I_.FUEL]: 80, [I_.CIRCUIT]: 20 }), effect: { unlock: 'dest_moon' } },
-  { id: 'fusion_power', era: 6, name: 'Fusion Power', desc: 'Relay Alpha holds the plasma containment: a reactor that burns helium-3.', requires: ['lunar_landing'], relic: 'relay_alpha', cost: tc(1500000, { [I_.SUPERCONDUCTOR]: 10, [I_.FUSION_FUEL]: 10, [I_.STAINLESS]: 20 }) },
-  { id: 'plasma_cutter', era: 6, name: 'Plasma Cutter', desc: 'A contained plasma arc that slices rock.', requires: ['fusion_power'], cost: tc(1650000, { [I_.SUPERCONDUCTOR]: 6, [I_.FUSION_FUEL]: 4, [I_.TUNGSTEN_CARBIDE]: 6 }) },
-  { id: 'fusion_pack', era: 6, name: 'Fusion Pack', desc: 'A compact fusion cell and a superconducting frame.', requires: ['fusion_power'], cost: tc(1650000, { [I_.FUSION_FUEL]: 6, [I_.SUPERCONDUCTOR]: 4 }) },
+  { id: 'fusion_power', era: 6, name: 'Fusion Power', desc: 'Relay Alpha holds the plasma containment: a reactor that burns helium-3.', requires: ['lunar_landing'], relic: 'relay_alpha', cost: tc(1300000, { [I_.SUPERCONDUCTOR]: 10, [I_.FUSION_FUEL]: 10, [I_.STAINLESS]: 20 }) },
+  { id: 'plasma_cutter', era: 6, name: 'Plasma Cutter', desc: 'A contained plasma arc that slices rock.', requires: ['fusion_power'], cost: tc(1450000, { [I_.SUPERCONDUCTOR]: 6, [I_.FUSION_FUEL]: 4, [I_.TUNGSTEN_CARBIDE]: 6 }) },
+  { id: 'fusion_pack', era: 6, name: 'Fusion Pack', desc: 'A compact fusion cell and a superconducting frame.', requires: ['fusion_power'], cost: tc(1450000, { [I_.FUSION_FUEL]: 6, [I_.SUPERCONDUCTOR]: 4 }) },
   { id: 'mars_mission', era: 6, key: true, name: 'Mars Mission', desc: 'Nuclear propulsion to the second relay of the signal.', requires: ['lunar_landing', 'fusion_power'], relic: 'relay_alpha', cost: tc(2700000, { [I_.CARBON_FIBER]: 40, [I_.PROPELLANT]: 20, [I_.CIRCUIT]: 30, [I_.FUSION_FUEL]: 10 }), effect: { unlock: 'dest_mars' } },
   // Era 7 — Interplanetary
   { id: 'lattice_cutter', era: 7, name: 'Lattice Cutter', desc: 'Relay Beta teaches a cutting edge grown as a crystal lattice.', requires: ['mars_mission', 'exotic_materials'], relic: 'relay_beta', cost: tc(3300000, { [I_.EXOTIC_ALLOY]: 6, [I_.SUPERCONDUCTOR]: 6, [I_.INDUSTRIAL_DIAMOND]: 4 }) },
@@ -594,8 +693,8 @@ export const ECONOMY = Object.freeze({
 export const BALANCE = Object.freeze({
   PACKING_EFFICIENCY: 0.85,
   /** A player at pickaxe tier N is assumed to own rig level N-1. */
-  /** Host band (material id) a player at tier N mostly mines. */
-  FOCUS_BAND_BY_TIER: [1, 2, 3, 4, 5, 5, 5, 5], // shortcut: tiers 6-8 still price Earth's deepest band, per-planet focus stratum lookup in Task 4
+  /** [planet, host band (material id)] a player at tier N mostly mines: Earth through tier 6, then the Moon, Mars and Tessera strata. */
+  FOCUS_BY_TIER: [['earth', 1], ['earth', 2], ['earth', 3], ['earth', 4], ['earth', 5], ['earth', 5], ['moon', 15], ['mars', 23]],
   TRIPS_MIN: 3,
   TRIPS_MAX: 5,
 });

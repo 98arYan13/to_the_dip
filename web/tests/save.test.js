@@ -191,7 +191,7 @@ describe('planets in the save', () => {
   });
   it('old saves migrate to planet earth', () => {
     const m = migrate({ version: 6, economy: { tech: [] } }).economy;
-    expect(m).toEqual({ tech: [], planet: 'earth', elevatorStops: [], finished: false, mind: { nodes: [], coolant: 0, greeted: false } });
+    expect(m).toEqual({ tech: [], planet: 'earth', elevatorStops: [], finished: false, done: {}, mind: { nodes: [], coolant: 0, greeted: false } });
   });
   it('newMapState keeps the planet and clears elevator stops', () => {
     const n = new Economy(new EventBus(), { ...createEconomyState(), planet: 'tessera', elevatorStops: [{ x: 1, y: 2 }] }).newMapState();

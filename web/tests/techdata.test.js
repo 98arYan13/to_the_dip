@@ -101,9 +101,13 @@ describe('relic data', () => {
 });
 
 describe('world entry and gear (spec 8.1)', () => {
-  // Stub until Task 4 derives this from PLANETS[w].strata hosts: off-world ores each world supplies.
-  const SUPPLY = { moon: [ORE.HELIUM3, ORE.WATER_ICE, ORE.RARE_EARTHS], mars: [ORE.PERCHLORATE, ORE.WATER_ICE], tessera: [] };
   const order = ['moon', 'mars', 'tessera'];
+  // Off-world ores (no Earth host) each world really hosts, read from its profile.
+  const SUPPLY = Object.fromEntries(order.map((p) => [p, Object.keys(PLANETS[p].ores).map(Number).filter((o) => !ORES[o].hosts.length)]));
+  it('the spec hosts the space ores: Moon He-3, rare earths, water ice; Mars perchlorate, water ice', () => {
+    expect(SUPPLY.moon.sort()).toEqual([ORE.HELIUM3, ORE.RARE_EARTHS, ORE.WATER_ICE].sort());
+    expect(SUPPLY.mars.sort()).toEqual([ORE.WATER_ICE, ORE.PERCHLORATE].sort());
+  });
   // Pickaxe tier needed for a world's last stratum, and the highest first-stratum tier its entry gear can dig.
   const LAST_PICK = { moon: 6, mars: 7, tessera: 8 };
   const FIRST_MAX = { moon: 6, mars: 7, tessera: 7 };

@@ -2,7 +2,7 @@
  * @module systems/Mining
  * Damage, tier gating, cracks and drops. Gating rules are pure functions (unit-tested).
  */
-import { TILE, ORE, MATERIALS, ORES, PICKAXES, MINING, WORLD, DYNAMITE } from '../config.js';
+import { TILE, ORE, MATERIALS, ORES, PICKAXES, MINING, WORLD, DYNAMITE, PLANETS } from '../config.js';
 import { EV } from '../core/EventBus.js';
 import { relicIdAt } from '../world/Ruins.js';
 
@@ -195,8 +195,10 @@ export class Mining {
     const x = i % w.W; const y = (i / w.W) | 0;
     w.clear(i);
     if (type === TILE.RELIC) {
-      const id = relicIdAt(y, w.H);
+      const planetId = w.planet ?? 'earth';
+      const id = relicIdAt(planetId, y, w.H);
       if (id && !this.economy.relics.includes(id)) { this.economy.relics.push(id); this.bus.emit(EV.RELIC_FOUND, { id }); }
+      if (id && PLANETS[planetId].goal === 'relic') this.economy.done[planetId] = true; // Moon/Mars: taking the relic finishes the world
     }
     this._untrack(i);
     if (this.recoilTile === i) this.recoilTile = -1;

@@ -51,7 +51,7 @@ export class Quake {
     this.bus.emit(EV.QUAKE, { strength });
     const cand = [];
     for (let y = this.focus.y - R; y <= this.focus.y + R; y++) for (let x = this.focus.x - R; x <= this.focus.x + R; x++) {
-      if (w.inBounds(x, y) && w.isSolid(x, y) && !w.isSolid(x, y + 1) && w.tileType[y * w.W + x] !== TILE.SAND && MATERIALS[w.tileType[y * w.W + x]].hard <= Q.WEAK_MAX_HARD && !isCampGround(x, y)) cand.push([x, y]);
+      if (w.inBounds(x, y) && w.isSolid(x, y) && !w.isSolid(x, y + 1) && !MATERIALS[w.tileType[y * w.W + x]].loose && MATERIALS[w.tileType[y * w.W + x]].hard <= Q.WEAK_MAX_HARD && !isCampGround(x, y)) cand.push([x, y]);
     }
     for (let k = cand.length - 1; k > 0; k--) { const j = this.rng.int(0, k); [cand[k], cand[j]] = [cand[j], cand[k]]; }
     const n = Math.round(Q.BASE_N + (Q.MAX_N - Q.BASE_N) * strength);

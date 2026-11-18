@@ -3,7 +3,7 @@
  * Unstable soil and sand: a warning phase (crack, dust, rumble), then the tile falls one cell per step
  * and crushes the player if it lands on them. Dirty-queue driven; work per update is capped.
  */
-import { TILE, FLAG, HAZARD } from '../../config.js';
+import { TILE, FLAG, HAZARD, MATERIALS } from '../../config.js';
 import { EV } from '../../core/EventBus.js';
 import { isCampGround } from '../Mining.js';
 
@@ -16,9 +16,10 @@ const C = HAZARD.COLLAPSE;
 export function isUnstable(w, x, y) {
   if (!w.inBounds(x, y) || isCampGround(x, y)) return false;
   const t = w.tileType[y * w.W + x];
-  if (t !== TILE.SAND && t !== TILE.SOIL) return false;
+  const loose = MATERIALS[t].loose; // sand, regolith: falls whenever unsupported
+  if (!loose && t !== TILE.SOIL) return false;
   if (w.isSolid(x, y + 1)) return false;
-  return t === TILE.SAND || (!w.isSolid(x - 1, y) && !w.isSolid(x + 1, y));
+  return loose || (!w.isSolid(x - 1, y) && !w.isSolid(x + 1, y));
 }
 
 export class Collapse {
@@ -46,7 +47,7 @@ export class Collapse {
   /** Queue every sand/soil tile once (after load, so floating sand starts moving). */
   markAll() {
     const w = this.world;
-    for (let i = 0; i < w.tileType.length; i++) if (w.tileType[i] === TILE.SAND || w.tileType[i] === TILE.SOIL) this.dirty.add(i);
+    for (let i = 0; i < w.tileType.length; i++) if (MATERIALS[w.tileType[i]].loose || w.tileType[i] === TILE.SOIL) this.dirty.add(i);
   }
 
   /** Make any loose solid tile fall (warning first). @returns {boolean} */

@@ -5,7 +5,7 @@
  */
 import { WORLD, TILE, FLAG, MATERIALS, ORE_HP_MUL, MINING, PLANETS, AUDIT } from '../config.js';
 import { RNG, hash2 } from '../core/RNG.js';
-import { planSetPieces, stampSetPiece, stampCore } from './Zones.js';
+import { planSetPieces, stampSetPiece, stampCore, stampMind, ensureFlatSpots } from './Zones.js';
 import { stampRuin } from './Ruins.js';
 import { createNoise2D, fbm } from '../core/Noise.js';
 import { computeBandStarts, bandMaterialAt } from './gen/strata.js';
@@ -112,7 +112,8 @@ function buildWorld(seed, planetId, W, H) {
   {
     const zrng = new RNG((seed ^ 0x5a17) >>> 0);
     for (const z of planSetPieces(seed, W, H, planet)) (z.kind === 'ruin' ? stampRuin(d, z) : stampSetPiece(d, z, zrng));
-    stampCore(d);
+    stampCore(d); stampMind(d);
+    ensureFlatSpots(d, starts);
   }
 
   // 3c. Audit and repair: ores, reachability, safety; whatever still fails is reported for the caller's retry rule

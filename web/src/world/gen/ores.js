@@ -1,18 +1,18 @@
 /** @module world/gen/ores Ore placement. */
-import { WORLD, ORE, ORES, WORLD_RARITY, PLANETS } from '../../config.js';
+import { WORLD, ORE, ORES, WORLD_RARITY, PLANETS, oreHosts, oreWeight } from '../../config.js';
 
-const wt = (ore) => ore.weight * (ore.price > WORLD_RARITY.RARE_PRICE ? WORLD_RARITY.RARE_WEIGHT_MUL : 1);
+const wt = (planetId, ore) => oreWeight(planetId, ore) * (ore.price > WORLD_RARITY.RARE_PRICE ? WORLD_RARITY.RARE_WEIGHT_MUL : 1);
 
 /** Ores hosted by `hostBand` with the tile count the balance model gives each, for `hostCount` host tiles. */
-export function veinTargets(hostBand, hostCount) {
+export function veinTargets(hostBand, hostCount, planetId = 'earth') {
   const hosted = [];
   let weightSum = 0;
   for (let o = 1; o < ORES.length; o++) {
     const ore = /** @type {any} */ (ORES[o]);
-    if (ore.hosts.includes(hostBand)) { hosted.push(ore); weightSum += wt(ore); }
+    if (oreHosts(planetId, ore).includes(hostBand)) { hosted.push(ore); weightSum += wt(planetId, ore); }
   }
   const frac = WORLD.BAND_ORE_FRACTION[hostBand] || 0;
-  return hosted.map((ore) => ({ ore, target: Math.round(frac * hostCount * wt(ore) / weightSum) }));
+  return hosted.map((ore) => ({ ore, target: Math.round(frac * hostCount * wt(planetId, ore) / weightSum) }));
 }
 
 /**
@@ -21,17 +21,18 @@ export function veinTargets(hostBand, hostCount) {
  */
 function walkVein(d, ore, rng, idx, max, biasExp = 1) {
   const { W, H, tileType, oreType, protect } = d;
+  const hosts = oreHosts(d.planet, ore);
   const SR = WORLD.SURFACE_ROWS;
   const u = Math.pow(rng.float(), biasExp);
   let i = idx[Math.min(idx.length - 1, Math.floor(u * idx.length))];
-  if (oreType[i] !== ORE.NONE || !ore.hosts.includes(tileType[i]) || (protect && protect[i])) return 0;
+  if (oreType[i] !== ORE.NONE || !hosts.includes(tileType[i]) || (protect && protect[i])) return 0;
   const len = rng.int(ore.vein[0], ore.vein[1]);
   let cx = i % W;
   let cy = (i / W) | 0;
   let placed = 0;
   for (let s = 0; s < len && placed < max; s++) {
     i = cy * W + cx;
-    if (oreType[i] === ORE.NONE && ore.hosts.includes(tileType[i]) && !(protect && protect[i])) { oreType[i] = ore.id; placed++; }
+    if (oreType[i] === ORE.NONE && hosts.includes(tileType[i]) && !(protect && protect[i])) { oreType[i] = ore.id; placed++; }
     const dir = rng.int(0, 3);
     if (dir === 0) cx++; else if (dir === 1) cx--; else if (dir === 2) cy++; else cy--;
     if (cx < 1) cx = 1; else if (cx > W - 2) cx = W - 2;
@@ -48,7 +49,7 @@ export function placeVeins(d, rng) {
     const hostIdx = [];
     for (let i = 0; i < n; i++) if (tileType[i] === hostBand) hostIdx.push(i);
     if (hostIdx.length === 0) continue;
-    for (const { ore, target } of veinTargets(hostBand, hostIdx.length)) {
+    for (const { ore, target } of veinTargets(hostBand, hostIdx.length, d.planet)) {
       let placed = 0;
       let attempts = 0;
       const maxAttempts = Math.max(1, target) * WORLD.ORE_ATTEMPT_MULT;

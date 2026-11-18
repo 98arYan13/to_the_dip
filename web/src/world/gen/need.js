@@ -8,9 +8,19 @@ function add(out, id, n) {
   for (const [o, k] of Object.entries(inputs)) add(out, +o, n * k);
 }
 
-/** @param {string} planetId @returns {Record<number, number>} raw ore id -> amount */
+/**
+ * Raw-ore need of a planet: its eras' items, minus ores the planet does not host (Earth and earlier worlds supply those).
+ * A world without eras of its own (Tessera) can name `needFrom` eras and `needOres`: it feeds only those leftovers.
+ * @param {string} planetId @returns {Record<number, number>} raw ore id -> amount
+ */
 export function oreNeed(planetId) {
-  const eras = PLANETS[planetId].eras;
+  const p = /** @type {any} */ (PLANETS[planetId]);
+  const out = eraNeed(p.needFrom ?? p.eras);
+  for (const o of Object.keys(out)) if ((p.ores && !p.ores[o]) || (p.needOres && !p.needOres.includes(+o))) delete out[o];
+  return out;
+}
+
+function eraNeed(eras) {
   const eraOf = new Map(TECH.map((t) => [t.id, t.era]));
   const ok = (tech) => !tech || eras.includes(eraOf.get(tech));
   /** @type {Record<number, number>} */

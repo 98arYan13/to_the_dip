@@ -2,7 +2,7 @@
  * @module systems/CoreGoal
  * Reaching the Core chamber starts a timed stabilize sequence (heat + quakes). Survive HOLD_S with the heat suit to win.
  */
-import { CORE_GOAL, WORLD } from '../config.js';
+import { CORE_GOAL, WORLD, PLANETS } from '../config.js';
 import { EV } from '../core/EventBus.js';
 import { coreChamber } from '../world/Zones.js';
 
@@ -20,6 +20,7 @@ export class CoreGoal {
   get progress() { return this.hold / CORE_GOAL.HOLD_S; }
 
   inChamber(px, py) {
+    if (PLANETS[this.world.planet ?? 'earth'].goal !== 'core') return false; // relic worlds have no chamber; Tessera's is the Mind's
     const c = coreChamber(this.world.W, this.world.H); const T = WORLD.TILE_PX;
     const x = px / T; const y = py / T;
     return x >= c.x && x < c.x + c.w && y >= c.y && y < c.y + c.h;

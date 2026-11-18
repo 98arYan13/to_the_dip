@@ -10,8 +10,9 @@ import { createCanvas, get2D, hexToRgb } from './canvas.js';
 
 const T = WORLD.TILE_PX;
 const N = T * T * 4;
-const SOLID_TYPES = [TILE.SOIL, TILE.LIMESTONE, TILE.GRANITE, TILE.BASALT, TILE.MANTLE, TILE.BEDROCK, TILE.MAGMA, TILE.WATER, TILE.CORE, TILE.SAND, TILE.ALIEN_HULL, TILE.RELIC];
-const BAND_TYPES = [TILE.SOIL, TILE.LIMESTONE, TILE.GRANITE, TILE.BASALT, TILE.MANTLE, TILE.CORE];
+const SOLID_TYPES = [TILE.SOIL, TILE.LIMESTONE, TILE.GRANITE, TILE.BASALT, TILE.MANTLE, TILE.BEDROCK, TILE.MAGMA, TILE.WATER, TILE.CORE, TILE.SAND, TILE.ALIEN_HULL, TILE.RELIC,
+  ...Array.from({ length: 15 }, (_, k) => TILE.REGOLITH + k)]; // off-world rock: procedural colours
+const BAND_TYPES = [TILE.SOIL, TILE.LIMESTONE, TILE.GRANITE, TILE.BASALT, TILE.MANTLE, TILE.CORE, ...Array.from({ length: 15 }, (_, k) => TILE.REGOLITH + k)];
 
 /** Small RGBA painter for one 32×32 cell. */
 class Cell {
@@ -199,7 +200,7 @@ export class TileArt {
             if (r > 0.975) { c = col.extra; shade = 1; } else if (r > 0.94) { c = col.accent; shade = 1; }
             break;
           }
-          case TILE.SAND: {
+          case TILE.SAND: case TILE.REGOLITH: case TILE.RUST_REGOLITH: {
             const r = rng.float();
             if (r < 0.1) c = col.light; else if (r < 0.2) c = col.accent; else if (r < 0.23) c = col.extra;
             if (((y + Math.floor(n * 4)) % 6) === 0) c = col.dark;

@@ -20,6 +20,8 @@ export class Pulse {
     this.bus = bus; this.rng = rng; this.economy = economy;
     this.timer = P.MAX_GAP_S * (0.5 + 0.5 * rng.float());
     this.warn = -1; this.stun = 0;
+    /** Timer speed: 2 inside a fabricator hall (the gap between pulses halves). */
+    this.rate = 1;
     /** Underground metres of the current world; main.js updates it on world change. */
     this.underM = underM(PLANETS.earth.H);
     /** Hook: called with the fraction of max energy to drain. */
@@ -39,7 +41,7 @@ export class Pulse {
     }
     const mul = PLANETS[this.economy.planet ?? 'earth'].pulse.mul;
     if (depthM < P.SAFE_DEPTH_M || !mul || this.economy.finished) return;
-    this.timer -= dt;
+    this.timer -= dt * this.rate;
     if (this.timer > 0) return;
     this.timer = this._gap(Math.min(1, depthM / this.underM)) / mul;
     this.warn = P.WARN_S * (this.economy.tech.includes('pulse_detector') ? 2 : 1);

@@ -5,7 +5,7 @@
  */
 import {
   WORLD, TILE, FLAG, CAMP_BUILDINGS, MATERIALS, PHYSICS, CAMERA, MINING, ENERGY, RADAR, TELEPORT, CONSUMABLES, GAMEPAD,
-  PARTICLES, QUALITY, SAVE, SETTINGS_DEFAULT, PICKAXES, RELICS, underM, planetGravity,
+  PARTICLES, QUALITY, SAVE, SETTINGS_DEFAULT, PICKAXES, RELICS, PLANETS, underM, planetGravity,
 } from './config.js';
 import { EventBus, EV } from './core/EventBus.js';
 import { GameLoop } from './core/GameLoop.js';
@@ -33,7 +33,7 @@ import { Story } from './systems/Story.js';
 import { FallingLadders, pickUpLadder } from './systems/Items.js';
 import { placeChargeStation, nearStation, placeFieldCamp, nearFieldCamp } from './systems/Camp.js';
 import { dailySeed, dailyScore, dateKey } from './systems/Daily.js';
-import { coreChamber } from './world/Zones.js';
+import { goalChamber, inZone } from './world/Zones.js';
 import { Ending } from './ui/Ending.js';
 import { StoryModal } from './ui/StoryModal.js';
 import { Economy, createEconomyState } from './systems/Economy.js';
@@ -122,7 +122,7 @@ function boot() {
   coreGoal.onQuake = () => quake.trigger(0.8);
   coreGoal.onFail = () => player.die('core heat');
   new Collectibles(bus, economy, {
-    ruinRect: (layer) => planRuins(world.genSeed, world.W, world.H).find((r) => r.layer === layer),
+    ruinRect: (layer) => (world.planet === 'earth' ? planRuins(world.genSeed, world.W, world.H, PLANETS.earth).find((r) => r.layer === layer) : undefined), // layer achievements are Earth's
     waterIn: (r) => { let n = 0; for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) if (world.tileType[y * world.W + x] === TILE.WATER) n++; return n; },
   });
   const story = new Story(bus, economy); story.sync(loaded.ok); // silent for loaded saves: catch up without a toast flood
@@ -213,10 +213,10 @@ function boot() {
       else if (a === 'cash') { economy.credits += 100000; bus.emit(EV.CREDITS_CHANGED, economy.credits); }
       else if (a === 'mats') { for (let o = 1; o < economy.stash.length; o++) economy.stash[o] += 50; bus.emit(EV.CARGO_CHANGED); }
       else if (a === 'ruin') { // next ruin whose relic isn't owned; carve a pocket left of it
-        const r = planRuins(world.genSeed, world.W, world.H).find((q) => !economy.relics.includes(relicIdAt(q.y + q.h - 2, world.H)));
+        const r = planRuins(world.genSeed, world.W, world.H, PLANETS[world.planet]).find((q) => !economy.relics.includes(relicIdAt(world.planet, q.y + q.h - 2, world.H)));
         if (r) { const px = r.x - 3; const py = r.y + r.h - 2; for (let dy = -2; dy <= 0; dy++) for (let dx = -1; dx <= 1; dx++) world.clear(world.idx(px + dx, py + dy)); player.placeAt(px * T, (py + 1) * T - player.h); camera.snap(player.cx, player.cy); }
       }
-      else if (a === 'core') { const c = coreChamber(world.W, world.H); player.placeAt((c.x + c.w / 2) * T, (c.y + c.h - 1) * T - player.h); camera.snap(player.cx, player.cy); }
+      else if (a === 'core') { const c = goalChamber(world.W, world.H, PLANETS[world.planet]); if (!c) return; player.placeAt((c.x + c.w / 2) * T, (c.y + c.h - 1) * T - player.h); camera.snap(player.cx, player.cy); }
       canvas.focus();
     },
     onChange: (s) => {
@@ -592,11 +592,12 @@ function boot() {
     quake.focus.x = ptx; quake.focus.y = pty;
     quake.update(dt, g.depth01);
     if (quake.shake > 0) camera.addTrauma(quake.shake * dt);
+    pulse.rate = inZone(world, 'fabricator_hall', ptx, pty) ? 2 : 1; // gap halves inside the fabricator hall
     pulse.update(dt, meters, onSurface || nearShop || atCamp);
     player.gearOffline = pulse.stun > 0;
     coreGoal.update(dt, player.cx, player.cy);
     const atField = nearStation(economy, player.cx, player.cy);
-    energy.update(dt, { jetting: player.jetting, atStation: atStation || atField, onSurface });
+    energy.update(dt, { jetting: player.jetting, atStation: atStation || atField, onSurface, coldTrap: inZone(world, 'cold_trap', ptx, pty) });
     player.burn(dt, world, g.depth01);
     hud.setTemp(player.temp);
     const dev = devPanel.state;

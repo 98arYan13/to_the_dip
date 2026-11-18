@@ -3,7 +3,7 @@
  * Cargo, credits, upgrades and consumables. The rules are pure functions (unit-tested);
  * the Economy class wraps them with state and events.
  */
-import { ORES, PICKAXES, UPGRADES, CONSUMABLES, ECONOMY, BALANCE, ENERGY, CAMP_BUILDINGS, START_BUILDINGS, POWER, ORE, ITEM, TECH, RENDER, WORLD, isOre } from '../config.js';
+import { ORES, PICKAXES, UPGRADES, CONSUMABLES, ECONOMY, BALANCE, ENERGY, CAMP_BUILDINGS, START_BUILDINGS, POWER, ORE, ITEM, TECH, RENDER, WORLD, isOre, oreHosts, oreWeight } from '../config.js';
 
 const cents = (v) => Math.round(v * 100) / 100;
 import { EV } from '../core/EventBus.js';
@@ -82,12 +82,13 @@ export function pickaxeForTier(tier) { return PICKAXES[Math.max(1, Math.min(PICK
  * Value per kg of a cargo filled with ores mineable at `tier` in a host band, mixed by abundance.
  * @param {number} tier @param {number} band material id
  */
-export function weightedValuePerKg(tier, band) {
+export function weightedValuePerKg(tier, band, planetId = 'earth') {
   let kg = 0; let v = 0;
   for (let o = 1; o < ORES.length; o++) {
     const ore = /** @type {any} */ (ORES[o]);
-    if (!ore.hosts.includes(band) || ore.tier > tier) continue;
-    kg += ore.weight * ore.kg; v += ore.weight * ore.price;
+    if (!oreHosts(planetId, ore).includes(band) || ore.tier > tier) continue;
+    const w = oreWeight(planetId, ore);
+    kg += w * ore.kg; v += w * ore.price;
   }
   return kg > 0 ? v / kg : 0;
 }
@@ -95,8 +96,8 @@ export function weightedValuePerKg(tier, band) {
 /** Expected income of one full trip while owning pickaxe `tier` (and rig level tier-1). */
 export function expectedTripIncome(tier) {
   const capacity = UPGRADES.rig.levels[tier - 1].capacity;
-  const band = BALANCE.FOCUS_BAND_BY_TIER[tier - 1];
-  return capacity * BALANCE.PACKING_EFFICIENCY * weightedValuePerKg(tier, band);
+  const [planetId, band] = BALANCE.FOCUS_BY_TIER[tier - 1];
+  return capacity * BALANCE.PACKING_EFFICIENCY * weightedValuePerKg(tier, band, planetId);
 }
 
 /** Trips of income a tech costs at its era: (cash + market value of its items) / expected trip income. */
@@ -134,6 +135,8 @@ export function createEconomyState() {
     planet: 'earth',
     elevatorStops: /** @type {{x:number,y:number}[]} */ ([]),
     finished: false,
+    /** Per-planet goal flags (relic worlds: taking the relic sets done[planet]). */
+    done: /** @type {Record<string, boolean>} */ ({}),
     mind: { nodes: /** @type {number[]} */ ([]), coolant: 0, greeted: false },
     story: { seen: /** @type {string[]} */ ([]), read: /** @type {string[]} */ ([]), flags: /** @type {string[]} */ ([]), mission: 0 },
   };
@@ -170,12 +173,13 @@ export class Economy {
     this.planet = s.planet || 'earth';
     this.elevatorStops = (s.elevatorStops || []).map((p) => ({ ...p }));
     this.finished = !!s.finished;
+    this.done = { ...(s.done || {}) };
     this.mind = { nodes: [...(s.mind?.nodes || [])], coolant: s.mind?.coolant || 0, greeted: !!s.mind?.greeted };
     this.story = { seen: [...(s.story?.seen || [])], read: [...(s.story?.read || [])], flags: [...(s.story?.flags || [])], mission: s.story?.mission || 0 };
   }
 
   toJSON() {
-    return { credits: this.credits, cargo: Array.from(this.cargo), stash: Array.from(this.stash), tech: [...this.tech], buildings: { ...this.buildings }, power: this.power, stations: this.stations.map((p) => ({ ...p })), fieldCamps: this.fieldCamps.map((p) => ({ ...p })), contracts: { active: [...this.contracts.active], done: [...this.contracts.done] }, achievements: [...this.achievements], collect: { ore: { ...this.collect.ore }, maxDepth: this.collect.maxDepth, pulses: this.collect.pulses }, completed: this.completed, levels: { ...this.levels }, consumables: { ...this.consumables }, relics: [...this.relics], planet: this.planet, elevatorStops: this.elevatorStops.map((p) => ({ ...p })), finished: this.finished, mind: { nodes: [...this.mind.nodes], coolant: this.mind.coolant, greeted: this.mind.greeted }, story: { seen: [...this.story.seen], read: [...this.story.read], flags: [...this.story.flags], mission: this.story.mission } };
+    return { credits: this.credits, cargo: Array.from(this.cargo), stash: Array.from(this.stash), tech: [...this.tech], buildings: { ...this.buildings }, power: this.power, stations: this.stations.map((p) => ({ ...p })), fieldCamps: this.fieldCamps.map((p) => ({ ...p })), contracts: { active: [...this.contracts.active], done: [...this.contracts.done] }, achievements: [...this.achievements], collect: { ore: { ...this.collect.ore }, maxDepth: this.collect.maxDepth, pulses: this.collect.pulses }, completed: this.completed, levels: { ...this.levels }, consumables: { ...this.consumables }, relics: [...this.relics], planet: this.planet, elevatorStops: this.elevatorStops.map((p) => ({ ...p })), finished: this.finished, done: { ...this.done }, mind: { nodes: [...this.mind.nodes], coolant: this.mind.coolant, greeted: this.mind.greeted }, story: { seen: [...this.story.seen], read: [...this.story.read], flags: [...this.story.flags], mission: this.story.mission } };
   }
 
   /** State for a fresh map that keeps progress (cash, stash, tech, buildings, gear, power, consumables). */

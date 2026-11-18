@@ -129,7 +129,7 @@ export class Minimap {
     }
     // ruin ping (pulse detector): violet blinking marker, clamped to the edge when out of view
     if (this.economy.tech.includes('pulse_detector') && Math.floor(this.time * 2) % 2 === 0) {
-      const r = nearestRuin(this.getSeed(), w.W, w.H, this.economy.relics, ptx, pty);
+      const r = nearestRuin(this.getSeed(), w.W, w.H, this.economy.relics, ptx, pty, w.planet);
       if (r) {
         const mx = Math.max(2, Math.min(W - 3, (r.x - sx) * s)); const my = Math.max(2, Math.min(H - 3, (r.y - sy) * s));
         ctx.fillStyle = '#b36bff';

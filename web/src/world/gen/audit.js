@@ -1,8 +1,8 @@
 /** @module world/gen/audit Ore audit and repair: every needed ore within [floor, ceiling]. */
-import { AUDIT, ORES, PLANETS, WORLD, TILE, MATERIALS } from '../../config.js';
+import { AUDIT, ORES, PLANETS, WORLD, TILE, MATERIALS, oreHosts } from '../../config.js';
 import { requiredTier } from '../../systems/Mining.js';
 import { planRuins } from '../Ruins.js';
-import { coreChamber, gridSet } from '../Zones.js';
+import { goalChamber, gridSet } from '../Zones.js';
 import { oreNeed } from './need.js';
 import { veinTargets, addVein, removeOre } from './ores.js';
 
@@ -13,7 +13,7 @@ function modelShare(d) {
     const host = s.tile;
     let hostCount = 0;
     for (let i = 0; i < d.band.length; i++) if (d.band[i] === host) hostCount++;
-    for (const { ore, target } of veinTargets(host, hostCount)) share[ore.id] += target;
+    for (const { ore, target } of veinTargets(host, hostCount, d.planet)) share[ore.id] += target;
   }
   return share;
 }
@@ -34,7 +34,8 @@ const met = (r, need) => r.bulk || (r.have >= AUDIT.FLOOR * need && r.haveOpen >
 
 /** Lower half of the ore's deepest host stratum, as a row range of the host's band tiles. */
 function topUpRegion(d, ore) {
-  const host = Math.max(...ore.hosts.filter((h) => PLANETS[d.planet].strata.some((s) => s.tile === h)));
+  const strata = PLANETS[d.planet].strata; const hosts = oreHosts(d.planet, ore);
+  const host = strata[Math.max(...strata.map((s, k) => (hosts.includes(s.tile) ? k : -1)))].tile; // deepest host stratum
   let y0 = d.H; let y1 = 0;
   for (let i = 0; i < d.band.length; i++) if (d.band[i] === host) { const y = (i / d.W) | 0; if (y < y0) y0 = y; if (y > y1) y1 = y; }
   return { host, y0: (y0 + y1) >> 1, y1 };
@@ -104,8 +105,9 @@ function reachTargets(d, starts) {
     const own = strata[Math.min(r.layer, strata.length - 1)];
     out.push({ label: `ruin ${r.layer}`, cols: [[r.x, r.y + r.h - 2]], tier: own.tier, magma: false, host: own.tile });
   });
-  const c = coreChamber(d.W, d.H);
-  out.push({ label: 'core chamber', cols: [[c.x + (c.w >> 1), c.y + (c.h >> 1)]], tier: 6, magma: true, host: TILE.CORE });
+  const planet = PLANETS[d.planet];
+  const c = goalChamber(d.W, d.H, planet);
+  if (c) out.push({ label: 'goal chamber', cols: [[c.x + (c.w >> 1), c.y + (c.h >> 1)]], tier: strata.at(-1).tier, magma: true, host: strata.at(-1).tile }); // Core: tier 6, Mind: tier 8
   return out;
 }
 
@@ -161,7 +163,8 @@ export function repairReach(d, starts) {
 /** Tiles within 3 columns of the shaft in the first two strata (rows below the surface). */
 function shaftZone(d, starts) {
   const out = [];
-  for (let x = SX - 3; x <= SX + 3; x++) for (let y = WORLD.SURFACE_ROWS; y < starts[2 * d.W + x]; y++) out.push(y * d.W + x);
+  const k = Math.min(2, PLANETS[d.planet].strata.length - 1); // first two strata
+  for (let x = SX - 3; x <= SX + 3; x++) for (let y = WORLD.SURFACE_ROWS; y < starts[k * d.W + x]; y++) out.push(y * d.W + x);
   return out;
 }
 const wet = (d, i) => d.tileType[i] === TILE.WATER || d.tileType[i] === TILE.MAGMA || d.fluid[i] > 0;
