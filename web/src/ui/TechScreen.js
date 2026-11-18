@@ -3,7 +3,7 @@
  * HTML for the Tech tab: era tabs, a small left-to-right graph of the era's techs, and a side panel
  * with have/need costs, reverse-looked-up unlocks and the Unlock button.
  */
-import { TECH, ERAS, ORES, CAMP_BUILDINGS, PICKAXES, UPGRADES, CONSUMABLES, RELICS } from '../config.js';
+import { TECH, ERAS, ORES, CAMP_BUILDINGS, PICKAXES, UPGRADES, CONSUMABLES, RELICS, RECIPES, PLANETS } from '../config.js';
 import { canUnlock, unlocksOf, eraReached } from '../systems/Tech.js';
 
 const NODE_W = 132; const NODE_H = 30; const COL_GAP = 40; const ROW_GAP = 12;
@@ -34,7 +34,7 @@ function layout(era) {
 /** One human line per thing a tech unlocks. */
 function unlockLines(t) {
   const out = unlocksOf(t.id).map((u) => {
-    if (u.kind === 'recipe') return `Recipe: ${/** @type {any} */ (ORES.find((o) => o && o.key.toLowerCase() === u.id))?.name || u.id}`;
+    if (u.kind === 'recipe') return `Recipe: ${ORES[Number(Object.keys(RECIPES.find((r) => r.id === u.id)?.out ?? {})[0])]?.name || u.id}`;
     if (u.kind === 'building') { const b = /** @type {any} */ (CAMP_BUILDINGS)[u.id]; return `${b.name} ${u.level}: ${b.levels[/** @type {number} */ (u.level) - 1].name}`; }
     if (u.kind === 'equipment') {
       const l = /** @type {number} */ (u.level);
@@ -52,9 +52,9 @@ function unlockLines(t) {
  * @param {any} ec economy
  * @param {{era:number, selected:string|null}} view
  */
-const relicLine = (ec, id) => {
+export const relicLine = (ec, id) => {
   const r = /** @type {any} */ (RELICS.find((x) => x.id === id));
-  return `Relic: ${r.name} — ${ec.relics.includes(id) ? 'found ✓' : r.layer < 0 ? 'shut down the Seed' : `not found (ruin in layer ${r.layer + 1})`}`;
+  return `Relic: ${r.name} — ${ec.relics.includes(id) ? 'found ✓' : r.layer === undefined ? `not found (ruin on ${PLANETS[r.planet].name})` : r.layer < 0 ? 'shut down the Seed' : `not found (ruin in layer ${r.layer + 1})`}`;
 };
 
 export function renderTech(ec, view) {

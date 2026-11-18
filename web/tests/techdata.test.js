@@ -102,11 +102,20 @@ describe('relic data', () => {
 
 describe('world entry and gear (spec 8.1)', () => {
   // Stub until Task 4 derives this from PLANETS[w].strata hosts: off-world ores each world supplies.
-  const SUPPLY = { moon: [ORE.HELIUM3, ORE.WATER_ICE], mars: [ORE.RARE_EARTHS, ORE.PERCHLORATE, ORE.WATER_ICE], tessera: [] };
+  const SUPPLY = { moon: [ORE.HELIUM3, ORE.WATER_ICE, ORE.RARE_EARTHS], mars: [ORE.PERCHLORATE, ORE.WATER_ICE], tessera: [] };
   const order = ['moon', 'mars', 'tessera'];
   // Pickaxe tier needed for a world's last stratum, and the highest first-stratum tier its entry gear can dig.
   const LAST_PICK = { moon: 6, mars: 7, tessera: 8 };
   const FIRST_MAX = { moon: 6, mars: 7, tessera: 7 };
+  it("every tech's raw ores come from Earth or a world reachable before it (fusion_power: the Moon)", () => {
+    const reach = { lunar_landing: ['moon'], mars_mission: ['moon', 'mars'], interstellar: ['moon', 'mars', 'tessera'] };
+    const worldsFor = (t) => (t.era < 6 ? [] : t.era === 6 ? (t.id === 'mars_mission' ? reach.mars_mission : reach.lunar_landing) : reach.mars_mission);
+    for (const t of TECH) {
+      const ok = new Set(worldsFor(t).flatMap((w) => SUPPLY[w]));
+      for (const i of Object.keys(t.cost.ores)) for (const raw of rawOres(+i)) expect(ORES[raw].hosts.length > 0 || ok.has(raw), `${t.id}: ${ORES[raw].name}`).toBe(true);
+    }
+    for (const i of Object.keys(byId('fusion_power').cost.ores)) for (const raw of rawOres(+i)) expect(ORES[raw].hosts.length > 0 || SUPPLY.moon.includes(raw), ORES[raw].name).toBe(true);
+  });
   it('each world can be entered and finished with gear it or earlier worlds supply', () => {
     for (const w of order) {
       expect(PLANETS[w].strata[0].tier, `${w} first stratum`).toBeLessThanOrEqual(FIRST_MAX[w]);

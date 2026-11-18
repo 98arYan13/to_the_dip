@@ -595,7 +595,7 @@ export const BALANCE = Object.freeze({
   PACKING_EFFICIENCY: 0.85,
   /** A player at pickaxe tier N is assumed to own rig level N-1. */
   /** Host band (material id) a player at tier N mostly mines. */
-  FOCUS_BAND_BY_TIER: [1, 2, 3, 4, 5, 5, 5, 5], // shortcut: tiers 6-8 still price Earth's deepest band, move to per-planet strata when balancing off-world income
+  FOCUS_BAND_BY_TIER: [1, 2, 3, 4, 5, 5, 5, 5], // shortcut: tiers 6-8 still price Earth's deepest band, per-planet focus stratum lookup in Task 4
   TRIPS_MIN: 3,
   TRIPS_MAX: 5,
 });

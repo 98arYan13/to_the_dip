@@ -88,3 +88,12 @@ describe('space-era gear and recipes (spec 8.1)', () => {
     expect(RELICS.filter((r) => r.planet !== 'earth').map((r) => r.id)).toEqual(['relay_alpha', 'relay_beta', 'origin_core']);
   });
 });
+
+describe('tech screen relic line', () => {
+  it('names the planet for off-world relics, no NaN', async () => {
+    const { relicLine } = await import('../src/ui/TechScreen.js');
+    expect(relicLine({ relics: [] }, 'relay_alpha')).toBe('Relic: Relay Alpha — not found (ruin on Moon)');
+    expect(relicLine({ relics: ['relay_beta'] }, 'relay_beta')).toContain('found ✓');
+    expect(relicLine({ relics: [] }, 'hull_shard')).toContain('layer 1');
+  });
+});
