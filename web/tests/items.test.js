@@ -9,7 +9,9 @@ describe('ore and material items', () => {
     expect(ORE.BAUXITE).toBe(22);
     expect(ORE.OIL_SHALE).toBe(24);
     expect(ITEM.STEEL).toBe(29);
-    expect(ORES.length).toBe(43);
+    expect(ORE.HELIUM3).toBe(43);
+    expect(ITEM.PROPELLANT).toBe(47);
+    expect(ORES.length).toBe(50);
     for (let o = 1; o < ORES.length; o++) expect(ORES[o].id).toBe(o);
   });
 

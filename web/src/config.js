@@ -15,6 +15,7 @@ export const ORE = Object.freeze({
   URANIUM: 11, LAPIS: 12, SILVER: 13, BLACK_OPAL: 14, PLATINUM: 15, GOLD: 16, METEORITE: 17, RHODIUM: 18, RUBY: 19, DIAMOND: 20,
   TUNGSTEN: 21, // appended last so saved oreType ids stay valid
   BAUXITE: 22, ILMENITE: 23, OIL_SHALE: 24,
+  HELIUM3: 43, RARE_EARTHS: 44, WATER_ICE: 45, PERCHLORATE: 46, // off-world ores; ids 25-42 belong to ITEM
 });
 
 /** Processed material ids: share the ORES id space (cargo/stash/pay work unchanged) but are never generated. */
@@ -22,6 +23,7 @@ export const ITEM = Object.freeze({
   SOLDER: 25, BRONZE: 26, COPPER_WIRE: 27, WROUGHT_IRON: 28, STEEL: 29, STAINLESS: 30, ALUMINIUM: 31, TITANIUM: 32,
   TUNGSTEN_CARBIDE: 33, FUEL: 34, PLASTIC: 35, CARBON_FIBER: 36, CIRCUIT: 37, LI_ION_CELL: 38, INDUSTRIAL_DIAMOND: 39,
   ENRICHED_URANIUM: 40, EXOTIC_ALLOY: 41, WARP_CHARGE: 42,
+  PROPELLANT: 47, FUSION_FUEL: 48, SUPERCONDUCTOR: 49,
 });
 
 /** Recipe inputs per material (one output each). Material kg/price are derived from these. */
@@ -44,6 +46,9 @@ export const MATERIAL_INPUTS = Object.freeze({
   [ITEM.ENRICHED_URANIUM]: { [ORE.URANIUM]: 5 },
   [ITEM.EXOTIC_ALLOY]: { [ORE.METEORITE]: 2, [ORE.RHODIUM]: 1, [ORE.PLATINUM]: 1 },
   [ITEM.WARP_CHARGE]: { [ITEM.EXOTIC_ALLOY]: 1, [ITEM.ENRICHED_URANIUM]: 1 },
+  [ITEM.PROPELLANT]: { [ORE.WATER_ICE]: 2, [ORE.PERCHLORATE]: 1 },
+  [ITEM.FUSION_FUEL]: { [ORE.HELIUM3]: 2, [ORE.WATER_ICE]: 1 },
+  [ITEM.SUPERCONDUCTOR]: { [ORE.RARE_EARTHS]: 2, [ITEM.COPPER_WIRE]: 1 },
 });
 
 /** Bit flags (stored in World.flags). */
@@ -107,6 +112,7 @@ export const CAMP_BUILDINGS = Object.freeze({
     { name: 'Coal Generator', cost: {} },
     { name: 'Diesel Generator', cost: { ores: { [ITEM.STEEL]: 20, [ITEM.COPPER_WIRE]: 10 } }, tech: 'diesel_power' },
     { name: 'Fission Reactor', cost: { ores: { [ITEM.STAINLESS]: 30, [ORE.LEAD]: 40, [ITEM.CIRCUIT]: 10 } }, tech: 'fission' },
+    { name: 'Fusion Reactor', cost: { ores: { [ITEM.SUPERCONDUCTOR]: 30, [ITEM.STAINLESS]: 20, [ITEM.CIRCUIT]: 20 } }, tech: 'fusion_power' },
   ] },
   furnace: { name: 'Furnace', levels: [
     { name: 'Clay Kiln', cost: {} },
@@ -131,8 +137,8 @@ export const CAMP_BUILDINGS = Object.freeze({
 
 /** Camp power pool: capacity per Generator level, fuels (power per unit, min Generator level), 1 power per 10 battery energy. */
 export const POWER = Object.freeze({
-  CAP: [200, 1000, 10000],
-  FUELS: [{ id: ORE.COAL, power: 10, gen: 1 }, { id: ITEM.FUEL, power: 40, gen: 2 }, { id: ITEM.ENRICHED_URANIUM, power: 500, gen: 3 }],
+  CAP: [200, 1000, 10000, 100000],
+  FUELS: [{ id: ORE.COAL, power: 10, gen: 1 }, { id: ITEM.FUEL, power: 40, gen: 2 }, { id: ITEM.ENRICHED_URANIUM, power: 500, gen: 3 }, { id: ITEM.FUSION_FUEL, power: 5000, gen: 4 }],
   PER_ENERGY: 0.1,
   START: 100,
   START_COAL: 20,
@@ -149,13 +155,16 @@ const RECIPE_DEFS = [
   ['FUEL', 'refinery', 1, 'oil_refining'], ['PLASTIC', 'refinery', 1, 'oil_refining'], ['CARBON_FIBER', 'refinery', 2, 'carbon_fiber'],
   ['CIRCUIT', 'lab', 1, 'electronics'], ['LI_ION_CELL', 'lab', 1, 'electronics'], ['INDUSTRIAL_DIAMOND', 'lab', 1, 'diamond_tooling'],
   ['ENRICHED_URANIUM', 'lab', 2, 'fission'], ['EXOTIC_ALLOY', 'furnace', 4, 'exotic_materials'], ['WARP_CHARGE', 'lab', 2, 'warp_drive'],
+  ['PROPELLANT', 'refinery', 2, 'lunar_landing'], ['FUSION_FUEL', 'lab', 2, 'lunar_landing'], ['SUPERCONDUCTOR', 'lab', 2, 'lunar_landing'],
+  // The Moon can refuel before Mars: ice + ordinary fuel instead of perchlorate.
+  ['PROPELLANT', 'refinery', 2, 'lunar_landing', undefined, { [ORE.WATER_ICE]: 2, [ITEM.FUEL]: 2 }, 'propellant_lunar'],
 ];
 
 /** @type {readonly {id:string, building:string, level:number, in:Record<number,number>, out:Record<number,number>, power:number, tech?:string}[]} */
-export const RECIPES = Object.freeze(RECIPE_DEFS.map(([key, building, level, tech, power]) => {
-  const out = /** @type {any} */ (ITEM)[key]; const inp = /** @type {any} */ (MATERIAL_INPUTS)[out];
+export const RECIPES = Object.freeze(RECIPE_DEFS.map(([key, building, level, tech, power, inOverride, id]) => {
+  const out = /** @type {any} */ (ITEM)[key]; const inp = inOverride ?? /** @type {any} */ (MATERIAL_INPUTS)[out];
   // Default power: 1 per input unit.
-  return { id: String(key).toLowerCase(), building, level, in: inp, out: { [out]: 1 }, power: power ?? Object.values(inp).reduce((a, n) => a + n, 0), tech };
+  return { id: id ?? String(key).toLowerCase(), building, level, in: inp, out: { [out]: 1 }, power: power ?? Object.values(inp).reduce((a, n) => a + n, 0), tech };
 }));
 
 export const CONTRACTS = Object.freeze({ MAX_ACTIVE: 3, OFFERS: 4, PREMIUM: 0.25 });
@@ -315,6 +324,18 @@ const ORE_LIST = [
     colors: { base: '#3a3226', light: '#6e5e44', spec: '#ffffff', dark: '#1d1913' }, glow: null, tile: null },
 ];
 
+/** Off-world ores (hosts are filled per planet; none on Earth). Prices sit between the neighbouring Earth tiers by perKg (rhodium 593 < ore < diamond 5000). */
+const SPACE_ORES = [
+  { id: 43, key: 'HELIUM3', name: 'Helium-3', kg: 0.6, hard: 4.0, perKg: 1800, price: 1080, tier: 5, hosts: [], weight: 1, vein: [1, 3], glint: 0.8, pitch: 1100,
+    colors: { base: '#d8e8ff', light: '#ffffff', spec: '#ffffff', dark: '#6c7480' }, glow: '#bcd8ff', tile: null },
+  { id: 44, key: 'RARE_EARTHS', name: 'Rare Earths', kg: 1.2, hard: 5.0, perKg: 3400, price: 4080, tier: 6, hosts: [], weight: 1, vein: [1, 3], glint: 0.7, pitch: 1000,
+    colors: { base: '#8a5a8a', light: '#e0a8e0', spec: '#ffffff', dark: '#452d45' }, glow: '#e090e0', tile: null },
+  { id: 45, key: 'WATER_ICE', name: 'Water Ice', kg: 2.0, hard: 1.5, perKg: 3000, price: 6000, tier: 6, hosts: [], weight: 1, vein: [3, 7], glint: 0.4, pitch: 900,
+    colors: { base: '#a8d0e8', light: '#f0fbff', spec: '#ffffff', dark: '#54687a' }, glow: null, tile: null },
+  { id: 46, key: 'PERCHLORATE', name: 'Perchlorate', kg: 1.5, hard: 2.0, perKg: 2800, price: 4200, tier: 6, hosts: [], weight: 1, vein: [2, 5], glint: 0.3, pitch: 800,
+    colors: { base: '#c8b070', light: '#f4e4a8', spec: '#ffffff', dark: '#645838' }, glow: null, tile: null },
+];
+
 /** [key, name, base, light, dark] per material, in ITEM id order (inputs always come before outputs). */
 const MATERIAL_DEFS = [
   ['SOLDER', 'Solder', '#8c949c', '#d4dae0', '#464a4e'], ['BRONZE', 'Bronze', '#a0702c', '#e0a858', '#503816'],
@@ -326,6 +347,8 @@ const MATERIAL_DEFS = [
   ['CIRCUIT', 'Circuit Board', '#2a7a3a', '#6ae07a', '#153d1d'], ['LI_ION_CELL', 'Li-ion Cell', '#3a6ab0', '#80b0f0', '#1d3558'],
   ['INDUSTRIAL_DIAMOND', 'Industrial Diamond', '#a0d0e0', '#f0fcff', '#507078'], ['ENRICHED_URANIUM', 'Enriched Uranium', '#4aba2a', '#b0ff6a', '#255d15'],
   ['EXOTIC_ALLOY', 'Exotic Alloy', '#7a4ac0', '#c8a0ff', '#3d2560'], ['WARP_CHARGE', 'Warp Charge', '#2ac0d0', '#a0f8ff', '#156068'],
+  ['PROPELLANT', 'Propellant', '#d8d0c0', '#ffffff', '#6c6860'], ['FUSION_FUEL', 'Fusion Fuel', '#e8f0ff', '#ffffff', '#7480a0'],
+  ['SUPERCONDUCTOR', 'Superconductor', '#4a6ab0', '#a8c0ff', '#25355a'],
 ];
 
 /** Appends materials: kg = 0.5 x input kg (rock matrix removed), price = 1.3 x input price (processing adds value). */
@@ -342,7 +365,11 @@ function withMaterials(list) {
 }
 
 /** Ores and materials indexed by id; `kind` tells them apart. */
-export const ORES = Object.freeze(withMaterials(ORE_LIST.map((o) => o && { ...o, kind: 'ore' })));
+export const ORES = Object.freeze(withMaterials((() => {
+  const list = ORE_LIST.map((o) => o && { ...o, kind: 'ore' });
+  for (const o of SPACE_ORES) list[o.id] = { ...o, kind: 'ore' };
+  return list;
+})()));
 
 /** World generation: ores above RARE_PRICE per block spawn at RARE_WEIGHT_MUL of their weight (shortcut: Economy's balance model still uses the unscaled weight). */
 export const WORLD_RARITY = Object.freeze({ RARE_PRICE: 100, RARE_WEIGHT_MUL: 0.3 });
@@ -409,6 +436,10 @@ export const PICKAXES = Object.freeze([
     recipe: { [ITEM.TUNGSTEN_CARBIDE]: 6, [ITEM.TITANIUM]: 4, [ITEM.CIRCUIT]: 2 }, tech: 'tungsten_drill', workshop: 3 },
   { tier: 6, name: 'Diamond-Tipped Drill', short: 'Diamond-Tipped', damage: 24, swing: 0.34, color: '#9ff4ff', powered: true,
     recipe: { [ITEM.INDUSTRIAL_DIAMOND]: 4, [ITEM.TUNGSTEN_CARBIDE]: 6, [ITEM.CIRCUIT]: 4, [ITEM.LI_ION_CELL]: 2 }, tech: 'diamond_tooling', workshop: 3 },
+  { tier: 7, name: 'Plasma Cutter', short: 'Plasma', damage: 40, swing: 0.30, color: '#ff9a3a', powered: true,
+    recipe: { [ITEM.SUPERCONDUCTOR]: 6, [ITEM.FUSION_FUEL]: 4, [ITEM.TUNGSTEN_CARBIDE]: 6 }, tech: 'plasma_cutter', workshop: 3 },
+  { tier: 8, name: 'Lattice Cutter', short: 'Lattice', damage: 64, swing: 0.28, color: '#c8a0ff', powered: true,
+    recipe: { [ITEM.EXOTIC_ALLOY]: 6, [ITEM.SUPERCONDUCTOR]: 6, [ITEM.INDUSTRIAL_DIAMOND]: 4 }, tech: 'lattice_cutter', workshop: 3 },
 ]);
 
 /** Non-pickaxe upgrades. Level 0 is starting gear (jetpack level 0 = none); later levels are crafted like pickaxes. */
@@ -419,6 +450,7 @@ export const UPGRADES = Object.freeze({
     { thrust: 2300, maxUp: 280, drain: 0.85, recipe: { [ITEM.TITANIUM]: 4, [ITEM.LI_ION_CELL]: 2 }, tech: 'jetpack', workshop: 2 },
     { thrust: 2800, maxUp: 340, drain: 0.7, recipe: { [ITEM.CARBON_FIBER]: 4, [ITEM.CIRCUIT]: 2 }, tech: 'carbon_fiber', workshop: 1 },
     { thrust: 3400, maxUp: 420, drain: 0.55, recipe: { [ITEM.EXOTIC_ALLOY]: 2, [ITEM.CIRCUIT]: 2 }, tech: 'exotic_materials', workshop: 1 },
+    { thrust: 4800, maxUp: 520, drain: 0.45, recipe: { [ITEM.EXOTIC_ALLOY]: 4, [ITEM.FUSION_FUEL]: 4 }, tech: 'jetpack_5', workshop: 1 },
   ] },
   radar: { name: 'Radar', levels: [
     { radius: 8, duration: 6, headlamp: 64 },
@@ -439,6 +471,10 @@ export const UPGRADES = Object.freeze({
       recipe: { [ITEM.CARBON_FIBER]: 6, [ITEM.ENRICHED_URANIUM]: 2, [ITEM.CIRCUIT]: 2 }, tech: 'isotope_rig', workshop: 1 },
     { name: 'Quantum Cargo & Plasma', zone: '1,500m+', capacity: 1200, maxEnergy: 10000, eff: 5.0,
       recipe: { [ITEM.EXOTIC_ALLOY]: 4, [ITEM.CIRCUIT]: 4, [ITEM.ENRICHED_URANIUM]: 2 }, tech: 'warp_drive', workshop: 1 },
+    { name: 'Fusion Pack', zone: 'Moon', capacity: 2400, maxEnergy: 25000, eff: 6.5,
+      recipe: { [ITEM.FUSION_FUEL]: 6, [ITEM.SUPERCONDUCTOR]: 4 }, tech: 'fusion_pack', workshop: 1 },
+    { name: 'Lattice Frame', zone: 'Mars', capacity: 4800, maxEnergy: 60000, eff: 8,
+      recipe: { [ITEM.EXOTIC_ALLOY]: 6, [ITEM.FUSION_FUEL]: 8 }, tech: 'lattice_frame', workshop: 1 },
   ] },
 });
 
@@ -446,6 +482,7 @@ export const UPGRADES = Object.freeze({
 export const ERAS = Object.freeze([
   { n: 1, name: 'Bronze Age' }, { n: 2, name: 'Iron Age' }, { n: 3, name: 'Industrial' },
   { n: 4, name: 'Electric' }, { n: 5, name: 'Atomic' }, { n: 6, name: 'Space' },
+  { n: 7, name: 'Interplanetary' }, { n: 8, name: 'Interstellar' },
 ]);
 
 const O_ = ORE; const I_ = ITEM;
@@ -454,12 +491,15 @@ const tc = (cash, ores) => ({ cash, ores });
 
 /** Alien relics (blueprints). layer = world layer holding the ruin; -1 = not in the world. */
 export const RELICS = Object.freeze([
-  { id: 'hull_shard', name: 'Hull Shard', layer: 0 },
-  { id: 'shield_lattice', name: 'Shielding Lattice', layer: 1 },
-  { id: 'thermal_siphon', name: 'Thermal Siphon', layer: 2 },
-  { id: 'matter_loom', name: 'Matter Loom', layer: 3 },
-  { id: 'control_key', name: 'Control Key', layer: 4 },
-  { id: 'seed_core', name: 'Seed Core', layer: -1 },
+  { id: 'hull_shard', name: 'Hull Shard', planet: 'earth', layer: 0 },
+  { id: 'shield_lattice', name: 'Shielding Lattice', planet: 'earth', layer: 1 },
+  { id: 'thermal_siphon', name: 'Thermal Siphon', planet: 'earth', layer: 2 },
+  { id: 'matter_loom', name: 'Matter Loom', planet: 'earth', layer: 3 },
+  { id: 'control_key', name: 'Control Key', planet: 'earth', layer: 4 },
+  { id: 'seed_core', name: 'Seed Core', planet: 'earth', layer: -1 },
+  { id: 'relay_alpha', name: 'Relay Alpha', planet: 'moon' },
+  { id: 'relay_beta', name: 'Relay Beta', planet: 'mars' },
+  { id: 'origin_core', name: 'Origin Core', planet: 'tessera' },
 ].map((r) => Object.freeze(r)));
 
 /**
@@ -519,12 +559,21 @@ export const TECH = Object.freeze([
   { id: 'pulse_hardening', era: 5, name: 'Pulse Hardening', desc: 'Carbon-fiber shells and shielded circuits make gear immune to the pulse.', requires: ['faraday_shielding', 'carbon_fiber'], cost: tc(880000, { [I_.CARBON_FIBER]: 6, [I_.CIRCUIT]: 6 }), effect: { stat: 'pulseResist', add: 0.5 } },
   { id: 'exotic_materials', era: 5, name: 'Exotic Materials', desc: 'Re-forging Seed hull fragments with rhodium and platinum.', requires: ['fission'], relic: 'matter_loom', cost: tc(880000, { [O_.METEORITE]: 4, [O_.RHODIUM]: 2, [O_.PLATINUM]: 2 }) },
   { id: 'core_interface', era: 5, name: 'Core Interface', desc: 'A device that speaks the handshake of the Seed. Without it the machine will not listen.', requires: ['exotic_materials'], relic: 'control_key', cost: tc(850000, { [I_.EXOTIC_ALLOY]: 4, [I_.CIRCUIT]: 10, [I_.ENRICHED_URANIUM]: 4 }), effect: { unlock: 'core_interface' } },
-  // Era 6 — Space (chain; nodes other than warp_drive and exotic_materials are placeholders until the space update)
-  { id: 'orbital_station', era: 6, name: 'Orbital Station', desc: 'A crewed station that triangulates the source of the signal.', requires: ['rocketry'], cost: tc(800000, { [I_.CARBON_FIBER]: 30, [I_.TITANIUM]: 30, [I_.CIRCUIT]: 20, [I_.LI_ION_CELL]: 10 }), effect: { unlock: 'coming_soon' } },
-  { id: 'lunar_landing', era: 6, name: 'Lunar Landing', desc: 'A lander to the first relay of the alien signal.', requires: ['orbital_station'], cost: tc(1200000, { [I_.ALUMINIUM]: 40, [I_.TITANIUM]: 20, [I_.FUEL]: 80, [I_.CIRCUIT]: 20 }), effect: { unlock: 'coming_soon' } },
-  { id: 'mars_mission', era: 6, name: 'Mars Mission', desc: 'Nuclear propulsion to the second relay of the signal.', requires: ['lunar_landing'], cost: tc(2000000, { [I_.CARBON_FIBER]: 40, [I_.ENRICHED_URANIUM]: 20, [I_.CIRCUIT]: 30, [I_.STAINLESS]: 20 }), effect: { unlock: 'coming_soon' } },
-  { id: 'warp_drive', era: 6, name: 'Warp Drive', desc: 'Folds space for an instant trip home: portable warp charges.', requires: ['mars_mission', 'exotic_materials'], relic: 'seed_core', cost: tc(3000000, { [I_.EXOTIC_ALLOY]: 10, [I_.ENRICHED_URANIUM]: 30, [I_.CIRCUIT]: 40 }) },
-  { id: 'interstellar', era: 6, name: 'Interstellar Travel', desc: 'Ships that can reach the source of the signal.', requires: ['warp_drive'], cost: tc(5000000, { [I_.EXOTIC_ALLOY]: 20, [I_.ENRICHED_URANIUM]: 40, [I_.CARBON_FIBER]: 60 }), effect: { unlock: 'coming_soon' } },
+  { id: 'elevator', era: 5, name: 'Space Elevator', desc: 'A carbon-fiber tether and steel climbers: stops on the way down become permanent.', requires: ['carbon_fiber', 'machining'], cost: tc(880000, { [I_.STEEL]: 20, [I_.CARBON_FIBER]: 10 }), effect: { unlock: 'elevator' } },
+  // Era 6 — Space
+  { id: 'orbital_station', era: 6, name: 'Orbital Station', desc: 'A crewed station that triangulates the source of the signal.', requires: ['rocketry'], cost: tc(800000, { [I_.CARBON_FIBER]: 30, [I_.TITANIUM]: 30, [I_.CIRCUIT]: 20, [I_.LI_ION_CELL]: 10 }), effect: { unlock: 'launch_pad' } },
+  { id: 'lunar_landing', era: 6, name: 'Lunar Landing', desc: 'A lander to the first relay of the alien signal, with a pressure suit.', requires: ['orbital_station'], cost: tc(1200000, { [I_.ALUMINIUM]: 40, [I_.TITANIUM]: 20, [I_.FUEL]: 80, [I_.CIRCUIT]: 20 }), effect: { unlock: 'dest_moon' } },
+  { id: 'fusion_power', era: 6, name: 'Fusion Power', desc: 'Relay Alpha holds the plasma containment: a reactor that burns helium-3.', requires: ['lunar_landing'], relic: 'relay_alpha', cost: tc(1500000, { [I_.SUPERCONDUCTOR]: 10, [I_.FUSION_FUEL]: 10, [I_.STAINLESS]: 20 }) },
+  { id: 'plasma_cutter', era: 6, name: 'Plasma Cutter', desc: 'A contained plasma arc that slices rock.', requires: ['fusion_power'], cost: tc(1650000, { [I_.SUPERCONDUCTOR]: 6, [I_.FUSION_FUEL]: 4, [I_.TUNGSTEN_CARBIDE]: 6 }) },
+  { id: 'fusion_pack', era: 6, name: 'Fusion Pack', desc: 'A compact fusion cell and a superconducting frame.', requires: ['fusion_power'], cost: tc(1650000, { [I_.FUSION_FUEL]: 6, [I_.SUPERCONDUCTOR]: 4 }) },
+  { id: 'mars_mission', era: 6, key: true, name: 'Mars Mission', desc: 'Nuclear propulsion to the second relay of the signal.', requires: ['lunar_landing', 'fusion_power'], relic: 'relay_alpha', cost: tc(2700000, { [I_.CARBON_FIBER]: 40, [I_.PROPELLANT]: 20, [I_.CIRCUIT]: 30, [I_.FUSION_FUEL]: 10 }), effect: { unlock: 'dest_mars' } },
+  // Era 7 — Interplanetary
+  { id: 'lattice_cutter', era: 7, name: 'Lattice Cutter', desc: 'Relay Beta teaches a cutting edge grown as a crystal lattice.', requires: ['mars_mission', 'exotic_materials'], relic: 'relay_beta', cost: tc(3300000, { [I_.EXOTIC_ALLOY]: 6, [I_.SUPERCONDUCTOR]: 6, [I_.INDUSTRIAL_DIAMOND]: 4 }) },
+  { id: 'lattice_frame', era: 7, name: 'Lattice Frame', desc: 'A rig frame grown from exotic alloy.', requires: ['mars_mission', 'exotic_materials'], cost: tc(3300000, { [I_.EXOTIC_ALLOY]: 6, [I_.FUSION_FUEL]: 8 }) },
+  { id: 'heat_suit_3', era: 7, name: 'Heat Suit III', desc: 'Superconducting coolant loops: full protection from heat.', requires: ['mars_mission', 'heat_suit_2'], cost: tc(3300000, { [I_.SUPERCONDUCTOR]: 6, [I_.EXOTIC_ALLOY]: 4 }), effect: { stat: 'heatResist', add: 0.2 } },
+  { id: 'jetpack_5', era: 7, name: 'Jetpack V', desc: 'Fusion-fed exotic thrusters.', requires: ['mars_mission', 'exotic_materials'], cost: tc(3300000, { [I_.EXOTIC_ALLOY]: 4, [I_.FUSION_FUEL]: 4 }) },
+  { id: 'warp_drive', era: 7, name: 'Warp Drive', desc: 'Folds space for an instant trip home: portable warp charges.', requires: ['mars_mission', 'exotic_materials'], relic: 'seed_core', cost: tc(3000000, { [I_.EXOTIC_ALLOY]: 10, [I_.FUSION_FUEL]: 20, [I_.CIRCUIT]: 40 }) },
+  { id: 'interstellar', era: 7, key: true, name: 'Interstellar Travel', desc: 'Ships that can reach the source of the signal.', requires: ['warp_drive'], relic: 'relay_beta', cost: tc(6000000, { [I_.EXOTIC_ALLOY]: 20, [I_.FUSION_FUEL]: 30, [I_.SUPERCONDUCTOR]: 20, [I_.CARBON_FIBER]: 60 }), effect: { unlock: 'dest_tessera' } },
 ]);
 
 export const CONSUMABLES = Object.freeze({
@@ -546,7 +595,7 @@ export const BALANCE = Object.freeze({
   PACKING_EFFICIENCY: 0.85,
   /** A player at pickaxe tier N is assumed to own rig level N-1. */
   /** Host band (material id) a player at tier N mostly mines. */
-  FOCUS_BAND_BY_TIER: [1, 2, 3, 4, 5, 5],
+  FOCUS_BAND_BY_TIER: [1, 2, 3, 4, 5, 5, 5, 5], // shortcut: tiers 6-8 still price Earth's deepest band, move to per-planet strata when balancing off-world income
   TRIPS_MIN: 3,
   TRIPS_MAX: 5,
 });

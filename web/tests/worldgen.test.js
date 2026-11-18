@@ -46,7 +46,7 @@ describe('WorldGen', () => {
       counts[o]++;
       expect(ORES[o].hosts).toContain(a.tileType[i]);
     }
-    for (let o = 1; o < ORES.length; o++) if (isOre(o)) expect(counts[o]).toBeGreaterThan(0);
+    for (let o = 1; o < ORES.length; o++) if (isOre(o) && ORES[o].hosts.length) expect(counts[o]).toBeGreaterThan(0);
   });
 
   it('orders bands by depth and sets solid flags', () => {

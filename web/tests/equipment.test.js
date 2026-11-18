@@ -2,7 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { Economy, createEconomyState } from '../src/systems/Economy.js';
 import { EventBus } from '../src/core/EventBus.js';
 import { Player } from '../src/entities/Player.js';
-import { ITEM, CONSUMABLES } from '../src/config.js';
+import { ITEM, CONSUMABLES, PICKAXES, UPGRADES, POWER, CAMP_BUILDINGS, RECIPES, RELICS } from '../src/config.js';
+import { eraPickTier } from '../src/systems/Tech.js';
 
 const mk = () => new Economy(new EventBus(), createEconomyState());
 
@@ -66,5 +67,24 @@ describe('shop items', () => {
     expect(e.useWarpCharge()).toBe(true); expect(e.useWarpCharge()).toBe(true);
     expect(e.warpCharges).toBe(0);
     expect(e.useWarpCharge()).toBe(false);
+  });
+});
+
+describe('space-era gear and recipes (spec 8.1)', () => {
+  it('pickaxes 7-8, rigs 6-7 and jetpack 5 use the spec numbers', () => {
+    expect(PICKAXES.slice(6).map((p) => [p.damage, p.swing, p.powered, p.workshop])).toEqual([[40, 0.30, true, 3], [64, 0.28, true, 3]]);
+    expect(UPGRADES.rig.levels.slice(6).map((l) => [l.capacity, l.maxEnergy, l.eff])).toEqual([[2400, 25000, 6.5], [4800, 60000, 8]]);
+    expect(UPGRADES.jetpack.levels[5]).toMatchObject({ thrust: 4800, maxUp: 520, drain: 0.45 });
+  });
+  it('Fusion Reactor, its fuel, and the second Propellant recipe', () => {
+    expect(CAMP_BUILDINGS.generator.levels[3]).toMatchObject({ name: 'Fusion Reactor', tech: 'fusion_power' });
+    expect(POWER.CAP[3]).toBe(100000);
+    expect(POWER.FUELS).toContainEqual({ id: ITEM.FUSION_FUEL, power: 5000, gen: 4 });
+    expect(RECIPES.filter((r) => r.out[ITEM.PROPELLANT]).map((r) => r.id).sort()).toEqual(['propellant', 'propellant_lunar']);
+    expect(RECIPES.find((r) => r.id === 'propellant_lunar').in).toEqual({ 45: 2, [ITEM.FUEL]: 2 });
+  });
+  it('era pick tiers and the off-world relics', () => {
+    expect([1, 2, 3, 4, 5, 6, 7, 8].map(eraPickTier)).toEqual([1, 2, 3, 4, 6, 7, 8, 8]);
+    expect(RELICS.filter((r) => r.planet !== 'earth').map((r) => r.id)).toEqual(['relay_alpha', 'relay_beta', 'origin_core']);
   });
 });

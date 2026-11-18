@@ -44,8 +44,7 @@ function unlockLines(t) {
   });
   const e = t.effect;
   if (e?.stat) out.push(`${e.stat} ${e.add ? `+${e.add}` : `×${e.mul}`}`);
-  if (e?.unlock && e.unlock !== 'coming_soon') out.push(t.name);
-  if (e?.unlock === 'coming_soon') out.push('Coming in a future update');
+  if (e?.unlock) out.push(t.name);
   return out;
 }
 

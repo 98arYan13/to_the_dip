@@ -3,9 +3,8 @@ import { TECH, ERAS } from '../src/config.js';
 import { techTrips } from '../src/systems/Economy.js';
 
 describe('tech cost balance (trips of income at that era)', () => {
-  it('key techs cost 4-6 trips, other techs 1-3 (space era: key chain only)', () => {
+  it('key techs cost 4-6 trips, other techs 1-3 (eras 1-7)', () => {
     for (const t of TECH) {
-      if (t.era === 6) continue;
       const n = techTrips(t.id);
       const [lo, hi] = t.key ? [4, 6] : [1, 3];
       expect(n, `${t.id} = ${n.toFixed(2)} trips`).toBeGreaterThanOrEqual(lo);
@@ -13,15 +12,16 @@ describe('tech cost balance (trips of income at that era)', () => {
     }
   });
 
-  it('space-era chain costs rise along requires', () => {
-    for (const t of TECH.filter((x) => x.era === 6)) for (const r of t.requires) {
+  it('space-era costs rise along requires within an era', () => {
+    for (const t of TECH.filter((x) => x.era >= 6)) for (const r of t.requires) {
       const p = TECH.find((x) => x.id === r);
-      if (p.era === 6) expect(techTrips(t.id), `${t.id} vs ${r}`).toBeGreaterThan(techTrips(r));
+      if (p.era === t.era) expect(techTrips(t.id), `${t.id} vs ${r}`).toBeGreaterThan(techTrips(r));
     }
   });
 
-  it('per-era total trips strictly increase', () => {
-    const total = ERAS.map((e) => TECH.filter((t) => t.era === e.n).reduce((a, t) => a + techTrips(t.id), 0));
+  // Eras 6-7 are bounded by the 1-3 / 4-6 bands above and use bigger rigs, so only the Earth eras must grow.
+  it('per-era total trips strictly increase over eras 1-5', () => {
+    const total = ERAS.slice(0, 5).map((e) => TECH.filter((t) => t.era === e.n).reduce((a, t) => a + techTrips(t.id), 0));
     for (let i = 1; i < total.length; i++) expect(total[i], `era ${i + 1}`).toBeGreaterThan(total[i - 1]);
   });
 });

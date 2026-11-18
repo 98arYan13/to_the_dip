@@ -60,4 +60,4 @@ export function unlocksOf(techId) {
 export const eraReached = (ec) => Math.min(ERAS.length, 1 + TECH.filter((t) => t.key && ec.tech.includes(t.id)).length);
 
 /** Best pickaxe tier a player can own by an era (balance and data tests). */
-export const eraPickTier = (era) => [1, 2, 3, 4, 6, 6][Math.max(1, Math.min(6, era)) - 1];
+export const eraPickTier = (era) => [1, 2, 3, 4, 6, 7, 8, 8][Math.max(1, Math.min(8, era)) - 1];

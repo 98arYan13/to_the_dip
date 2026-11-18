@@ -4,7 +4,7 @@
  * Keyboard (Tab/Arrows/Enter/Esc) and mouse navigable. Pauses the simulation while open.
  */
 import { EV } from '../core/EventBus.js';
-import { UI, CONSUMABLES, ORES, DYNAMITE, TECH, ERAS } from '../config.js';
+import { UI, CONSUMABLES, ORES, DYNAMITE, ERAS } from '../config.js';
 import { CAMP_BUILDINGS, ACHIEVEMENTS } from '../config.js';
 import { renderTech, eraTechs } from './TechScreen.js';
 import { renderCraft } from './CraftScreen.js';
@@ -175,7 +175,6 @@ export class Shop {
     else if (kind === 'tech') {
       const r = unlockTech(this.economy, id);
       if (!r.ok) this.bus.emit(EV.PURCHASE_FAILED, r.reason);
-      else if (/** @type {any} */ (TECH.find((t) => t.id === id))?.effect?.unlock === 'coming_soon') this.bus.emit(EV.TOAST, { text: 'Coming in a future update', kind: 'info' });
     } else if (kind === 'techsel') this.techView.selected = id;
     else if (kind === 'era') { this.techView.era = +id; this.techView.selected = eraTechs(+id)[0].id; }
     else if (kind === 'bsel') this.building = id;

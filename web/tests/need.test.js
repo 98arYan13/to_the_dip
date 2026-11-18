@@ -11,11 +11,11 @@ describe('oreNeed', () => {
     expect(n[ORE.DIAMOND]).toBe(10);
     expect(n[ORE.LAPIS]).toBeUndefined();
   });
-  it('era-6 megaprojects are not counted on Earth', () => {
+  it('era-7 megaprojects are not counted on Earth', () => {
     const n = oreNeed('earth');
     // warp_drive + interstellar + rig 5 alone would need 10+20+4 alloy = 68 meteorite
     expect(n[ORE.METEORITE]).toBeLessThan(68);
-    expect(TECH.find((t) => t.id === 'warp_drive').era).toBe(6);
+    expect(TECH.find((t) => t.id === 'warp_drive').era).toBe(7);
     expect(MATERIAL_INPUTS[ITEM.EXOTIC_ALLOY][ORE.METEORITE]).toBe(2);
   });
 });

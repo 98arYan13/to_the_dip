@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { RELICS, TECH, ERAS, RECIPES, CAMP_BUILDINGS, PICKAXES, UPGRADES, CONSUMABLES, ORES, MATERIALS, MATERIAL_INPUTS, isOre } from '../src/config.js';
+import { PLANETS, RELICS, TECH, ERAS, RECIPES, CAMP_BUILDINGS, PICKAXES, UPGRADES, CONSUMABLES, ORES, MATERIALS, MATERIAL_INPUTS, ORE, isOre } from '../src/config.js';
 import { eraPickTier } from '../src/systems/Tech.js';
 
 const ids = new Set(TECH.map((t) => t.id));
@@ -16,8 +16,8 @@ function refs() {
   return { techRefs, costs };
 }
 
-/** Pickaxe tier needed to dig an ore: its own tier or its softest host rock's. */
-const digTier = (o) => Math.max(ORES[o].tier, Math.min(...ORES[o].hosts.map((h) => MATERIALS[h].tier)));
+/** Pickaxe tier needed to dig an ore: its own tier or its softest host rock's (off-world ores have no Earth host: their own tier). */
+const digTier = (o) => (ORES[o].hosts.length ? Math.max(ORES[o].tier, Math.min(...ORES[o].hosts.map((h) => MATERIALS[h].tier))) : ORES[o].tier);
 
 /** Raw ores behind an item (materials expand through their recipe inputs). */
 function rawOres(o, out = new Set()) {
@@ -30,7 +30,9 @@ function rawOres(o, out = new Set()) {
 function materialEra(o) {
   const r = RECIPES.find((x) => x.out[o]);
   const bl = CAMP_BUILDINGS[r.building].levels.slice(0, r.level);
-  return Math.max(r.tech ? byId(r.tech).era : 1, ...bl.map((l) => (l.tech ? byId(l.tech).era : 1)));
+  // An ore with no Earth host comes from another world: not before era 6.
+  const offWorld = [...rawOres(o)].some((raw) => !ORES[raw].hosts.length) ? 6 : 1;
+  return Math.max(offWorld, r.tech ? byId(r.tech).era : 1, ...bl.map((l) => (l.tech ? byId(l.tech).era : 1)));
 }
 
 describe('tech data', () => {
@@ -51,11 +53,11 @@ describe('tech data', () => {
     expect([...ids].filter((i) => !owned.has(i))).toEqual([]);
   });
 
-  it('each era has exactly one key tech, except era 6, and key techs chain eras', () => {
+  it('eras 1-7 have exactly one key tech, era 8 none, and key techs chain eras', () => {
     const ancestors = (id, out = new Set()) => { for (const r of byId(id).requires) { out.add(r); ancestors(r, out); } return out; };
     for (const e of ERAS) {
       const keys = TECH.filter((t) => t.era === e.n && t.key);
-      expect(keys.length, `era ${e.n}`).toBe(e.n === 6 ? 0 : 1);
+      expect(keys.length, `era ${e.n}`).toBe(e.n === 8 ? 0 : 1);
     }
     for (const t of TECH) {
       if (t.era === 1) continue;
@@ -78,14 +80,16 @@ describe('tech data', () => {
 });
 
 describe('relic data', () => {
-  it('every relic reference exists and each world relic gates a tech', () => {
+  it('every relic reference exists and each world relic gates a tech (the Origin Core is the ending, not a tech)', () => {
     const rel = new Set(RELICS.map((r) => r.id));
     for (const t of TECH) if (t.relic) expect(rel.has(t.relic), t.id).toBe(true);
-    for (const r of RELICS) expect(TECH.some((t) => t.relic === r.id), r.id).toBe(true);
+    for (const r of RELICS.filter((x) => x.id !== 'origin_core')) expect(TECH.some((t) => t.relic === r.id), r.id).toBe(true);
   });
-  it('key techs never need a relic, directly or through requires', () => {
+  // Soft-lock guard on Earth: eras 1-5 key techs never need a relic. Eras 6-7 key techs (mars_mission, interstellar) may need
+  // Moon/Mars relics: those are always obtainable on their own world, which the previous key tech opens.
+  it('Earth key techs (eras 1-5) never need a relic, directly or through requires', () => {
     const needsRelic = (id) => { const t = byId(id); return !!t.relic || t.requires.some(needsRelic); };
-    for (const t of TECH) if (t.key) expect(needsRelic(t.id), t.id).toBe(false);
+    for (const t of TECH) if (t.key && t.era <= 5) expect(needsRelic(t.id), t.id).toBe(false);
   });
   it('a relic is reachable by the era that needs it (spec 4.3)', () => {
     for (const r of RELICS.filter((x) => x.layer >= 0)) {
@@ -94,4 +98,22 @@ describe('relic data', () => {
     }
   });
   it('exotic materials moved to era 5', () => { expect(byId('exotic_materials').era).toBe(5); });
+});
+
+describe('world entry and gear (spec 8.1)', () => {
+  // Stub until Task 4 derives this from PLANETS[w].strata hosts: off-world ores each world supplies.
+  const SUPPLY = { moon: [ORE.HELIUM3, ORE.WATER_ICE], mars: [ORE.RARE_EARTHS, ORE.PERCHLORATE, ORE.WATER_ICE], tessera: [] };
+  const order = ['moon', 'mars', 'tessera'];
+  // Pickaxe tier needed for a world's last stratum, and the highest first-stratum tier its entry gear can dig.
+  const LAST_PICK = { moon: 6, mars: 7, tessera: 8 };
+  const FIRST_MAX = { moon: 6, mars: 7, tessera: 7 };
+  it('each world can be entered and finished with gear it or earlier worlds supply', () => {
+    for (const w of order) {
+      expect(PLANETS[w].strata[0].tier, `${w} first stratum`).toBeLessThanOrEqual(FIRST_MAX[w]);
+      const supplied = new Set(order.slice(0, order.indexOf(w) + 1).flatMap((x) => SUPPLY[x]));
+      for (const raw of Object.keys(PICKAXES[LAST_PICK[w] - 1].recipe).flatMap((i) => [...rawOres(+i)])) {
+        expect(ORES[raw].hosts.length > 0 || supplied.has(raw), `${w}: ${ORES[raw].name}`).toBe(true);
+      }
+    }
+  });
 });
