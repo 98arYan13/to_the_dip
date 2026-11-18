@@ -4,10 +4,10 @@
 
 ## 📋 اجرای planها (به همین ترتیب)
 
-- [ ] ۱. داستان، قطعه‌های بیگانه، خرابه‌ها، طوفان پالس و مأموریت‌ها — [story-and-blueprints](../docs/plans/2026-11-16-story-and-blueprints.md)
-- [ ] ۲. مولد جدید نقشه روی زمین: غارها، غارهای ویژه، بازرسی منابع و دسترسی (بعد از تسک ۳ plan ۱) — [worldgen-earth](../docs/plans/2026-11-16-worldgen-earth.md)
-- [ ] ۳. ماه، مریخ، Tessera، سفر، آسانسور، دوره‌های ۷ و ۸ و پایان (بعد از plan ۱ و ۲) — [planets-and-ending](../docs/plans/2026-11-16-planets-and-ending.md)
-- [ ] ۴. موسیقی زایشی متناسب با سیاره و عمق (مستقل؛ قلاب‌های داستانی‌اش بعد از plan ۱ و ۳ کامل می‌شود) — [generative-music](../docs/plans/2026-11-16-generative-music.md)
+- [x] ۱. داستان، قطعه‌های بیگانه، خرابه‌ها، طوفان پالس و مأموریت‌ها — [story-and-blueprints](../docs/plans/2026-11-16-story-and-blueprints.md)
+- [x] ۲. مولد جدید نقشه روی زمین: غارها، غارهای ویژه، بازرسی منابع و دسترسی (بعد از تسک ۳ plan ۱) — [worldgen-earth](../docs/plans/2026-11-16-worldgen-earth.md)
+- [x] ۳. ماه، مریخ، Tessera، سفر، آسانسور، دوره‌های ۷ و ۸ و پایان (بعد از plan ۱ و ۲) — [planets-and-ending](../docs/plans/2026-11-16-planets-and-ending.md)
+- [x] ۴. موسیقی زایشی متناسب با سیاره و عمق (مستقل؛ قلاب‌های داستانی‌اش بعد از plan ۱ و ۳ کامل می‌شود) — [generative-music](../docs/plans/2026-11-16-generative-music.md)
 
 ## 🐞 رفع اشکال / بررسی
 
@@ -29,3 +29,4 @@
 - [ ] گرافیک سطح‌های بالاتر ساختمان‌ها (Diesel Generator، Bloomery، Machine Shop و ...)
 - [ ] تغییر اندازه کلنگ
 - [ ] طراحی سیستم حفاری با پیکور و مته دستی (مته مخروطی)، با اسپرایت ساخته‌شده به کمک Gemini
+- [ ] طراحی اسپرایت با کیفیت برای انواع متریالها و تایلهایی که ندارند
