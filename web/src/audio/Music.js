@@ -5,13 +5,11 @@
  */
 import { AUDIO } from '../config.js';
 import { midiToHz } from './DSP.js';
+import { degreeToSemis } from './Composer.js';
 
 const M = AUDIO.MUSIC;
 
-/** Semitone offset of scale degree `deg`, wrapping into higher octaves. @param {number[]} scale @param {number} deg */
-export function degreeToSemis(scale, deg) {
-  return scale[deg % scale.length] + 12 * Math.floor(deg / scale.length);
-}
+export { degreeToSemis };
 
 export class Music {
   /** @param {import('./AudioEngine.js').AudioEngine} engine */

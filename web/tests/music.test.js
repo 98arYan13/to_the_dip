@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { degreeToSemis } from '../src/audio/Music.js';
-import { THEMES, SCALES, SIGNAL_MOTIF, zoneOf, themeFor, signalLength } from '../src/audio/musicThemes.js';
+import { composePiece, depthParams, peakPolyphony } from '../src/audio/Composer.js';
+import { mulberry32 } from '../src/core/RNG.js';
+import { MUSIC, THEMES, SCALES, SIGNAL_MOTIF, zoneOf, themeFor, signalLength } from '../src/audio/musicThemes.js';
 
 const PLANETS = ['earth', 'moon', 'mars', 'tessera'], ZONES = ['camp', 'shallow', 'mid', 'deep'];
 
@@ -61,5 +63,41 @@ describe('music themes', () => {
   it('signal motif', () => {
     expect(SIGNAL_MOTIF.length).toBe(7);
     expect(signalLength(0)).toBe(2); expect(signalLength(3)).toBe(5); expect(signalLength(99)).toBe(7); expect(signalLength(-1)).toBe(2);
+  });
+});
+
+const all = () => ['earth','moon','mars','tessera'].flatMap(p => ['camp','shallow','mid','deep'].map(z => THEMES[p][z]));
+describe('composer', () => {
+  it('pieces are 120-180 s with the five sections in order', () => {
+    for (const th of all()) for (let s = 1; s <= 20; s++) {
+      const p = composePiece(th, { depth01: 0.5 }, mulberry32(s));
+      expect(p.duration).toBeGreaterThanOrEqual(120); expect(p.duration).toBeLessThanOrEqual(180);
+      expect(p.sections.map(x => x.name)).toEqual(['intro', 'A', 'B', 'A2', 'outro']);
+      expect(p.sections.every(x => x.bars >= 2 && x.bars % 2 === 0)).toBe(true);
+      expect(p.sections.at(-1).t1).toBeCloseTo(p.duration, 5);
+    }
+  });
+  it('intro and outro have no bass; every voice stays in range', () => {
+    const p = composePiece(THEMES.earth.mid, {}, mulberry32(7));
+    const [intro, , , , outro] = p.sections;
+    expect(p.events.some(e => e.voice === 'bass')).toBe(true);
+    expect(p.events.some(e => e.voice === 'bass' && (e.t < intro.t1 || e.t >= outro.t0))).toBe(false);
+    for (const e of p.events) { const [lo, hi] = MUSIC.RANGE[e.voice]; expect(e.midi).toBeGreaterThanOrEqual(lo); expect(e.midi).toBeLessThanOrEqual(hi); }
+    expect(p.events.every((e, i) => i === 0 || p.events[i - 1].t <= e.t)).toBe(true);
+    expect(Math.max(...p.events.filter(e => e.voice === 'pad').map(e => e.t + e.dur))).toBeCloseTo(p.duration, 5);
+    expect(peakPolyphony(p.events)).toBeLessThanOrEqual(MUSIC.MAX_VOICES);
+  });
+  it('same seed same piece, different seed different piece', () => {
+    const a = composePiece(THEMES.mars.shallow, {}, mulberry32(3)), b = composePiece(THEMES.mars.shallow, {}, mulberry32(3)), c = composePiece(THEMES.mars.shallow, {}, mulberry32(4));
+    expect(a).toEqual(b); expect(a.events).not.toEqual(c.events);
+  });
+  it('depth slows the piece and bad depth is clamped', () => {
+    const th = THEMES.earth.deep;
+    expect(depthParams(th, 1).bpm).toBeLessThan(depthParams(th, 0.8).bpm);
+    expect(depthParams(th, NaN)).toEqual(depthParams(th, 0)); expect(depthParams(th, 5)).toEqual(depthParams(th, 1));
+    expect(() => composePiece(th, { depth01: NaN }, mulberry32(1))).not.toThrow();
+  });
+  it('avoid.progression is honoured', () => {
+    for (let s = 1; s <= 20; s++) expect(composePiece(THEMES.earth.camp, { avoid: { progression: 0 } }, mulberry32(s)).firstProgression).not.toBe(0);
   });
 });
