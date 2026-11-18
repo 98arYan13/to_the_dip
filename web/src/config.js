@@ -181,6 +181,8 @@ const RECIPE_DEFS = [
   ['PROPELLANT', 'refinery', 2, 'lunar_landing'], ['FUSION_FUEL', 'lab', 2, 'lunar_landing'], ['SUPERCONDUCTOR', 'lab', 2, 'lunar_landing'],
   // The Moon can refuel before Mars: ice + ordinary fuel instead of perchlorate.
   ['PROPELLANT', 'refinery', 2, 'lunar_landing', undefined, { [ORE.WATER_ICE]: 2, [ITEM.FUEL]: 2 }, 'propellant_lunar'],
+  // Earth-only route so the first Moon launch is possible: 4 fuel (8 shale) + 1 aluminium (4 bauxite) per unit, 120 raw ore for the 10 the Moon costs.
+  ['PROPELLANT', 'refinery', 2, 'lunar_landing', undefined, { [ITEM.FUEL]: 4, [ITEM.ALUMINIUM]: 1 }, 'propellant_earth'],
 ];
 
 /** @type {readonly {id:string, building:string, level:number, in:Record<number,number>, out:Record<number,number>, power:number, tech?:string}[]} */

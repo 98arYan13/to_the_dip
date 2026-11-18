@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { ITEM } from '../src/config.js';
+import { ITEM, ORES, RECIPES, TRAVEL } from '../src/config.js';
 import { Economy, createEconomyState } from '../src/systems/Economy.js';
 import { EventBus } from '../src/core/EventBus.js';
 import { destinations, canTravel, travelState, launch, resetLaunch } from '../src/systems/Travel.js';
@@ -58,5 +58,20 @@ describe('travel', () => {
     expect(s.cargo[1]).toBe(5); expect(s.cargo[ITEM.FUEL]).toBe(3);
     expect(launch(ec, 'moon')).toBeNull(); expect(ec.stash[ITEM.PROPELLANT]).toBe(10);
     resetLaunch();
+  });
+});
+
+describe('launch costs are craftable', () => {
+  // Raw ores need Earth hosts unless the destination comes after off-world worlds (shortcut: any off-world ore counts for mars/tessera).
+  const craftable = (id, offWorld, seen = []) => {
+    const o = ORES[id];
+    if (o.kind !== 'material') return offWorld || o.hosts.length > 0;
+    return !seen.includes(id) && RECIPES.some((r) => r.out[id] && Object.keys(r.in).every((k) => craftable(+k, offWorld, [...seen, id])));
+  };
+  it.each(['moon', 'mars', 'tessera'])('%s', (dest) => {
+    expect(Object.keys(TRAVEL.COST[dest]).every((k) => craftable(+k, dest !== 'moon'))).toBe(true);
+  });
+  it('Propellant itself is craftable from Earth ores alone', () => {
+    expect(craftable(ITEM.PROPELLANT, false)).toBe(true);
   });
 });

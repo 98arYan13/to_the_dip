@@ -80,7 +80,7 @@ describe('space-era gear and recipes (spec 8.1)', () => {
     expect(CAMP_BUILDINGS.generator.levels[3]).toMatchObject({ name: 'Fusion Reactor', tech: 'fusion_power' });
     expect(POWER.CAP[3]).toBe(100000);
     expect(POWER.FUELS).toContainEqual({ id: ITEM.FUSION_FUEL, power: 5000, gen: 4 });
-    expect(RECIPES.filter((r) => r.out[ITEM.PROPELLANT]).map((r) => r.id).sort()).toEqual(['propellant', 'propellant_lunar']);
+    expect(RECIPES.filter((r) => r.out[ITEM.PROPELLANT]).map((r) => r.id).sort()).toEqual(['propellant', 'propellant_earth', 'propellant_lunar']);
     expect(RECIPES.find((r) => r.id === 'propellant_lunar').in).toEqual({ 45: 2, [ITEM.FUEL]: 2 });
   });
   it('era pick tiers and the off-world relics', () => {
