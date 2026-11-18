@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { degreeToSemis, dueEvents } from '../src/audio/Music.js';
-import { composePiece, depthParams, peakPolyphony } from '../src/audio/Composer.js';
+import { composePiece, composeFinale, composeEnding, signalPhrase, depthParams, peakPolyphony } from '../src/audio/Composer.js';
 import { mulberry32 } from '../src/core/RNG.js';
 import { MUSIC, THEMES, SCALES, SIGNAL_MOTIF, zoneOf, themeFor, signalLength } from '../src/audio/musicThemes.js';
 
@@ -143,5 +143,31 @@ describe('music playback', () => {
     const q = [0, 1, 2, 9.99, 10.1, 10.4].map(t => ({ t }));
     const r = dueEvents(q, 10, 0.25);
     expect(r.play.map(e => e.t)).toEqual([9.99, 10.1]); expect(r.rest.map(e => e.t)).toEqual([10.4]); expect(r.dropped).toBe(3);
+  });
+});
+
+describe('music story hooks', () => {
+  it('signal phrase grows with relics and stays in sparkle range', () => {
+    const piece = composePiece(THEMES.earth.mid, {}, mulberry32(1));
+    expect(signalPhrase(THEMES.earth.mid, 0, piece).length).toBe(2);
+    expect(signalPhrase(THEMES.earth.mid, 4, piece).length).toBe(6);
+    for (const e of signalPhrase(THEMES.earth.mid, 9, piece)) { expect(e.voice).toBe('sparkle'); expect(e.midi).toBeGreaterThanOrEqual(72); expect(e.midi).toBeLessThanOrEqual(91); }
+  });
+  it('finale levels add voices and respect the voice cap', () => {
+    const voices = l => new Set(composeFinale(l, mulberry32(2)).events.map(e => e.voice));
+    expect([...voices(1)].sort()).toEqual(['bass', 'pad']);
+    expect(voices(2).has('lead')).toBe(true); expect(voices(2).has('sparkle')).toBe(false);
+    expect(voices(3).has('sparkle')).toBe(true);
+    const p = composeFinale(3, mulberry32(2));
+    expect(p.bpm).toBe(84); expect(peakPolyphony(p.events)).toBeLessThanOrEqual(MUSIC.MAX_VOICES);
+    for (const e of p.events) { const [lo, hi] = MUSIC.RANGE[e.voice]; expect(e.midi).toBeGreaterThanOrEqual(lo); expect(e.midi).toBeLessThanOrEqual(hi); }
+  });
+  it('ending states the whole motif once and resolves to a major chord', () => {
+    const p = composeEnding();
+    expect(p.events.filter(e => e.voice === 'sparkle' || e.voice === 'lead').length).toBe(7);
+    const last = p.events.filter(e => e.voice === 'pad').sort((a, b) => b.t - a.t).slice(0, 3).map(e => e.midi % 12).sort((a, b) => a - b);
+    const root = THEMES.tessera.deep.root % 12;
+    expect(last).toEqual([root, (root + 4) % 12, (root + 7) % 12].sort((a, b) => a - b));
+    expect(p.duration).toBeGreaterThanOrEqual(MUSIC.ENDING_TAIL_SEC);
   });
 });

@@ -13,7 +13,8 @@ import { Input } from './core/Input.js';
 import { randomSeed, RNG } from './core/RNG.js';
 import { log } from './core/log.js';
 import { World } from './world/World.js';
-import { clearOwnedRelics, hasRuins, planRuins, relicIdAt } from './world/Ruins.js';
+import { clearOwnedRelics, hasRuins, planRuins, relicIdAt, nearestRuin } from './world/Ruins.js';
+import { MUSIC } from './audio/musicThemes.js';
 import { Visibility } from './world/Visibility.js';
 import { ChunkCache } from './world/ChunkCache.js';
 import { Player } from './entities/Player.js';
@@ -170,6 +171,7 @@ function boot() {
   const audio = new AudioEngine();
   const sfx = new SFX(audio);
   const music = new Music(audio);
+  let ruinAcc = 0, nearRuin = false, endingMusic = false;
   const ambience = new Ambience(audio);
   sfx.bind(bus, () => world);
 
@@ -394,7 +396,10 @@ function boot() {
   bus.on(EV.QUAKE, (q) => { camera.addTrauma(0.4 + 0.6 * q.strength); sfx.rumble(0.8 + 0.2 * q.strength); });
   bus.on(EV.COMPLETED, () => { ending.show(); input.clear(); });
   bus.on(EV.MIND_GREETING, () => { pages.push(...MIND_PAGES); showStory(); input.clear(); });
+  bus.on(EV.PULSE_WARN, () => music.onPulseWarn());
+  bus.on(EV.PULSE, () => music.onPulse());
   bus.on(EV.FINISHED, () => {
+    endingMusic = true;
     pages.push(...ENDING_PAGES); afterPages = () => { ending.show({ title: 'THE SEED IS SILENT — FOR GOOD', text: FINAL_LINE }); input.clear(); };
     saveGame(false); showStory(); input.clear();
   });
@@ -671,7 +676,10 @@ function boot() {
       audio.listenerX = player.cx; audio.listenerY = player.cy;
       sfx.setJet(player.jetting ? 1 : 0);
       audio.setDepth(onSurface ? 0 : g.depth01 + 0.02);
-      music.setContext({ planet: economy.planet ?? 'earth', depth01: g.depth01, onSurface, nearRuin: false, relics: 0, finaleLevel: 0 });
+      ruinAcc += dt; // nearest-ruin scan only twice a second
+      if (ruinAcc >= 0.5) { ruinAcc = 0; const r = nearestRuin(world.genSeed, world.W, world.H, economy.relics, player.cx / T, player.cy / T, world.planet); nearRuin = !!r && Math.hypot(r.x - player.cx / T, r.y - player.cy / T) <= MUSIC.RUIN_RADIUS; }
+      const finaleLevel = endingMusic ? 4 : economy.mind.greeted && !economy.finished && world.planet === 'tessera' ? Math.min(3, economy.mind.nodes.length + 1) : 0;
+      music.setContext({ planet: economy.planet ?? 'earth', depth01: g.depth01, onSurface, nearRuin, relics: economy.relics.length, finaleLevel });
       ambience.update(dt, g.depth01, onSurface);
     }
 

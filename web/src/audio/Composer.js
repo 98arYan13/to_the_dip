@@ -2,7 +2,7 @@
  * @module audio/Composer
  * Pure, seeded composition of one piece (form, harmony, pad, bass). No Web Audio, no Math.random: pass an rng.
  */
-import { MUSIC } from './musicThemes.js';
+import { MUSIC, THEMES, SIGNAL_MOTIF, signalLength } from './musicThemes.js';
 
 /** Semitone offset of scale degree `deg` (>= 0), wrapping into higher octaves. @param {number[]} scale @param {number} deg */
 export function degreeToSemis(scale, deg) {
@@ -145,4 +145,50 @@ export function peakPolyphony(events) {
   let n = 0, peak = 0;
   for (const [, d] of edges) peak = Math.max(peak, (n += d));
   return peak;
+}
+
+const deepTheme = THEMES.tessera.deep;
+const noteOf = (th, deg, voice, oct = 0) => fold(th.root + degreeToSemis(th.scale, deg + th.scale.length) - 12 + oct, voice);
+
+/** First signalLength(relics) notes of SIGNAL_MOTIF in the piece's key; t relative to 0; voice 'sparkle'. */
+export function signalPhrase(theme, relics, piece) {
+  const beat = piece.barSec / MUSIC.BEATS_PER_BAR, n = signalLength(relics);
+  let t = 0;
+  return SIGNAL_MOTIF.slice(0, n).map(([deg, b]) => {
+    const e = { t, dur: b * beat, midi: noteOf(theme, deg, 'sparkle', 24), voice: 'sparkle', gain: MUSIC.GAIN.sparkle };
+    t += b * beat;
+    return e;
+  });
+}
+
+/** One FINALE_BARS piece at FINALE_BPM in Vast Machine's key. 1: pad + bass; 2: + Signal-fragment lead; 3: + sparkle, brighter pad. */
+export function composeFinale(level, rng) {
+  const th = deepTheme, beat = 60 / MUSIC.FINALE_BPM, barSec = MUSIC.BEATS_PER_BAR * beat, bars = MUSIC.FINALE_BARS, duration = bars * barSec;
+  const prog = th.progressions[Math.floor(rng() * th.progressions.length)], events = [];
+  const add = (t, dur, midi, voice, bar) => events.push({ t, dur, midi, voice, gain: MUSIC.GAIN[voice], bar });
+  for (let c = 0; c * MUSIC.CHORD_BARS < bars; c++) {
+    const deg = prog[c % prog.length], t = c * MUSIC.CHORD_BARS * barSec;
+    for (const k of [0, 2, 4]) add(t, MUSIC.CHORD_BARS * barSec, noteOf(th, deg + k, 'pad'), 'pad', c * MUSIC.CHORD_BARS);
+    for (let b = 0; b < MUSIC.CHORD_BARS * MUSIC.BEATS_PER_BAR; b++) add(t + b * beat, beat, noteOf(th, deg, 'bass'), 'bass', c * MUSIC.CHORD_BARS + (b >> 2));
+    if (level >= 2) { // a 2-4 note fragment of the Signal, one per chord
+      const len = 2 + Math.floor(rng() * 3), from = Math.floor(rng() * (SIGNAL_MOTIF.length - len + 1));
+      SIGNAL_MOTIF.slice(from, from + len).forEach(([d], i) => add(t + i * beat, beat, noteOf(th, d, 'lead', 12), 'lead', c * MUSIC.CHORD_BARS));
+    }
+    if (level >= 3) for (let b = 0; b < MUSIC.CHORD_BARS; b++) add(t + (b * MUSIC.BEATS_PER_BAR + 2) * beat, beat, noteOf(th, deg + 2 * (b + 1), 'sparkle', 24), 'sparkle', c * MUSIC.CHORD_BARS + b);
+  }
+  events.sort((a, b) => a.t - b.t);
+  return { themeId: 'finale.' + level, bpm: MUSIC.FINALE_BPM, barSec, bars, duration, delayFb: 0.5, padCutoffMul: level >= 3 ? 1.5 : 1, sections: [{ name: 'finale', t0: 0, t1: duration }], events };
+}
+
+/** The whole Signal once over pad chords, ending on a major triad on the tonic, then a pad tail. */
+export function composeEnding() {
+  const th = deepTheme, beat = 1, events = [];
+  [0, 3, 1, 4].forEach((deg, i) => [0, 2, 4].forEach((k) => events.push({ t: i * 2, dur: 2, midi: noteOf(th, deg + k, 'pad'), voice: 'pad', gain: MUSIC.GAIN.pad })));
+  const tonic = fold(th.root, 'pad'); // major triad: root, +4, +7
+  for (const s of [0, 4, 7]) events.push({ t: 8, dur: MUSIC.ENDING_TAIL_SEC, midi: tonic + s, voice: 'pad', gain: MUSIC.GAIN.pad });
+  let t = 0;
+  for (const [deg, b] of SIGNAL_MOTIF) { events.push({ t, dur: b * beat, midi: noteOf(th, deg, 'lead', 12), voice: 'lead', gain: MUSIC.GAIN.lead }); t += b * beat; }
+  events.sort((a, b) => a.t - b.t);
+  const duration = 8 + MUSIC.ENDING_TAIL_SEC;
+  return { themeId: 'ending', bpm: 60, barSec: 4, bars: duration / 4, duration, delayFb: 0.5, padCutoffMul: 1, sections: [{ name: 'ending', t0: 0, t1: duration }], events };
 }

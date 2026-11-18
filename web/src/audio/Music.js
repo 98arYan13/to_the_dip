@@ -6,7 +6,7 @@
  */
 import { MUSIC, THEMES } from './musicThemes.js';
 import { midiToHz } from './DSP.js';
-import { composePiece, degreeToSemis } from './Composer.js';
+import { composePiece, composeFinale, composeEnding, signalPhrase, degreeToSemis } from './Composer.js';
 import { MusicDirector } from './Director.js';
 import { mulberry32 } from '../core/RNG.js';
 
@@ -87,7 +87,7 @@ export class Music {
     this.last = {};
     this.cur = null;
     this.cache = {};
-    this.director = new MusicDirector(mulberry32(Date.now() >>> 0), { composePiece });
+    this.director = new MusicDirector(mulberry32(Date.now() >>> 0), { composePiece, composeFinale, composeEnding, signalPhrase });
   }
 
   start() {
@@ -126,7 +126,7 @@ export class Music {
     lead.connect(gain); lead.connect(dl);
     dl.connect(pl); pl.connect(wet); dl.connect(dr); dr.connect(pr); pr.connect(wet); dr.connect(fb); fb.connect(dl);
     wet.connect(gain); gain.connect(this.story);
-    const cur = { gain, lead, theme: themeOf(piece.themeId), nodes: [gain, lead, dl, dr, fb, wet, pl, pr] };
+    const cur = { gain, lead, theme: { ...themeOf(piece.themeId), padCutoffMul: piece.padCutoffMul }, nodes: [gain, lead, dl, dr, fb, wet, pl, pr] };
     // Free the graph once the piece and its delay tail are long gone.
     setTimeout(() => cur.nodes.forEach((n) => n.disconnect()), (at + piece.duration + 12 - ctx.currentTime) * 1000);
     return cur;
