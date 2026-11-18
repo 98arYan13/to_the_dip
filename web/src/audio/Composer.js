@@ -12,7 +12,7 @@ export function degreeToSemis(scale, deg) {
 /** Depth-driven tempo, scale shift, lead density and delay feedback. d is clamped to 0..1 (NaN -> 0).
  * @returns {{ bpm:number, shift:number, leadChance:number, delayFb:number }} */
 export function depthParams(theme, depth01) {
-  const d = Number.isFinite(depth01) ? Math.min(1, Math.max(0, depth01)) : 0;
+  const d = Math.min(1, Math.max(0, depth01 || 0)); // NaN -> 0, +-Infinity clamps
   return { bpm: theme.bpm * (1 - 0.25 * d), shift: Math.round(3 * d), leadChance: 0.6 - 0.3 * d, delayFb: 0.35 + 0.2 * d };
 }
 
@@ -26,8 +26,9 @@ function fold(midi, voice) {
 
 /** @param {() => number} rng @param {number} n @param {number} [avoid] index to skip */
 function pickIndex(rng, n, avoid) {
-  const i = Math.floor(rng() * (n - (avoid >= 0 && avoid < n ? 1 : 0)));
-  return avoid >= 0 && i >= avoid ? i + 1 : i;
+  const skip = n > 1 && avoid >= 0 && avoid < n;
+  const i = Math.floor(rng() * (n - (skip ? 1 : 0)));
+  return skip && i >= avoid ? i + 1 : i;
 }
 
 /**
@@ -67,7 +68,8 @@ export function composePiece(theme, opts = {}, rng) {
     for (let c = 0; c * MUSIC.CHORD_BARS < sec.bars; c++) {
       const deg = prog[c % prog.length], cBars = Math.min(MUSIC.CHORD_BARS, sec.bars - c * MUSIC.CHORD_BARS);
       const bar0 = sec.startBar + c * MUSIC.CHORD_BARS, t = bar0 * barSec;
-      if (rng() < theme.padChance) for (const k of [0, 2, 4]) add(t, cBars * barSec, note(deg + k, 'pad'), 'pad', bar0);
+      const last = si === sections.length - 1 && (c + 1) * MUSIC.CHORD_BARS >= sec.bars; // outro must end on a pad
+      if (rng() < theme.padChance || last) for (const k of [0, 2, 4]) add(t, cBars * barSec, note(deg + k, 'pad'), 'pad', bar0);
       if (bass) for (let b = 0; b < cBars; b++) {
         const tb = t + b * barSec;
         add(tb, 2 * beat, note(deg, 'bass'), 'bass', bar0 + b);

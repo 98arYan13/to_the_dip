@@ -100,4 +100,14 @@ describe('composer', () => {
   it('avoid.progression is honoured', () => {
     for (let s = 1; s <= 20; s++) expect(composePiece(THEMES.earth.camp, { avoid: { progression: 0 } }, mulberry32(s)).firstProgression).not.toBe(0);
   });
+  it('the last pad always ends at duration, even with padChance < 1', () => {
+    for (const th of all()) for (let s = 1; s <= 8; s++) {
+      const p = composePiece(th, {}, mulberry32(s));
+      expect(Math.max(...p.events.filter(e => e.voice === 'pad').map(e => e.t + e.dur))).toBeCloseTo(p.duration, 5);
+    }
+  });
+  it('avoid.motif is honoured and Infinity depth clamps', () => {
+    for (let s = 1; s <= 20; s++) expect(composePiece(THEMES.earth.camp, { avoid: { motif: 0 } }, mulberry32(s)).firstMotif).not.toBe(0);
+    expect(depthParams(THEMES.earth.deep, Infinity)).toEqual(depthParams(THEMES.earth.deep, 1));
+  });
 });
