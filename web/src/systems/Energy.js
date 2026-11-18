@@ -3,7 +3,7 @@
  * Rig battery: depth/load-scaled idle drain, per-block mining drain, jetpack drain,
  * station recharge, low-energy warning and emergency rescue trigger.
  */
-import { ENERGY, MATERIALS, ORES, POWER } from '../config.js';
+import { ENERGY, MATERIALS, ORES, POWER, lifeSupportMul } from '../config.js';
 import { drawPower } from './Power.js';
 
 /** E_block = E_base * H_mat * (1 + D/500) / eta_rig */
@@ -59,6 +59,9 @@ export class Energy {
     } else {
       // Depth heat/pressure only drains underground; the surface is free.
       // Only the jetpack drains over time; hand tools are free, drills pay per block (drainBlock).
+      // Thin/vacuum air: the suit's life support costs extra battery underground (Earth's surcharge is 0).
+      const e = this.economy;
+      if (!s.onSurface && this.depthM > 0 && !this.god) this.value -= idleDrain(this.depthM, e.loadFrac ?? 0) * (lifeSupportMul(e.planet ?? 'earth', e.tech ?? []) - 1) * dt;
       if (s.jetting && !this.god) this.value -= this.economy.stat('jetDrain', this.economy.jetpack.drain) * dt;
     }
     this._clampAndReport();

@@ -27,3 +27,20 @@ describe('planet physics', () => {
     expect(hpMulAt(p, TILE.GRANITE)).toBe(3); expect(hpMulAt(p, TILE.BASALT)).toBe(6); expect(hpMulAt(p, 0)).toBe(3);
   });
 });
+
+import { Energy } from '../src/systems/Energy.js';
+import { EventBus } from '../src/core/EventBus.js';
+describe('life support surcharge', () => {
+  const drop = (planet, tech, onSurface, depthM = 100) => {
+    const en = new Energy(new EventBus(), { planet, tech, loadFrac: 0, stat: (_n, b) => b, rig: { maxEnergy: 1000 } });
+    en.depthM = depthM; en.update(1, { jetting: false, atStation: false, onSurface });
+    return 1000 - en.value;
+  };
+  it('is 0 on Earth and on the surface, doubles idle on the Moon, halves with fusion_power', () => {
+    const idle = idleDrain(100, 0);
+    expect(drop('earth', [], false)).toBe(0);
+    expect(drop('moon', [], true, 0)).toBe(0);
+    expect(drop('moon', [], false)).toBeCloseTo(idle);
+    expect(drop('moon', ['fusion_power'], false)).toBeCloseTo(idle / 2);
+  });
+});
