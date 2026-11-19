@@ -101,7 +101,7 @@ function reachTargets(d, starts) {
   const out = [];
   const cols = [...Array(d.W - 2).keys()].map((x) => x + 1).sort((a, b) => Math.abs(a - SX) - Math.abs(b - SX));
   for (let k = 1; k < strata.length; k++) out.push({ label: `stratum ${k} top`, cols: cols.map((x) => [x, starts[k * d.W + x]]), tier: strata[k].tier, magma: false, host: strata[k].tile });
-  planRuins(d.seed, d.W, d.H, PLANETS[d.planet]).forEach((r) => {
+  planRuins(d.genSeed ?? d.seed, d.W, d.H, PLANETS[d.planet]).forEach((r) => {
     const own = strata[Math.min(r.layer, strata.length - 1)];
     out.push({ label: `ruin ${r.layer}`, cols: [[r.x, r.y + r.h - 2]], tier: own.tier, magma: false, host: own.tile });
   });

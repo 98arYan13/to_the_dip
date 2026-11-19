@@ -14,8 +14,8 @@ describe('Economy balance', () => {
     expect(idleDrain(300, 1)).toBeCloseTo(0.6);
   });
 
-  it('ore prices strictly increase: Coal < Iron < Copper < Silver < Platinum < Gold < Diamond', () => {
-    const order = ['COAL', 'IRON', 'COPPER', 'SILVER', 'PLATINUM', 'GOLD', 'DIAMOND'];
+  it('ore prices strictly increase: Coal < Iron < Copper < Silver < Gold < Platinum < Diamond', () => {
+    const order = ['COAL', 'IRON', 'COPPER', 'SILVER', 'GOLD', 'PLATINUM', 'DIAMOND'];
     const prices = order.map((k) => ORES.find((o) => o && o.key === k).price);
     for (let i = 1; i < prices.length; i++) expect(prices[i]).toBeGreaterThan(prices[i - 1]);
   });

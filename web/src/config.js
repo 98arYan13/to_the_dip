@@ -357,7 +357,8 @@ const ORE_LIST = [
     colors: { base: '#1a1a3a', light: '#3ae0c0', spec: '#ffffff', dark: '#0d0d1d' }, glow: '#4af0d0', tile: 'sliver-black-opal-platinum-gold_1', fragile: true },
   { id: 15, key: 'PLATINUM', name: 'Platinum Ore', kg: 2.5, hard: 5.5, perKg: 174.72, price: 436.8, tier: 4, hosts: [4, 5], weight: 3, vein: [2, 4], glint: 0.65, pitch: 990,
     colors: { base: '#a8b0b8', light: '#eaf3fb', spec: '#ffffff', dark: '#54585c' }, glow: '#bfe0ff', tile: 'sliver-black-opal-platinum-gold_2' },
-  { id: 16, key: 'GOLD', name: 'Gold', kg: 2.2, hard: 3.0, perKg: 310.55, price: 683.21, tier: 4, hosts: [4, 5], weight: 2, vein: [1, 4], glint: 0.8, pitch: 1175,
+  // Gold sits in granite quartz veins (tier 3): electronics and circuits need it before the Titanium Drill exists.
+  { id: 16, key: 'GOLD', name: 'Gold', kg: 2.2, hard: 3.0, perKg: 90, price: 198, tier: 3, hosts: [3, 4], weight: 2, vein: [1, 4], glint: 0.8, pitch: 1175,
     colors: { base: '#c8900c', light: '#ffd84a', spec: '#ffffff', dark: '#644806' }, glow: '#ffcc33', tile: 'sliver-black-opal-platinum-gold_3' },
   { id: 17, key: 'METEORITE', name: 'Meteorite', kg: 7.0, hard: 7.5, perKg: 125.0, price: 875.0, tier: 5, hosts: [4, 5], weight: 1.4, vein: [1, 3], glint: 0.3, pitch: 420,
     colors: { base: '#c0d8f0', light: '#ffffff', spec: '#ffffff', dark: '#606c78' }, glow: '#a0d0ff', tile: 'meteorit-rhodium-ruby-diamond_0' },
@@ -365,9 +366,9 @@ const ORE_LIST = [
     colors: { base: '#3a2a2a', light: '#ff7a2a', spec: '#ffffff', dark: '#1d1515' }, glow: '#ff6a1a', tile: 'meteorit-rhodium-ruby-diamond_1' },
   { id: 19, key: 'RUBY', name: 'Ruby & Emerald', kg: 0.6, hard: 8.0, perKg: 2600.0, price: 1560.0, tier: 5, hosts: [5], weight: 0.7, vein: [1, 2], glint: 0.95, pitch: 1400,
     colors: { base: '#c01a3a', light: '#3ae07a', spec: '#ffffff', dark: '#600d1d' }, glow: '#ff3a6a', tile: 'meteorit-rhodium-ruby-diamond_2' },
-  { id: 20, key: 'DIAMOND', name: 'Diamond', kg: 0.5, hard: 10.0, perKg: 5000.0, price: 2500.0, tier: 6, hosts: [5], weight: 0.35, vein: [1, 2], glint: 1.0, pitch: 1568,
+  { id: 20, key: 'DIAMOND', name: 'Diamond', kg: 0.5, hard: 10.0, perKg: 5000.0, price: 2500.0, tier: 5, hosts: [5], weight: 0.35, vein: [1, 2], glint: 1.0, pitch: 1568,
     colors: { base: '#7fe8ff', light: '#e8fdff', spec: '#ffffff', dark: '#3f747f' }, glow: '#8ff4ff', tile: 'meteorit-rhodium-ruby-diamond_3', crystal: true },
-  // Heaviest ore in the game (dense wolframite/scheelite): tier 4 like gold/platinum, priced between them, found in granite-to-basalt veins.
+  // Heaviest ore in the game (dense wolframite/scheelite): tier 4 like platinum, priced just above it, found in granite-to-basalt veins.
   // Mining it with the Titanium Drill is what pays for the Tungsten Carbide Drill. No hand-drawn tile yet: procedural art.
   { id: 21, key: 'TUNGSTEN', tile: 'gen_ores_0', name: 'Tungsten', kg: 5.0, hard: 7.0, perKg: 112.0, price: 560.0, tier: 4, hosts: [3, 4], weight: 2.5, vein: [2, 4], glint: 0.5, pitch: 1060,
     colors: { base: '#33313a', light: '#a68fc4', spec: '#ffffff', dark: '#18171c' }, glow: '#9a7aff', tile: null },

@@ -35,10 +35,10 @@ describe('Mining tier gating', () => {
     expect(canMine(TILE.AIR, 0, 6)).toBe(false);
   });
 
-  it('only diamond cuts diamond', () => {
-    for (let tier = 1; tier <= 5; tier++) expect(canMine(TILE.MANTLE, ORE.DIAMOND, tier)).toBe(false);
-    expect(canMine(TILE.MANTLE, ORE.DIAMOND, 6)).toBe(true);
-    expect(requirementHint(TILE.MANTLE, ORE.DIAMOND)).toMatch(/Diamond-Tipped/);
+  it('diamond needs the Tungsten Carbide Drill (tier 5), so Diamond Tooling is payable before its own drill', () => {
+    for (let tier = 1; tier <= 4; tier++) expect(canMine(TILE.MANTLE, ORE.DIAMOND, tier)).toBe(false);
+    expect(canMine(TILE.MANTLE, ORE.DIAMOND, 5)).toBe(true);
+    expect(requirementHint(TILE.MANTLE, ORE.DIAMOND)).toMatch(/Tungsten Carbide/);
   });
 
   it('hint names the required pickaxe', () => {
@@ -77,7 +77,7 @@ describe('Dynamite gating', () => {
   });
 
   it('never bypasses the diamond gate or bedrock', () => {
-    for (let tier = 1; tier <= 5; tier++) expect(dynamiteOutcome(TILE.MANTLE, ORE.DIAMOND, tier)).toBe(DYN_KEEP);
+    for (let tier = 1; tier <= 4; tier++) expect(dynamiteOutcome(TILE.MANTLE, ORE.DIAMOND, tier)).toBe(DYN_KEEP);
     for (let tier = 1; tier <= 6; tier++) expect(dynamiteOutcome(TILE.BEDROCK, 0, tier)).toBe(DYN_KEEP);
   });
 });

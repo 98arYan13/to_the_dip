@@ -130,3 +130,26 @@ describe('world entry and gear (spec 8.1)', () => {
     }
   });
 });
+
+// The per-era check above compares with the best pickaxe of the whole era, so it missed loops where a tech needs an ore that only
+// the pickaxe it unlocks can dig (gold for electronics, diamond for diamond tooling). This replays progression with the tier owned so far.
+describe('progression replay (Earth, eras 1-5)', () => {
+  it('every era 1-5 tech and pickaxe tiers 2-6 unlock using only ores the current pickaxe can dig', () => {
+    const owned = new Set(); let tier = 1;
+    const producer = (o) => RECIPES.find((r) => Object.keys(r.out).map(Number).includes(o));
+    const ok = (items) => Object.keys(items).map(Number).every((o) => {
+      if ([...rawOres(o)].some((r) => digTier(r) > tier)) return false;
+      if (isOre(o)) return true;
+      const r = producer(o); const lv = CAMP_BUILDINGS[r.building].levels[r.level - 1];
+      return (!r.tech || owned.has(r.tech)) && (!lv?.tech || owned.has(lv.tech));
+    });
+    for (let changed = true; changed;) {
+      changed = false;
+      for (const t of TECH) if (t.era <= 5 && !owned.has(t.id) && t.requires.every((r) => owned.has(r)) && ok(t.cost.ores)) { owned.add(t.id); changed = true; }
+      const p = PICKAXES[tier];
+      if (tier < 6 && owned.has(p.tech) && ok(p.recipe)) { tier++; changed = true; }
+    }
+    expect(TECH.filter((t) => t.era <= 5 && !owned.has(t.id)).map((t) => t.id)).toEqual([]);
+    expect(tier).toBe(6);
+  });
+});

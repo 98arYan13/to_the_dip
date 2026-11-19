@@ -51,7 +51,6 @@ export function requirementHint(type, ore) {
   if (type === TILE.BEDROCK) return 'Bedrock is indestructible';
   if (type === TILE.ALIEN_HULL) return 'Alien hull — only a Big Bomb breaks it';
   const t = requiredTier(type, ore);
-  if (ore === ORE.DIAMOND) return 'Only diamond cuts diamond: requires Diamond-Tipped Drill';
   return `Requires ${PICKAXES[Math.min(PICKAXES.length, t) - 1].name}`;
 }
 
