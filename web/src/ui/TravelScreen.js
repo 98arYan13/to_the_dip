@@ -12,7 +12,7 @@ export class TravelScreen {
     this.el = document.createElement('div');
     this.el.className = 'modal shop hidden';
     this.el.setAttribute('role', 'dialog');
-    this.el.innerHTML = '<div class="modal-box"><header><h2>LAUNCH PAD</h2><button class="btn close" title="Close (Esc)">✕</button></header><section class="tab-body"></section></div>';
+    this.el.innerHTML = '<div class="modal-box"><header><img class="up-icon" src="camp/orbital_station.png" alt="" style="width:48px;height:auto;image-rendering:pixelated"><h2>LAUNCH PAD</h2><button class="btn close" title="Close (Esc)">✕</button></header><section class="tab-body"></section></div>';
     root.appendChild(this.el);
     this.body = /** @type {HTMLElement} */ (this.el.querySelector('.tab-body'));
     this.el.querySelector('.close')?.addEventListener('click', () => this.close());

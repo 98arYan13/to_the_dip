@@ -124,8 +124,78 @@ def fx():
     print('fx ok')
 
 
+def pixelate(sprite, scale, colors=24):
+    """Downscale a cut-out sprite by `scale`, hard alpha, palette-reduced."""
+    w, h = max(1, round(sprite.width * scale)), max(1, round(sprite.height * scale))
+    s = sprite.resize((w, h), Image.BOX)
+    a = np.asarray(s)[..., 3] > 110
+    rgb = s.convert('RGB').quantize(colors, method=Image.Quantize.MEDIANCUT).convert('RGBA')
+    out = np.asarray(rgb).copy()
+    out[..., 3] = np.where(a, 255, 0)
+    return Image.fromarray(out)
+
+
+def row_sprites(name, n):
+    """One row of n objects on magenta; a full-width ground line, if drawn, is dropped."""
+    img = Image.open(f'{RAW}/{name}_raw.png').convert('RGB')
+    fg = magenta_mask(np.asarray(img).astype(int))
+    fg[fg.mean(axis=1) > 0.95] = False
+    bands = runs(fg.mean(axis=1) > 0.002, 20)
+    r0, r1 = bands[0][0], bands[-1][1]
+    cs = runs(fg[r0:r1].any(axis=0), 2)
+    assert len(cs) == n, (name, len(cs), cs)
+    return [cut(img, fg, (c0, r0, c1, r1)) for c0, c1 in cs]
+
+
+# Building sheets -> camp/<id>_<economy level>.png (level 1 is the existing base sprite).
+BUILDINGS = {
+    'bld_levels_a': ['generator_2', 'generator_3', 'generator_4', 'furnace_2', 'furnace_3', 'furnace_4'],
+    'bld_levels_b': ['refinery_2', 'lab_2', 'workshop_2', 'workshop_3', 'rocket', 'orbital_station'],
+}
+
+
+def buildings():
+    for sheet, names in BUILDINGS.items():
+        sprites = row_sprites(sheet, len(names))
+        # Base camp sprites are ~70 art px wide; upgrades a bit bigger: median object -> 80 px.
+        scale = 80 / sorted(s.width for s in sprites)[len(sprites) // 2]
+        for name, s in zip(names, sprites):
+            # Slots are 3 tiles apart and drawn at 1.5x: never wider than 74 art px (taller is fine).
+            pixelate(s, min(scale, 74 / s.width)).save(f'{PUB}/camp/{name}.png')
+    print('buildings ok')
+
+
+DEVICE_ICONS = [[f'rig_{k}' for k in range(8)],
+                [f'jetpack_{k}' for k in range(1, 6)] + ['jackhammer', 'cone_drill'],
+                [f'radar_{k}' for k in range(4)]]
+
+
+def device_icons():
+    img = Image.open(f'{RAW}/icons_devices_raw.png').convert('RGB')
+    fg = magenta_mask(np.asarray(img).astype(int))
+    bands = runs(fg.mean(axis=1) > 0.002, 20)
+    assert len(bands) == 3, bands
+    for (r0, r1), names in zip(bands, DEVICE_ICONS):
+        cs = runs(fg[r0:r1].any(axis=0), 4)
+        assert len(cs) == len(names), (names[0], len(cs))
+        sprites = [cut(img, fg, (c0, r0, c1, r1)) for c0, c1 in cs]
+        for name, s in zip(names, sprites):  # each fills its own 16px cell, thin items stay readable
+            fit(s, 16 / max(s.size), 16).save(f'{PUB}/icons/{name}.png')
+    print('device icons ok')
+
+
+def held_tools():
+    # Same length as the pickaxe art (54 px); the grip is the left-middle point, like the pickaxe.
+    for name, s in zip(['jackhammer', 'cone_drill'], row_sprites('tools_held', 2)):
+        pixelate(s, 56 / s.width, 20).save(f'{PUB}/player/{name}.png')
+    print('held tools ok')
+
+
 if __name__ == '__main__':
     for t in ('tiles_a', 'tiles_b', 'tiles_c', 'ores'):
         tiles(t)
     items()
     fx()
+    buildings()
+    device_icons()
+    held_tools()

@@ -6,6 +6,7 @@
 import { WEAR_KINDS } from './Outfit.js';
 
 const OUTLINE = '#1a1d24';
+const PICK_SCALE = 0.7;
 
 /** @typedef {{bone:number, layer:number, kind:'part'|'wear'|'pick'|'jetpack', sprite:string|null, pivot:[number,number], color:string, tint:boolean, rect:[number,number,number,number]}} DrawItem rect = [start, length, width, lateral offset] along the bone */
 
@@ -74,6 +75,7 @@ export class RigRenderer {
       ctx.translate(Math.round(world.x[d.bone]), Math.round(world.y[d.bone]));
       if (d.kind === 'pick') {
         ctx.rotate(pick.angle);
+        ctx.scale(PICK_SCALE, PICK_SCALE); // art was drawn too big next to the 84px body
         if (pick.sprite) ctx.drawImage(pick.sprite, -3, -22.5);
         ctx.restore(); continue;
       }

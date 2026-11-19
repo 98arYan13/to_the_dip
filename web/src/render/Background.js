@@ -36,6 +36,10 @@ export class Background {
     /** Camp building sprites (web/public/camp, cut by tools/cut_sprites.py); missing ones keep the placeholder boxes. */
     /** @type {Record<string, HTMLImageElement>} */ this.campArt = {};
     if (typeof Image !== 'undefined') {
+      // Upgrade levels (camp/<id>_<level>.png) and the launch-pad rocket; missing ones fall back to the base sprite.
+      for (const id of ['generator_2', 'generator_3', 'generator_4', 'furnace_2', 'furnace_3', 'furnace_4', 'refinery_2', 'lab_2', 'workshop_2', 'workshop_3', 'rocket']) {
+        const img = new Image(); img.onload = () => { this.campArt[id] = img; }; img.src = `camp/${id}.png`;
+      }
       for (const id of ['shop', 'station', 'generator', 'furnace', 'refinery', 'lab', 'workshop']) {
         const img = new Image(); img.onload = () => {
           this.campArt[id] = img;
@@ -207,6 +211,11 @@ export class Background {
       if (id === 'launch_pad') { // placeholder: flat pad plus a rocket silhouette once the Orbital Station tech is owned
         if (!hasEffect(ec, 'launch_pad')) continue;
         const px = tx * T - T / 2 + 4;
+        if (this.campArt.rocket) {
+          const ih = this._drawCampSprite(ctx, this.campArt.rocket, (tx + 0.5) * T, 2); calls++;
+          ctx.fillStyle = '#e8eef5'; ctx.fillText('LAUNCH PAD', px - 2, GROUND - ih - 9); calls++;
+          continue;
+        }
         r(px - 4, GROUND - 3, 2 * T, 3, '#6b7385'); r(px + 8, GROUND - 40, 8, 37, '#d8dde6'); r(px + 10, GROUND - 46, 4, 6, '#d8dde6'); r(px + 6, GROUND - 10, 3, 7, '#ff8a3a'); r(px + 15, GROUND - 10, 3, 7, '#ff8a3a');
         ctx.fillStyle = '#e8eef5'; ctx.fillText('LAUNCH PAD', px - 2, GROUND - 56); calls++;
         continue;
@@ -215,7 +224,7 @@ export class Background {
       const x = tx * T - T / 2 + 4; const w = 2 * T - 8; const h = 24 + 14 * lvl;
       const tech = b.levels[0].tech;
       ctx.globalAlpha = tech && !ec.tech.includes(tech) ? 0.4 : 1;
-      const img = this.campArt[id];
+      const img = this.campArt[`${id}_${lvl}`] || this.campArt[id];
       if (img) {
         // Unbuilt: faint ghost of the building. Label sits above the sprite.
         if (!lvl) ctx.globalAlpha *= 0.3;

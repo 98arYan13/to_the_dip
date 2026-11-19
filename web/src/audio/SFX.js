@@ -356,29 +356,64 @@ export class SFX {
     e.commit(v);
   }
 
-  /** Jetpack loop: pink noise through a modulated 320-600 Hz bandpass + 62-94 Hz sawtooth turbine. @param {number} thrust 0..1 */
+  /**
+   * Jetpack: valve click + ignition pop on start, then a rocket roar (brown-noise body + pink hiss
+   * that opens up with thrust), a faint turbine whine and random combustion crackle; hiss-down on cut-off.
+   * Called every frame. @param {number} thrust 0..1
+   */
   setJet(thrust) {
     const e = this.e; if (!e.ready) return;
     const ctx = this.ctx;
     if (!this.jet) {
-      const src = ctx.createBufferSource(); src.buffer = e.noise.pink; src.loop = true;
-      const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 460; bp.Q.value = 1.2;
-      const lfo = ctx.createOscillator(); lfo.frequency.value = 5.5;
-      const lfoAmt = ctx.createGain(); lfoAmt.gain.value = 140; // 460 +/- 140 -> 320-600 Hz
-      lfo.connect(lfoAmt); lfoAmt.connect(bp.frequency);
-      const turbine = ctx.createOscillator(); turbine.type = 'sawtooth'; turbine.frequency.value = 62;
-      const tlp = ctx.createBiquadFilter(); tlp.type = 'lowpass'; tlp.frequency.value = 400;
-      const tg = ctx.createGain(); tg.gain.value = 0.35;
-      const g = ctx.createGain(); g.gain.value = 0;
-      src.connect(bp); bp.connect(g);
-      turbine.connect(tlp); tlp.connect(tg); tg.connect(g);
-      g.connect(e.buses.sfx);
-      src.start(); lfo.start(); turbine.start();
-      this.jet = { g, turbine };
+      const g = ctx.createGain(); g.gain.value = 0; g.connect(e.buses.sfx);
+      const loop = (kind, type, f, q, gain) => {
+        const src = ctx.createBufferSource(); src.buffer = e.noise[kind]; src.loop = true;
+        const flt = ctx.createBiquadFilter(); flt.type = type; flt.frequency.value = f; flt.Q.value = q;
+        const lg = ctx.createGain(); lg.gain.value = gain;
+        src.connect(flt); flt.connect(lg); lg.connect(g); src.start();
+        return flt;
+      };
+      const body = loop('brown', 'lowpass', 260, 0.7, 1.0); // low rumble of the exhaust
+      const hiss = loop('pink', 'bandpass', 1400, 0.8, 0.55); // gas jet
+      const lfo = ctx.createOscillator(); lfo.frequency.value = 7; // turbulent flutter
+      const lfoAmt = ctx.createGain(); lfoAmt.gain.value = 220;
+      lfo.connect(lfoAmt); lfoAmt.connect(hiss.frequency); lfo.start();
+      const whine = ctx.createOscillator(); whine.type = 'sine'; whine.frequency.value = 900;
+      const wg = ctx.createGain(); wg.gain.value = 0.035;
+      whine.connect(wg); wg.connect(g); whine.start();
+      this.jet = { g, body, hiss, whine, on: false };
     }
-    const t = ctx.currentTime;
-    this.jet.g.gain.setTargetAtTime(thrust * AUDIO.JET_GAIN, t, 0.05);
-    this.jet.turbine.frequency.setTargetAtTime(62 + thrust * 32, t, 0.25);
+    const j = this.jet; const t = ctx.currentTime; const on = thrust > 0.01;
+    if (on && !j.on) this._jetEdge(true);
+    if (!on && j.on) this._jetEdge(false);
+    j.on = on;
+    j.g.gain.setTargetAtTime(thrust * AUDIO.JET_GAIN, t, on ? 0.04 : 0.12);
+    j.body.frequency.setTargetAtTime(160 + thrust * 220, t, 0.15);
+    j.hiss.frequency.setTargetAtTime(900 + thrust * 900, t, 0.2);
+    j.whine.frequency.setTargetAtTime(700 + thrust * 600, t, 0.6); // spools up slower than the flame
+    if (on && Math.random() < 0.35) { // combustion crackle
+      const v = e.voice('sfx'); if (!v) return;
+      const f = 1800 + Math.random() * 4000;
+      e.noiseBurst(v, 'white', 'bandpass', f, f, 3, t, 0.01 + Math.random() * 0.015, (0.05 + Math.random() * 0.07) * thrust * e.jg(), v.out, 0.001);
+      e.commit(v);
+    }
+  }
+
+  /** Ignition (valve click + gas pop + whoosh) or cut-off (click + hiss-down). @param {boolean} start */
+  _jetEdge(start) {
+    const e = this.e;
+    const v = e.voice('sfx'); if (!v) return;
+    const t = e.now; const p = e.jp();
+    e.noiseBurst(v, 'white', 'highpass', 3500 * p, 3500 * p, 0.7, t, 0.012, 0.25); // valve click
+    if (start) {
+      e.noiseBurst(v, 'brown', 'lowpass', 900 * p, 120, 0.8, t + 0.03, 0.16, 0.7, v.out, 0.003); // ignition pop
+      e.osc(v, 'sine', 110 * p, 45, t + 0.03, 0.14, 0.35); // thump
+      e.noiseBurst(v, 'pink', 'bandpass', 500 * p, 2200 * p, 0.9, t + 0.04, 0.3, 0.3, v.out, 0.06); // whoosh up
+    } else {
+      e.noiseBurst(v, 'pink', 'bandpass', 1800 * p, 300, 0.8, t, 0.45, 0.22, v.out, 0.005); // hiss-down
+      e.osc(v, 'sine', 1300, 500, t, 0.5, 0.02); // turbine spinning down
+    }
+    e.commit(v);
   }
 }
 
