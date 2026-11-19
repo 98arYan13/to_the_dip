@@ -3,7 +3,7 @@
  * DOM/CSS heads-up display. Updated only from events (never per frame).
  */
 import { EV } from '../core/EventBus.js';
-import { CONSUMABLES, MATERIALS, ORES, TILE, FLAG, ENERGY, PHYSICS } from '../config.js';
+import { CONSUMABLES, MATERIALS, ORES, TILE, FLAG, ENERGY, PHYSICS, UPGRADES } from '../config.js';
 import { currentMission } from '../systems/Story.js';
 import { canMine, requirementHint, isCampGround, CAMP_HINT } from '../systems/Mining.js';
 
@@ -133,9 +133,10 @@ export class HUD {
   refreshCredits() { this.el.credits.textContent = `$${this.d.economy.credits.toLocaleString('en-US')}`; }
 
   refreshPick() {
-    const p = this.d.economy.pickaxe;
+    const ec = this.d.economy; const p = ec.pickaxe;
     this.el.pickIcon.style.background = p.color;
-    this.el.pickName.textContent = `${p.name} (T${p.tier})`;
+    const tool = ec.tool && ec.tool !== 'pick' ? /** @type {any} */ (UPGRADES)[ec.tool].name : p.name;
+    this.el.pickName.textContent = `${tool} (T${p.tier}) · Q`;
   }
 
   refreshSlots() {

@@ -76,7 +76,7 @@ export class RigRenderer {
       if (d.kind === 'pick') {
         ctx.rotate(pick.angle);
         ctx.scale(PICK_SCALE, PICK_SCALE); // art was drawn too big next to the 84px body
-        if (pick.sprite) ctx.drawImage(pick.sprite, -3, -22.5);
+        if (pick.sprite) ctx.drawImage(pick.sprite, -3, -pick.sprite.height / 2); // grip at the left-middle
         ctx.restore(); continue;
       }
       ctx.rotate(snapAngle(world.a[d.bone], rig.angleStep));

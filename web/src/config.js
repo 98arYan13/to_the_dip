@@ -563,6 +563,16 @@ export const UPGRADES = Object.freeze({
     { thrust: 3400, maxUp: 420, drain: 0.55, recipe: { [ITEM.EXOTIC_ALLOY]: 2, [ITEM.CIRCUIT]: 2 }, tech: 'exotic_materials', workshop: 1 },
     { thrust: 4800, maxUp: 520, drain: 0.45, recipe: { [ITEM.EXOTIC_ALLOY]: 4, [ITEM.FUSION_FUEL]: 4 }, tech: 'jetpack_5', workshop: 1 },
   ] },
+  /** Hand tools picked with Q instead of the pickaxe (same tier gate). swingMul scales the pickaxe swing time;
+   *  hitEnergy (x a block's drill cost) is paid per hit; bore = tiles hit in a straight line per strike. */
+  jackhammer: { name: 'Jackhammer', tool: { swingMul: 0.35, hitEnergy: 0.25 }, levels: [
+    { name: 'None' },
+    { name: 'Jackhammer', recipe: { [ITEM.STEEL]: 6, [ITEM.COPPER_WIRE]: 2 }, tech: 'machining', workshop: 2 },
+  ] },
+  cone_drill: { name: 'Cone Drill', tool: { swingMul: 1.6, bore: 3 }, levels: [
+    { name: 'None' },
+    { name: 'Cone Drill', recipe: { [ITEM.WROUGHT_IRON]: 6, [ITEM.BRONZE]: 2 }, tech: 'ironworking', workshop: 1 },
+  ] },
   radar: { name: 'Radar', levels: [
     { radius: 8, duration: 6, headlamp: 64 },
     { radius: 12, duration: 9, headlamp: 107, recipe: { [ITEM.COPPER_WIRE]: 4, [ITEM.SOLDER]: 2 }, tech: 'radio', workshop: 1 },
@@ -571,20 +581,20 @@ export const UPGRADES = Object.freeze({
   ] },
   /** Backpack + battery tiers: capacity kg (C_max), max energy, drill efficiency (eta_rig). */
   rig: { name: 'Cargo & Battery Rig', levels: [
-    { name: 'Canvas Sack & Lead-Acid', zone: '0-100m', capacity: 35, maxEnergy: 100, eff: 1.0 },
-    { name: 'Reinforced Frame & NiCad', zone: '100-300m', capacity: 75, maxEnergy: 250, eff: 1.3,
+    { name: 'Canvas Sack & Lead-Acid', zone: '0-100m', capacity: 35, slots: 6, maxEnergy: 100, eff: 1.0 },
+    { name: 'Reinforced Frame & NiCad', zone: '100-300m', capacity: 75, slots: 8, maxEnergy: 250, eff: 1.3,
       recipe: { [ITEM.WROUGHT_IRON]: 4, [ORE.NICKEL]: 3 }, tech: 'ironworking', workshop: 1 },
-    { name: 'Steel Exo-Frame & NiMH', zone: '300-600m', capacity: 150, maxEnergy: 600, eff: 1.8,
+    { name: 'Steel Exo-Frame & NiMH', zone: '300-600m', capacity: 150, slots: 10, maxEnergy: 600, eff: 1.8,
       recipe: { [ITEM.STEEL]: 6, [ORE.NICKEL]: 4, [ORE.COBALT]: 2 }, tech: 'steelmaking', workshop: 1 },
-    { name: 'Aluminium Rig & Li-ion', zone: '600-1,000m', capacity: 300, maxEnergy: 1500, eff: 2.5,
+    { name: 'Aluminium Rig & Li-ion', zone: '600-1,000m', capacity: 300, slots: 12, maxEnergy: 1500, eff: 2.5,
       recipe: { [ITEM.ALUMINIUM]: 6, [ITEM.LI_ION_CELL]: 3 }, tech: 'precision', workshop: 1 },
-    { name: 'Carbon Pod & Isotope Core', zone: '1,000-1,500m', capacity: 600, maxEnergy: 4000, eff: 3.5,
+    { name: 'Carbon Pod & Isotope Core', zone: '1,000-1,500m', capacity: 600, slots: 14, maxEnergy: 4000, eff: 3.5,
       recipe: { [ITEM.CARBON_FIBER]: 6, [ITEM.ENRICHED_URANIUM]: 2, [ITEM.CIRCUIT]: 2 }, tech: 'isotope_rig', workshop: 1 },
-    { name: 'Quantum Cargo & Plasma', zone: '1,500m+', capacity: 1200, maxEnergy: 10000, eff: 5.0,
+    { name: 'Quantum Cargo & Plasma', zone: '1,500m+', capacity: 1200, slots: 16, maxEnergy: 10000, eff: 5.0,
       recipe: { [ITEM.EXOTIC_ALLOY]: 4, [ITEM.CIRCUIT]: 4, [ITEM.ENRICHED_URANIUM]: 2 }, tech: 'warp_drive', workshop: 1 },
-    { name: 'Fusion Pack', zone: 'Moon', capacity: 2400, maxEnergy: 25000, eff: 6.5,
+    { name: 'Fusion Pack', zone: 'Moon', capacity: 2400, slots: 20, maxEnergy: 25000, eff: 6.5,
       recipe: { [ITEM.FUSION_FUEL]: 6, [ITEM.SUPERCONDUCTOR]: 4 }, tech: 'fusion_pack', workshop: 1 },
-    { name: 'Lattice Frame', zone: 'Mars', capacity: 4800, maxEnergy: 60000, eff: 8,
+    { name: 'Lattice Frame', zone: 'Mars', capacity: 4800, slots: 24, maxEnergy: 60000, eff: 8,
       recipe: { [ITEM.EXOTIC_ALLOY]: 6, [ITEM.FUSION_FUEL]: 8 }, tech: 'lattice_frame', workshop: 1 },
   ] },
 });
@@ -974,6 +984,8 @@ export const KEYBINDS = Object.freeze({
   jet: ['KeyW', 'Space', 'ArrowUp'],
   mine: ['Mouse0'],
   radar: ['KeyR'],
+  tool: ['KeyQ'],
+  backpack: ['Tab'],
   slot1: ['Digit1'],
   slot2: ['Digit2'],
   slot3: ['Digit3'],

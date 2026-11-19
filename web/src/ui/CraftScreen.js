@@ -55,9 +55,9 @@ function equipmentRows(ec) {
   return UPGRADE_KINDS.map((kind) => {
     const levels = kind === 'pickaxe' ? PICKAXES : /** @type {any} */ (UPGRADES)[kind].levels;
     const lvl = ec.levels[kind]; const next = levels[lvl + 1];
-    const label = (l, i) => (kind === 'pickaxe' || kind === 'rig' ? l.name : `${/** @type {any} */ (UPGRADES)[kind].name} ${i ? `Lv ${i}` : l.name || 'basic'}`);
+    const label = (l, i) => (kind === 'pickaxe' || kind === 'rig' || /** @type {any} */ (UPGRADES)[kind]?.tool ? l.name : `${/** @type {any} */ (UPGRADES)[kind].name} ${i ? `Lv ${i}` : l.name || 'basic'}`);
     const check = ec.canCraftUpgrade(kind);
-    const icon = kind === 'rig' || kind === 'radar' ? `icons/${kind}_${lvl}.png` : kind === 'jetpack' ? `icons/jetpack${lvl ? `_${lvl}` : ''}.png` : '';
+    const icon = kind === 'rig' || kind === 'radar' ? `icons/${kind}_${lvl}.png` : kind === 'jetpack' ? `icons/jetpack${lvl ? `_${lvl}` : ''}.png` : /** @type {any} */ (UPGRADES)[kind]?.tool ? `icons/${kind}.png` : '';
     return `<div class="up-row"><div class="up-info"><div class="up-name">${icon ? `<img class="up-icon" src="${icon}" alt="">` : ''}${label(levels[lvl], lvl)}${next ? ` <span class="arrow">→</span> <span class="next">${label(next, lvl + 1)}</span>` : ''}</div>
       <div class="up-stats">${next ? `${items(ec, next.recipe)} · ${techName(next.tech)} · Workshop ${next.workshop}` : 'Best available'}</div></div>
       <div class="up-buy">${next ? `${btn(`eq:${kind}`, 'Craft', check)}${check.ok ? '' : `<div class="reason">${check.reason}</div>`}` : '<span class="maxed">MAX</span>'}</div></div>`;

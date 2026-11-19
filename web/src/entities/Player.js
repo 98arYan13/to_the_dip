@@ -165,7 +165,8 @@ export class Player {
 
     // Mining state machine
     const pick = economy.pickaxe;
-    const swing = pick.swing / slow;
+    const tool = economy.toolDef;
+    const swing = pick.swing * (tool ? tool.swingMul : 1) / slow;
     if (input.isDown('mine')) {
       const t = mining.findTarget(this.cx, this.cy, aimX, aimY);
       if (t >= 0) {
@@ -174,7 +175,7 @@ export class Player {
           this.swingTimer = swing * MINING.FIRST_SWING_FRAC;
           this.target = t;
         }
-        const flat = pick.powered && (energy.value < 0.5 || this.gearOffline);
+        const flat = (pick.powered || !!tool?.hitEnergy) && (energy.value < 0.5 || this.gearOffline);
         if (flat) {
           if (!this.flatHinted) { this.flatHinted = true; bus.emit(EV.HINT, this.gearOffline ? 'Electronics offline' : 'Drill battery empty — recharge at the station'); }
         } else { this.flatHinted = false; this.swingTimer += dt; }
@@ -182,7 +183,16 @@ export class Player {
           this.swingTimer -= swing;
           bus.emit(EV.SWING);
           const res = mining.strike(t, this.cx, this.cy);
-          if (res === 'broken') { if (pick.powered) energy.drainBlock(mining.hit.type, mining.hit.ore); this.target = -1; }
+          const hit = mining.hit;
+          if (tool?.hitEnergy && res !== 'blocked' && res !== 'none') energy.drainBlock(hit.type, hit.ore, tool.hitEnergy);
+          if (tool?.bore && res !== 'blocked' && res !== 'none') { // cone drill: carry on into the tiles behind, straight along the strike axis
+            const w = mining.world; const dx = -hit.nx; const dy = -hit.ny; const x0 = hit.x; const y0 = hit.y;
+            for (let k = 1; k < tool.bore; k++) {
+              const x = x0 + dx * k; const y = y0 + dy * k;
+              if (!w.inBounds(x, y) || mining.strike(y * w.W + x, this.cx, this.cy) === 'blocked') break;
+            }
+          }
+          if (res === 'broken') { if (pick.powered) energy.drainBlock(hit.type, hit.ore); this.target = -1; }
         }
         this.swingPhase = this.swingTimer / swing;
       } else {

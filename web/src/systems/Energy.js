@@ -84,7 +84,7 @@ export class Energy {
 
   /** Energy for breaking one block at the current depth. */
   /** A drill can run the battery flat but never triggers the rescue warp — only the jetpack can strand you. */
-  drainBlock(type, ore) { this._drainWarn(Math.min(this.value - 0.001, blockEnergy(tileHardness(type, ore), this.depthM, this.economy.rig.eff))); }
+  drainBlock(type, ore, mul = 1) { this._drainWarn(Math.min(this.value - 0.001, mul * blockEnergy(tileHardness(type, ore), this.depthM, this.economy.rig.eff))); }
 
   /** One-off drain (mining hit, radar). @param {number} amount */
   drain(amount) { this._drainWarn(amount); }

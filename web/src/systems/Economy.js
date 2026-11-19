@@ -10,7 +10,9 @@ import { EV } from '../core/EventBus.js';
 import { techStat, isUnlocked, eraPickTier } from './Tech.js';
 
 /** Upgrade kinds in shop order. */
-export const UPGRADE_KINDS = Object.freeze(['pickaxe', 'rig', 'jetpack', 'radar']);
+export const UPGRADE_KINDS = Object.freeze(['pickaxe', 'rig', 'jetpack', 'radar', 'jackhammer', 'cone_drill']);
+/** Tools Q cycles through, in order ('pick' is always owned). */
+export const TOOLS = Object.freeze(['pick', 'jackhammer', 'cone_drill']);
 
 /** @param {string} kind @returns {any[]} */
 export function upgradeLevels(kind) {
@@ -25,8 +27,16 @@ export function cargoWeight(cargo) {
 }
 
 /** Can one more block of `ore` fit under `capacity` kg? */
-export function canAddOre(cargo, ore, capacity) {
+export function canAddOre(cargo, ore, capacity, slots = Infinity) {
+  if (!cargo[ore] && usedSlots(cargo) >= slots) return false; // a new ore type needs a free backpack slot
   return cargoWeight(cargo) + /** @type {any} */ (ORES[ore]).kg <= capacity + 1e-9;
+}
+
+/** Backpack slots in use: one per ore/material type carried. */
+export function usedSlots(cargo) {
+  let n = 0;
+  for (let o = 1; o < cargo.length; o++) if (cargo[o] > 0) n++;
+  return n;
 }
 
 /** Speed_mult = 1 - 0.4 * (W/C)^2 — applied to walking, climbing and swing speed. */
@@ -128,7 +138,7 @@ export function createEconomyState() {
     achievements: /** @type {string[]} */ ([]),
     collect: { ore: /** @type {Record<number,number>} */ ({}), maxDepth: 0, pulses: 0 },
     completed: false,
-    levels: { pickaxe: 0, rig: 0, jetpack: 0, radar: 0 },
+    levels: { pickaxe: 0, rig: 0, jetpack: 0, radar: 0, jackhammer: 0, cone_drill: 0 },
     consumables,
     /** Alien relic ids found (kept on New Map). */
     relics: /** @type {string[]} */ ([]),
@@ -193,6 +203,17 @@ export class Economy {
   devPick = 0;
   get pickTier() { return this.devPick || this.levels.pickaxe + 1; }
   get pickaxe() { return PICKAXES[this.pickTier - 1]; }
+  /** Active tool's modifiers (null = the pickaxe). */
+  get toolDef() { return this.tool && this.tool !== 'pick' ? /** @type {any} */ (UPGRADES)[this.tool].tool : null; }
+  /** Switch to the next owned tool. @returns {string} the new tool id */
+  cycleTool() {
+    const k = TOOLS.indexOf(this.tool || 'pick');
+    for (let n = 1; n <= TOOLS.length; n++) {
+      const t = TOOLS[(k + n) % TOOLS.length];
+      if (t === 'pick' || this.levels[t] > 0) { this.tool = t; return t; }
+    }
+    return 'pick';
+  }
   get jetpack() { return UPGRADES.jetpack.levels[this.levels.jetpack]; }
   get rig() { return UPGRADES.rig.levels[this.levels.rig]; }
   get radar() { return UPGRADES.radar.levels[this.levels.radar]; }
@@ -200,6 +221,8 @@ export class Economy {
   /** Headlamp range in px: 2 tiles at base, capped at RENDER.HEADLAMP_MAX_TILES even with the LED tech. */
   get headlamp() { return Math.min(this.stat('headlamp', this.radar.headlamp), RENDER.HEADLAMP_MAX_TILES * WORLD.TILE_PX); }
   get capacity() { return this.stat('capacity', this.rig.capacity); }
+  /** Backpack slots (distinct ore types) for the current rig. */
+  get slots() { return /** @type {any} */ (this.rig).slots ?? Infinity; }
   /** @param {string} name @param {number} base */
   get sellMul() { const l = this.buildings.shop || 0; return l ? CAMP_BUILDINGS.shop.levels[l - 1].effect.sellMul : 1; }
   get hasJetpack() { return this.levels.jetpack > 0; }
@@ -214,7 +237,7 @@ export class Economy {
 
   /** Try to store one ore unit. @returns {boolean} */
   addOre(ore) {
-    if (!canAddOre(this.cargo, ore, this.capacity)) {
+    if (!canAddOre(this.cargo, ore, this.capacity, this.slots)) {
       this.bus.emit(EV.CARGO_FULL);
       return false;
     }
@@ -308,7 +331,7 @@ export class Economy {
   /** Take up to n units of `ore` from the stash into cargo, as far as capacity allows. @returns {number} moved */
   withdraw(ore, n) {
     let moved = 0;
-    while (moved < n && this.stash[ore] > 0 && canAddOre(this.cargo, ore, this.capacity)) { this.stash[ore]--; this.cargo[ore]++; moved++; }
+    while (moved < n && this.stash[ore] > 0 && canAddOre(this.cargo, ore, this.capacity, this.slots)) { this.stash[ore]--; this.cargo[ore]++; moved++; }
     if (moved) this.bus.emit(EV.CARGO_CHANGED);
     return moved;
   }

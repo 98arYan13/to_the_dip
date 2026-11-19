@@ -6,6 +6,7 @@
 import {
   WORLD, TILE, FLAG, CAMP_BUILDINGS, MATERIALS, PHYSICS, CAMERA, MINING, ENERGY, RADAR, TELEPORT, CONSUMABLES, GAMEPAD,
   PARTICLES, QUALITY, SAVE, SETTINGS_DEFAULT, PICKAXES, RELICS, PLANETS, underM, planetGravity,
+  UPGRADES,
 } from './config.js';
 import { EventBus, EV } from './core/EventBus.js';
 import { GameLoop } from './core/GameLoop.js';
@@ -60,6 +61,7 @@ import { HUD } from './ui/HUD.js';
 import { Minimap } from './ui/Minimap.js';
 import { Shop } from './ui/Shop.js';
 import { Settings } from './ui/Settings.js';
+import { BackpackPanel } from './ui/BackpackPanel.js';
 import { Toast } from './ui/Toast.js';
 import { SaveSystem } from './save/SaveSystem.js';
 import { DebugOverlay } from './debug/DebugOverlay.js';
@@ -192,6 +194,7 @@ function boot() {
   hud.setMuted(settingsValues.muted);
   bus.emit(EV.HP_CHANGED, player.hp);
   const toast = new Toast(hudRoot);
+  const backpack = new BackpackPanel(hudRoot, bus, economy);
   const minimap = new Minimap(hud.minimapParent, bus, economy, () => world.genSeed);
   minimap.setWorld(world);
   const storyModal = new StoryModal(hudRoot, { onClose: () => { if (!showStory()) { input.clear(); if (!shop.open) canvas.focus(); } } });
@@ -481,6 +484,12 @@ function boot() {
   // ---------- Update ----------
   function useSlots() {
     const c = economy.consumables;
+    if (input.wasPressed('backpack')) backpack.toggle();
+    if (input.wasPressed('tool')) {
+      const t = economy.cycleTool();
+      toast.show(t === 'pick' ? economy.pickaxe.name : /** @type {any} */ (UPGRADES)[t].name);
+      hud.refreshPick();
+    }
     if (input.wasPressed('radar')) {
       if (pulse.stun > 0) toast.show('Electronics offline', 'warn');
       else if (g.radarCd > 0) toast.show('Radar recharging…', 'info');

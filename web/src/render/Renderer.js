@@ -392,12 +392,13 @@ export class Renderer {
     const w0 = solveWorld(rig, pose);
     const sh = rig.index.get('armF_upper');
     const mining = p.mineState === 1;
-    const swing = mining ? swingOffset(p.swingPhase) : 0;
+    const tool = this.d.economy.toolDef;
+    const swing = mining ? swingOffset(p.swingPhase) * (tool ? 0.12 : 1) : 0; // power tools shake, they don't swing
     const angle = mining ? Math.atan2(my - w0.y[sh], mx - w0.x[sh]) + swing : idleGripAngle(rig, w0);
     const world = applyOverlays(rig, pose, { look: [mx, my], mining, pickAngle: angle, landVY: this.animator.landVY, squashT: this.animator.squashT });
     const color = this.d.economy.pickaxe.color;
     const rl = this.d.economy.levels.rig; const pack = this.packImgs[rl >= 3 ? 2 : rl >= 1 ? 1 : 0];
-    const canvas = this.rigR.render(world, p.outfit, { sprite: this._playerArt().pickReady() && !(p.onLadder && Math.abs(p.vy) > 1 && !mining) ? this._pickSprite(color) : null, angle, color }, pack.complete && pack.naturalWidth ? pack : null);  // pick is stowed while climbing
+    const canvas = this.rigR.render(world, p.outfit, { sprite: this._playerArt().pickReady() && !(p.onLadder && Math.abs(p.vy) > 1 && !mining) ? this._toolSprite(color) : null, angle, color }, pack.complete && pack.naturalWidth ? pack : null);  // pick is stowed while climbing
     ctx.save();
     ctx.translate(cx, top);
     if (f < 0) ctx.scale(-1, 1);
@@ -422,6 +423,15 @@ export class Renderer {
     fetch('player/player_head.json').then((res) => res.json()).then((m) => { a.meta = m; }).catch(() => {});
     this.pArt = a;
     return a;
+  }
+
+  /** Held sprite of the active tool: the tinted pickaxe, or the jackhammer / cone drill art. */
+  _toolSprite(color) {
+    const t = this.d.economy.tool;
+    if (!t || t === 'pick') return this._pickSprite(color);
+    const a = this._playerArt();
+    if (!a[t]) { a[t] = new Image(); a[t].src = `player/${t}.png`; }
+    return a[t].complete && a[t].naturalWidth ? a[t] : this._pickSprite(color);
   }
 
   /** Pickaxe sprite with its metal head multiplied by the material colour (cached per colour). */

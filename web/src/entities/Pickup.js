@@ -61,7 +61,7 @@ export class PickupSystem {
       if (p.hitX) p.vx = -p.vx * 0.5;
       const touching = p.x < player.x + player.w + m && p.x + p.w > player.x - m && p.y < player.y + player.h + m && p.y + p.h > player.y - m;
       let remove = p.age > PICKUPS.LIFETIME;
-      if (touching && p.age > 0.4 && this.economy && canAddOre(this.economy.cargo, p.ore, this.economy.capacity) && this.economy.addOre(p.ore)) {
+      if (touching && p.age > 0.4 && this.economy && canAddOre(this.economy.cargo, p.ore, this.economy.capacity, this.economy.slots) && this.economy.addOre(p.ore)) {
         this.bus.emit(EV.PICKUP, p.ore);
         remove = true;
       }
