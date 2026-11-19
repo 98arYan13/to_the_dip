@@ -54,3 +54,50 @@ describe('power tool on an empty battery', () => {
     expect(p.flat).toBe(false);
   });
 });
+
+describe('tool energy (per hit for tools, per break for powered pickaxes)', () => {
+  /** Row of tiles 9..12 left to right; the player stands left, so strikes bore rightwards. results: tile -> strike result. */
+  function rig({ tool, pickLevel = 0, results }) {
+    const ec = new Economy(new EventBus());
+    ec.levels.pickaxe = pickLevel;
+    if (tool) { ec.levels[tool] = 1; while (ec.tool !== tool) ec.cycleTool(); }
+    const drains = []; const struck = [];
+    const energy = { value: 100, drainBlock: (type, ore, mul = 1) => drains.push({ tile: type, mul }) };
+    const W = 20;
+    const world = { T: 16, W, H: 4, inBounds: (x, y) => x >= 0 && x < W && y >= 0 && y < 4, tileType: new Uint8Array(W * 4) };
+    const mining = { world, findTarget: () => 9, hit: {}, strike(i) {
+      struck.push(i);
+      const r = results[i] ?? 'blocked';
+      // hit.type carries the tile index so the test can tell which tile was paid for
+      this.hit = { i, x: i % W, y: (i / W) | 0, nx: -1, ny: 0, type: i, ore: 0 };
+      return r;
+    } };
+    const p = new Player({ economy: ec, energy, bus: { emit() {} }, physics: { world, move() {} }, mining });
+    const input = { isDown: (k) => k === 'mine', wasPressed: () => false, padMoveX: 0 };
+    // run until the first strike
+    for (let n = 0; n < 600 && !struck.length; n++) p.update(1 / 60, input, 1000, 0);
+    return { drains, struck };
+  }
+
+  it('jackhammer with a powered pickaxe pays per hit only, not again on the break', () => {
+    const { drains } = rig({ tool: 'jackhammer', pickLevel: 3, results: { 9: 'broken' } });
+    expect(drains).toEqual([{ tile: 9, mul: 0.25 }]);
+  });
+
+  it('a powered pickaxe alone pays once, on the break', () => {
+    const { drains } = rig({ pickLevel: 3, results: { 9: 'broken' } });
+    expect(drains).toEqual([{ tile: 9, mul: 1 }]);
+  });
+
+  it('cone drill pays for every tile its bore strikes', () => {
+    const { drains, struck } = rig({ tool: 'cone_drill', results: { 9: 'hit', 10: 'hit', 11: 'broken' } });
+    expect(struck).toEqual([9, 10, 11]);
+    expect(drains).toEqual([{ tile: 9, mul: 0.4 }, { tile: 10, mul: 0.4 }, { tile: 11, mul: 0.4 }]);
+  });
+
+  it('cone drill bore stops at open air instead of reaching past it', () => {
+    const { drains, struck } = rig({ tool: 'cone_drill', results: { 9: 'hit', 10: 'none', 11: 'hit' } });
+    expect(struck).toEqual([9, 10]);
+    expect(drains).toEqual([{ tile: 9, mul: 0.4 }]);
+  });
+});

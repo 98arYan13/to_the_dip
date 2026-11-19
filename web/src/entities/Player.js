@@ -185,17 +185,24 @@ export class Player {
         if (this.swingTimer >= swing) {
           this.swingTimer -= swing;
           bus.emit(EV.SWING, { tool: economy.tool, dur: swing });
+          // Energy: a tool with hitEnergy pays per tile struck (and nothing more); otherwise a powered pickaxe pays once per break.
+          const pay = (r) => {
+            if (r === 'blocked' || r === 'none') return false;
+            const h = mining.hit;
+            if (tool?.hitEnergy) energy.drainBlock(h.type, h.ore, tool.hitEnergy);
+            else if (pick.powered && r === 'broken') energy.drainBlock(h.type, h.ore);
+            return true;
+          };
           const res = mining.strike(t, this.cx, this.cy);
-          const hit = mining.hit;
-          if (tool?.hitEnergy && res !== 'blocked' && res !== 'none') energy.drainBlock(hit.type, hit.ore, tool.hitEnergy);
-          if (tool?.bore && res !== 'blocked' && res !== 'none') { // cone drill: carry on into the tiles behind, straight along the strike axis
-            const w = mining.world; const dx = -hit.nx; const dy = -hit.ny; const x0 = hit.x; const y0 = hit.y;
+          const { x: x0, y: y0, nx, ny } = mining.hit;
+          if (pay(res) && tool?.bore) { // cone drill: carry on into the solid tiles behind, straight along the strike axis
+            const w = mining.world;
             for (let k = 1; k < tool.bore; k++) {
-              const x = x0 + dx * k; const y = y0 + dy * k;
-              if (!w.inBounds(x, y) || mining.strike(y * w.W + x, this.cx, this.cy) === 'blocked') break;
+              const x = x0 - nx * k; const y = y0 - ny * k;
+              if (!w.inBounds(x, y) || !pay(mining.strike(y * w.W + x, this.cx, this.cy))) break;
             }
           }
-          if (res === 'broken') { if (pick.powered) energy.drainBlock(hit.type, hit.ore); this.target = -1; }
+          if (res === 'broken') this.target = -1;
         }
         this.swingPhase = this.swingTimer / swing;
       } else {
