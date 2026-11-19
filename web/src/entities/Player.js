@@ -60,6 +60,7 @@ export class Player {
     this.jetting = false;
     /** Set by main.js while a pulse storm has electronics offline. */ this.gearOffline = false;
     this.onLadder = false;
+    this.climbing = false;
     this.hurtTimer = 0;
     this.mineState = MINE_IDLE;
     this.swingTimer = 0;
@@ -126,10 +127,21 @@ export class Player {
     // Centre OR feet cell: at the top rung the centre leaves the ladder first, which would strand the feet below the ledge.
     const ftY = Math.floor((this.feetY - 1) / w0.T);
     const isLadder = (ty) => w0.inBounds(ptx, ty) && w0.tileType[ty * w0.W + ptx] === TILE.LADDER;
-    const onLadder = isLadder(pty) || isLadder(ftY);
-    this.onLadder = onLadder;
+    const ladderHere = isLadder(pty) || isLadder(ftY) || (input.isDown('down') && this.onGround && isLadder(ftY + 1)); // down on a top rung climbs onto it
+    const holdUp = input.isDown('jet'); const holdDown = input.isDown('down');
     if (this.hurtTimer > 0) this.hurtTimer -= dt;
-    if (this.onGround && !onLadder && input.wasPressed('jet')) this.vy = -jumpVelocity(PHYSICS.JUMP_H, PHYSICS.GRAVITY * this.fallMult * planetGravity(economy.planet));
+    let jumped = false;
+    if (this.onGround && !this.climbing && input.wasPressed('jet')) {
+      this.vy = -jumpVelocity(PHYSICS.JUMP_H, PHYSICS.GRAVITY * this.fallMult * planetGravity(economy.planet));
+      jumped = true;
+    }
+    // A ladder is only grabbed by holding up/down; walking past it is free. Hanging lasts until the player steps sideways into open space.
+    const sideOpen = dir !== 0 && !w0.isSolid(ptx + dir, pty) && !w0.isSolid(ptx + dir, ftY);
+    if (!ladderHere) this.climbing = false;
+    else if (!jumped && (holdUp || holdDown)) this.climbing = true;
+    else if (this.climbing && sideOpen) this.climbing = false;
+    const onLadder = this.climbing;
+    this.onLadder = onLadder;
     this.jetting = economy.hasJetpack && !this.gearOffline && !onLadder && input.isDown('jet') && energy.value > 0;
     if (this.jetting) {
       this.vy -= economy.stat('jetThrust', jp.thrust) * dt;
@@ -140,7 +152,7 @@ export class Player {
     const maxFall = PHYSICS.MAX_FALL * Math.sqrt(this.fallMult * pg);
     if (this.vy > maxFall) this.vy = maxFall;
     if (onLadder) {
-      this.vy = (input.isDown('jet') ? -1 : input.isDown('down') ? 1 : 0) * PHYSICS.LADDER_SPEED;
+      this.vy = (holdUp ? -1 : holdDown ? 1 : 0) * PHYSICS.LADDER_SPEED;
       this.unbrakedFallPx = 0;
       this.climbAcc = (this.climbAcc || 0) + Math.abs(this.vy) * dt;
       if (this.climbAcc >= PHYSICS.LADDER_STEP_DIST) { this.climbAcc = 0; bus.emit(EV.LADDER_STEP); }

@@ -3,7 +3,7 @@
  * Axis-separated swept AABB vs tile grid. Movement is sub-stepped so no step exceeds
  * MAX_STEP_PX (< half a tile), which rules out tunnelling.
  */
-import { PHYSICS, WORLD } from '../config.js';
+import { PHYSICS, WORLD, TILE } from '../config.js';
 
 /**
  * @typedef {Object} Body
@@ -67,7 +67,12 @@ export class Physics {
     const x0 = Math.floor(b.x / T); const x1 = Math.floor((b.x + b.w - E) / T);
     if (dy > 0) {
       const ty = Math.floor((b.y + b.h - E) / T);
-      for (let tx = x0; tx <= x1; tx++) if (w.isSolid(tx, ty)) { b.y = ty * T - b.h; b.hitY = true; b.onGround = true; break; }
+      const wasAbove = b.y + b.h - dy <= ty * T + E; // entered this row from above this step
+      for (let tx = x0; tx <= x1; tx++) {
+        // the top rung of a ladder is a floor, unless the body is climbing (holding down walks off it)
+        const topRung = !b.climbing && wasAbove && w.tileType[ty * w.W + tx] === TILE.LADDER && !(ty > 0 && w.tileType[(ty - 1) * w.W + tx] === TILE.LADDER);
+        if (w.isSolid(tx, ty) || topRung) { b.y = ty * T - b.h; b.hitY = true; b.onGround = true; break; }
+      }
     } else {
       const ty = Math.floor(b.y / T);
       for (let tx = x0; tx <= x1; tx++) if (w.isSolid(tx, ty)) { b.y = (ty + 1) * T; b.hitY = true; break; }

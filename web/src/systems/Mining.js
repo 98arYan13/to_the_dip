@@ -115,18 +115,16 @@ export class Mining {
   }
 
   /**
-   * First solid tile along the aim ray within reach.
+   * The solid tile under the cursor, if its nearest edge is within reach of the player.
    * @returns {number} tile index or -1
    */
   findTarget(cx, cy, aimX, aimY) {
-    let dx = aimX - cx; let dy = aimY - cy;
-    const len = Math.sqrt(dx * dx + dy * dy);
-    if (len < 1) return -1;
-    dx /= len; dy /= len;
-    const max = Math.min(MINING.REACH, len + WORLD.TILE_PX * 0.5);
-    const d = this.world.raycast(cx, cy, dx, dy, max);
-    if (d >= max) return -1;
-    return this.world.lastHit;
+    const w = this.world; const T = w.T;
+    const tx = Math.floor(aimX / T); const ty = Math.floor(aimY / T);
+    if (!w.inBounds(tx, ty) || !w.isSolid(tx, ty)) return -1;
+    const nx = Math.max(tx * T, Math.min(cx, (tx + 1) * T));
+    const ny = Math.max(ty * T, Math.min(cy, (ty + 1) * T));
+    return Math.hypot(nx - cx, ny - cy) <= MINING.REACH ? ty * w.W + tx : -1;
   }
 
   /**
@@ -201,9 +199,7 @@ export class Mining {
     }
     this._untrack(i);
     if (this.recoilTile === i) this.recoilTile = -1;
-    if (ore && collectOre && !this.economy.addOre(ore)) {
-      this.pickups.spawn(x * w.T + w.T / 2, y * w.T + w.T / 2, ore);
-    }
+    if (ore && collectOre) this.pickups.spawn(x * w.T + w.T / 2, y * w.T + w.T / 2, ore); // walk over it to pick it up
     h.i = i; h.x = x; h.y = y; h.type = type; h.ore = ore; h.stage = 0;
     this.vis.revealAround(x, y);
     this.bus.emit(EV.TILE_CHANGED, i);

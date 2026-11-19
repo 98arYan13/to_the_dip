@@ -169,7 +169,7 @@ export class Particles {
         let s = this.size[i];
         if (f & P_SHRINK) s *= t;
         if (s < 0.4) continue;
-        ctx.globalAlpha = (f & P_FADE) ? t : 1;
+        ctx.globalAlpha = (f & P_FADE) ? (this.spr[i] === S_DUST ? Math.min(1, t * 1.8) : t) : 1;
         const c = this.color[i];
         const k = this.spr[i];
         if (k && this.sheet) {

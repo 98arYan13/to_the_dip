@@ -38,10 +38,9 @@ describe('Cargo rules', () => {
     expect(canAddOre(c, ORE.DIAMOND, 35)).toBe(true);
   });
 
-  it('a full pack slows the player by 40%', () => {
+  it('a full pack does not slow the player', () => {
     expect(loadSpeedMult(0, 35)).toBe(1);
-    expect(loadSpeedMult(35, 35)).toBeCloseTo(0.6);
-    expect(loadSpeedMult(17.5, 35)).toBeCloseTo(0.9);
+    expect(loadSpeedMult(35, 35)).toBe(1);
   });
 
   it('rescue loses 50% of each stack, rounded per stack', () => {
@@ -54,7 +53,7 @@ describe('Cargo rules', () => {
     expect(e.cargo[ORE.COAL]).toBe(7);
     expect(cargoValue(e.cargo)).toBe(4.9);
     expect(e.sellAll().total).toBe(4.9);
-    expect(e.credits).toBe(4.9);
+    expect(e.credits).toBe(24.9); // $20 start + sale
   });
 });
 

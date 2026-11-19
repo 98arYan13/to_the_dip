@@ -52,11 +52,17 @@ describe('crafted equipment', () => {
 });
 
 describe('shop items', () => {
-  it('a fresh economy starts with 10 ladders and one costs $3', () => {
+  it('a fresh economy starts with 10 ladders, one costs $0.3, and the base backpack holds at most 10', () => {
     const e = mk(); e.credits = 3;
     expect(e.consumables.ladder).toBe(10);
+    expect(e.consumableCap('ladder')).toBe(10);
+    expect(e.buyConsumable('ladder').ok).toBe(false);
+    e.consumables.ladder = 5;
     expect(e.buyConsumable('ladder').ok).toBe(true);
-    expect(e.consumables.ladder).toBe(11);
+    expect(e.consumables.ladder).toBe(6);
+    expect(e.credits).toBe(2.7);
+    e.levels.rig = 1;
+    expect(e.consumableCap('ladder')).toBe(20);
   });
   it('teleporter is no longer sold', () => { expect(CONSUMABLES.teleporter).toBeUndefined(); });
   it('warp charges count stash + cargo and are used from cargo first', () => {

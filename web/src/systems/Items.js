@@ -39,6 +39,15 @@ export class FallingLadders {
   /** @param {import('../world/World.js').World} w @param {import('../core/EventBus.js').EventBus} bus */
   constructor(w, bus) { this.w = w; this.bus = bus; /** @type {{x:number, y:number, vy:number}[]} */ this.active = []; }
 
+  /** The tile at (x, y) was cleared: the ladder column hanging right above it loses its support and falls. */
+  release(x, y) {
+    const w = this.w;
+    for (let yy = y - 1; yy >= 0 && w.tileType[yy * w.W + x] === TILE.LADDER; yy--) {
+      pickUpLadder(w, this.bus, x, yy);
+      if (!this.drop(x, yy)) this.onLost?.();
+    }
+  }
+
   /** @returns {boolean} started (false if (x, y) isn't open air) */
   drop(x, y) {
     if (ladderRestY(this.w, x, y) < 0) return false;
@@ -56,7 +65,10 @@ export class FallingLadders {
       const row = Math.floor(f.y / T);
       if (canPlaceLadder(this.w, f.x, row + 1)) continue; // still open air below
       // shortcut: a ladder still in flight when the game is saved is lost; fine for a <1 s fall
-      if (!placeLadder(this.w, this.bus, f.x, row)) placeLadder(this.w, this.bus, f.x, row - 1);
+      // simultaneous ladders pile up: land on the first free cell above
+      let r = row;
+      while (r >= 0 && !placeLadder(this.w, this.bus, f.x, r)) r--;
+      if (r < 0) this.onLost?.();
       this.active.splice(k, 1);
     }
   }

@@ -81,12 +81,7 @@ export class HUD {
     bus.on(EV.DEPTH_CHANGED, (p) => { this.el.depth.textContent = `${p.meters} m`; this.el.layer.textContent = p.layer; });
     bus.on(EV.PROMPT, (text) => { this.el.prompt.textContent = text || ''; this.el.prompt.classList.toggle('hidden', !text); });
     bus.on(EV.PULSE, (p) => { if (p.sheltered) return; const f = this.el.pulseFlash; f.classList.remove('go'); void f.offsetWidth; f.classList.add('go'); });
-    bus.on(EV.HOVER_TILE, (i) => this.refreshTooltip(i));
-    this.mouseX = 0; this.mouseY = 0;
-    window.addEventListener('mousemove', (e) => {
-      this.mouseX = e.clientX; this.mouseY = e.clientY;
-      this.el.tooltip.style.transform = `translate(${e.clientX + 14}px, ${e.clientY + 14}px)`;
-    });
+    window.addEventListener('mousedown', (e) => { if (e.button !== 2) this.refreshTooltip(-1); }); // any left click dismisses the tile info
     this.setMission();
     bus.on(EV.MISSION_DONE, () => this.setMission());
     bus.on(EV.FINISHED, () => this.setMission());
@@ -117,7 +112,7 @@ export class HUD {
 
   refreshCargo() {
     const ec = this.d.economy;
-    this.el.cargo.textContent = `${ec.cargoWeight.toFixed(1)}/${ec.capacity} kg · speed ${Math.round(ec.speedMult * 100)}%`;
+    this.el.cargo.textContent = `${ec.cargoWeight.toFixed(1)}/${ec.capacity} kg`;
     this.el.cargo.classList.toggle('full', ec.loadFrac >= 0.95);
   }
 
@@ -160,6 +155,14 @@ export class HUD {
   setMusic(on) { this.el.music.textContent = on ? 'Music: on' : 'Music: off'; }
 
   setMuted(m) { this.el.mute.textContent = m ? 'Unmute' : 'Mute'; }
+
+  /** Right-click tile info, pinned at the click. @param {number} i tile index @param {number} x @param {number} y client px */
+  showTileInfo(i, x, y) {
+    this.refreshTooltip(i);
+    this.el.tooltip.style.transform = `translate(${x + 14}px, ${y + 14}px)`;
+    clearTimeout(this._ttTimer);
+    this._ttTimer = setTimeout(() => this.refreshTooltip(-1), 4000);
+  }
 
   refreshTooltip(i) {
     const tt = this.el.tooltip;

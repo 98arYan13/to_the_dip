@@ -249,7 +249,7 @@ export class Shop {
     this.body.innerHTML = Object.entries(CONSUMABLES).filter(([, c]) => !c.tech || ec.tech.includes(c.tech)).map(([k, c]) => {
       const check = ec.canBuyConsumable(k);
       return `<div class="up-row">
-        <div class="up-info"><div class="up-name">${c.name} <span class="lvl">[${c.slot}] owned ×${ec.consumables[k]}</span></div><div class="up-stats">${/** @type {any} */ (desc)[k]}</div></div>
+        <div class="up-info"><div class="up-name">${c.name} <span class="lvl">[${c.slot}] owned ${ec.consumables[k]}/${ec.consumableCap(k)}</span></div><div class="up-stats">${/** @type {any} */ (desc)[k]}</div></div>
         <div class="up-buy"><button class="btn ${check.ok ? 'primary' : ''}" data-key="buy:${k}" ${check.ok ? '' : 'disabled'}>$${c.price}</button>${check.ok ? '' : `<div class="reason">${check.reason}</div>`}</div>
       </div>`;
     }).join('');

@@ -220,7 +220,7 @@ export class Background {
         ctx.fillStyle = '#e8eef5'; ctx.fillText('LAUNCH PAD', px - 2, GROUND - 56); calls++;
         continue;
       }
-      const b = /** @type {any} */ (CAMP_BUILDINGS)[id]; const lvl = ec.buildings[id] || 0;
+      const b = /** @type {any} */ (CAMP_BUILDINGS)[id]; const lvl = ec.buildings[id] || 0; if (!lvl) continue; // unbuilt buildings are not shown
       const x = tx * T - T / 2 + 4; const w = 2 * T - 8; const h = 24 + 14 * lvl;
       const tech = b.levels[0].tech;
       ctx.globalAlpha = tech && !ec.tech.includes(tech) ? 0.4 : 1;

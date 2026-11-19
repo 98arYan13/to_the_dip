@@ -41,13 +41,14 @@ describe('Jump', () => {
     return p;
   };
   const press = { isDown: () => false, wasPressed: (a) => a === 'jet', padMoveX: 0 };
-  it('jumps only from the ground, not in the air or on a ladder', () => {
+  it('jumps only from the ground, not in the air; a ladder tile does not stop the jump or grab the player', () => {
     const g = mkPlayer(0); g.onGround = true; g.update(1 / 60, press, 0, 0);
     expect(g.vy).toBeLessThan(-190);
     const a = mkPlayer(0); a.onGround = false; a.update(1 / 60, press, 0, 0);
     expect(a.vy).toBeGreaterThan(0);
     const l = mkPlayer(11); l.onGround = true; l.update(1 / 60, press, 0, 0);
-    expect(Math.abs(l.vy)).toBe(0);
+    expect(l.vy).toBeLessThan(-190);
+    expect(l.onLadder).toBe(false);
   });
 });
 

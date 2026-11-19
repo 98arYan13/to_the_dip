@@ -183,7 +183,7 @@ export class Lighting {
     }
     // Lamp lens: a small hot glint where the beam starts, mirrored into the bloom buffer.
     const lx = ox + Math.cos(s.aimAngle) * 4; const ly = oy + Math.sin(s.aimAngle) * 3;
-    this._glow(this.lensSprite, lx, ly, LIGHTING.HELMET_RADIUS, 0.8 * flicker, true);
+    this._glow(this.lensSprite, lx, ly, LIGHTING.HELMET_RADIUS, 0.5 * flicker, true);
 
     // Tile emissives
     const pulse = s.time;

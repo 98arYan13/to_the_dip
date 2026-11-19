@@ -282,8 +282,12 @@ export class Economy {
   }
 
   /** @param {string} kind */
+  consumableCap(kind) { return /** @type {any} */ (CONSUMABLES)[kind].cap * (this.levels.rig + 1); }
+
+  /** @param {string} kind */
   canBuyConsumable(kind) {
     const c = /** @type {any} */ (CONSUMABLES)[kind];
+    if (this.consumables[kind] >= this.consumableCap(kind)) return { ok: false, reason: `Backpack full (max ${this.consumableCap(kind)})` };
     if (c.tech && !this.tech.includes(c.tech)) return { ok: false, reason: 'Requires tech' };
     if (this.credits < c.price) return { ok: false, reason: `Need $${(c.price - this.credits).toLocaleString('en-US')} more` };
     return { ok: true };

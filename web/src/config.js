@@ -243,7 +243,7 @@ export const WORLD = Object.freeze({
     /** Centre tile of each processing building (2 tiles wide), clear of the shop, shaft and station. */
     BUILDING_SLOTS: Object.freeze({ generator: 13, furnace: 16, refinery: 19, lab: 41, workshop: 44, launch_pad: 8 }),
     /** Unbreakable foundation under the camp buildings: columns PAD_X0..PAD_X1, PAD_DEPTH rows deep. */
-    PAD_X0: 11, PAD_X1: 46, PAD_DEPTH: 3 }),
+    PAD_X0: 11, PAD_X1: 46, PAD_DEPTH: 1 }),
   TOP_LIMIT_PX: -200,
 });
 
@@ -699,15 +699,15 @@ export const TECH = Object.freeze([
 ]);
 
 export const CONSUMABLES = Object.freeze({
-  dynamite: { name: 'Dynamite', short: 'Dynamite', price: 15, slot: 1, start: 2 },
-  cell: { name: 'Reserve Energy Cell', short: 'Cell', price: 10, slot: 3, start: 1, frac: 0.4 },
-  ladder: { name: 'Ladder', short: 'Ladder', price: 3, slot: 4, start: 10 },
-  bigBomb: { name: 'Big Bomb', short: 'Big Bomb', price: 60, slot: 5, start: 0, tech: 'big_bomb' },
-  campKit: { name: 'Field Camp Kit', short: 'Camp', price: 120, slot: 6, start: 0 },
+  dynamite: { name: 'Dynamite', short: 'Dynamite', price: 15, slot: 1, start: 2, cap: 4 },
+  cell: { name: 'Reserve Energy Cell', short: 'Cell', price: 10, slot: 3, start: 1, frac: 0.4, cap: 2 },
+  ladder: { name: 'Ladder', short: 'Ladder', price: 0.3, slot: 4, start: 10, cap: 10 },
+  bigBomb: { name: 'Big Bomb', short: 'Big Bomb', price: 60, slot: 5, start: 0, tech: 'big_bomb', cap: 2 },
+  campKit: { name: 'Field Camp Kit', short: 'Camp', price: 120, slot: 6, start: 0, cap: 1 },
 });
 
 export const ECONOMY = Object.freeze({
-  START_CREDITS: 0,
+  START_CREDITS: 20,
   /** Units per ore the home stash holds (TECH stash_2 raises it). */
   STASH_CAP: 200,
 });
@@ -769,7 +769,7 @@ export const DYNAMITE = Object.freeze({
 });
 
 export const MINING = Object.freeze({
-  REACH: 44,
+  REACH: 31, // px from the player centre to the nearest edge of the tile under the cursor
   /** Multiplies every block's HP: topsoil with the starting pickaxe takes ~3 s (5 hits x 0.6 s). */
   HP_MULT: 5,
   HINT_COOLDOWN: 1.5,
@@ -783,7 +783,10 @@ export const MINING = Object.freeze({
   MAX_DAMAGED_TRACKED: 512,
 });
 
-export const PICKUPS = Object.freeze({ MAX: 64, SIZE: 10, BOUNCE: 0.3, MAGNET: 26, LIFETIME: 600 });
+export const PICKUPS = Object.freeze({ MAX: 400, SIZE: 10, BOUNCE: 0.3, MAGNET: 20, LIFETIME: Infinity });
+
+/** Ladders may be placed/picked up within this many tiles of the player. */
+export const LADDER_RANGE_TILES = 3;
 
 export const ENERGY = Object.freeze({
   /** E_base: energy to break a block of hardness 1 at the surface. */
@@ -795,7 +798,7 @@ export const ENERGY = Object.freeze({
   /** E_block depth term: (1 + D/BLOCK_DEPTH). */
   BLOCK_DEPTH: 500,
   /** Speed_mult = 1 - LOAD_SLOW * (W/C)^2. */
-  LOAD_SLOW: 0.4,
+  LOAD_SLOW: 0, // weight no longer slows the player
   LOW_THRESHOLD: 0.2,
   /** Toast warnings fire when the battery drops through these fractions (descending). */
   WARN_AT: [0.3, 0.15, 0.05],
@@ -807,7 +810,7 @@ export const ENERGY = Object.freeze({
   RADAR_COST: 8,
 });
 
-export const RADAR = Object.freeze({ COOLDOWN: 10, RING_SPEED: 520 });
+export const RADAR = Object.freeze({ COOLDOWN: 30, RING_SPEED: 520 });
 export const TELEPORT = Object.freeze({ CHANNEL_TIME: 0.9, VORTEX_RATE: 140 });
 
 export const CAMERA = Object.freeze({
@@ -859,7 +862,7 @@ export const QUALITY = Object.freeze({
 export const LIGHTING = Object.freeze({
   PLAYER_RADIUS: 220, // warm glow radius at the max (6-tile) headlamp; scales down with the lamp level
   PLAYER_COLOR: '#ffb070',
-  PLAYER_INTENSITY: 1.0,
+  PLAYER_INTENSITY: 0.55,
   CONE_HALF_ANGLE: 0.2618, // 15 deg each side: a 30 deg wide headlamp beam
   CONE_COLOR: '#fff1d6',
   HELMET_RADIUS: 40, // small bright glow on the helmet

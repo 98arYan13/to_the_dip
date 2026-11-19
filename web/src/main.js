@@ -6,7 +6,7 @@
 import {
   WORLD, TILE, FLAG, CAMP_BUILDINGS, MATERIALS, PHYSICS, CAMERA, MINING, ENERGY, RADAR, TELEPORT, CONSUMABLES, GAMEPAD,
   PARTICLES, QUALITY, SAVE, SETTINGS_DEFAULT, PICKAXES, RELICS, PLANETS, underM, planetGravity,
-  UPGRADES,
+  UPGRADES, LADDER_RANGE_TILES,
 } from './config.js';
 import { EventBus, EV } from './core/EventBus.js';
 import { GameLoop } from './core/GameLoop.js';
@@ -119,6 +119,7 @@ function boot() {
   const player = new Player({ physics, mining, energy, economy, bus });
   const dynamites = new DynamiteSystem(physics, mining, bus);
   const fallingLadders = new FallingLadders(world, bus);
+  fallingLadders.onLost = () => { economy.consumables.ladder++; bus.emit(EV.CONSUMABLES_CHANGED); }; // a ladder that cannot land goes back to the pack
   const collapse = new Collapse(world, bus);
   collapse.markAll();
   const fluids = new Fluids(world, bus);
@@ -182,6 +183,12 @@ function boot() {
   /** Zoom in (+1) / out (-1): wheel or +/- keys; the camera re-clamps to the new view size. */
   const setZoom = (step) => { renderer.zoomBy(step); camera.update(0, player.cx, player.cy); };
   canvas.addEventListener('wheel', (e) => { if (!g.started) return; e.preventDefault(); setZoom(e.deltaY < 0 ? 1 : -1); }, { passive: false });
+  canvas.addEventListener('contextmenu', (e) => {
+    if (!g.started) return;
+    const r = canvas.getBoundingClientRect();
+    const tx = Math.floor(renderer.screenToWorldX(e.clientX - r.left) / T); const ty = Math.floor(renderer.screenToWorldY(e.clientY - r.top) / T);
+    hud.showTileInfo(world.inBounds(tx, ty) ? ty * world.W + tx : -1, e.clientX, e.clientY);
+  });
   const hud = new HUD(hudRoot, bus, {
     economy, energy, getWorld: () => world,
     onSave: () => saveGame(true),
@@ -382,6 +389,7 @@ function boot() {
     camera.addTrauma(CAMERA.TRAUMA_CLINK);
   });
   bus.on(EV.BLOCK_BROKEN, (h) => {
+    fallingLadders.release(h.x, h.y);
     const n = MINING.DEBRIS_MIN + Math.floor(Math.random() * (MINING.DEBRIS_MAX - MINING.DEBRIS_MIN + 1));
     particles.debris(h.x * T + T / 2, h.y * T + T / 2, h.type, h.ore, n);
     camera.addTrauma(CAMERA.TRAUMA_BREAK);
@@ -518,10 +526,11 @@ function boot() {
     }
     if (input.wasPressed('slot4')) {
       const lx = Math.floor(g.aimX / T); const ly = Math.floor(g.aimY / T);
-      if (Math.hypot(g.aimX - player.cx, g.aimY - player.cy) <= 5 * T && pickUpLadder(world, bus, lx, ly)) {
+      const near = Math.hypot(g.aimX - player.cx, g.aimY - player.cy) <= LADDER_RANGE_TILES * T;
+      if (near && c.ladder < economy.consumableCap('ladder') && pickUpLadder(world, bus, lx, ly)) {
         economy.consumables.ladder++; bus.emit(EV.CONSUMABLES_CHANGED);
       } else if (c.ladder <= 0) toast.show('No ladders — buy some at the Trading Post', 'warn');
-      else if (Math.hypot(g.aimX - player.cx, g.aimY - player.cy) > 5 * T) toast.show('Too far to place', 'info');
+      else if (!near) toast.show('Too far to place', 'info');
       else if (fallingLadders.drop( Math.floor(g.aimX / T), Math.floor(g.aimY / T))) economy.useConsumable('ladder');
       else toast.show('Ladders need an open air tile', 'info');
     }
@@ -651,7 +660,7 @@ function boot() {
     const atStation = onSurface && Math.abs(player.cx / T - (bc.STATION_X + 0.5)) < bc.INTERACT_RANGE;
     const atCamp = !onSurface && nearFieldCamp(economy, player.cx, player.cy);
     let bld = ''; let bd = bc.INTERACT_RANGE;
-    if (onSurface) for (const [id, x] of Object.entries(bc.BUILDING_SLOTS)) { if (id === 'launch_pad' && !hasEffect(economy, 'launch_pad')) continue; const d = Math.abs(player.cx / T - (x + 0.5)); if (d < bd) { bd = d; bld = id; } }
+    if (onSurface) for (const [id, x] of Object.entries(bc.BUILDING_SLOTS)) { if (id === 'launch_pad' ? !hasEffect(economy, 'launch_pad') : !economy.buildings[id]) continue; const d = Math.abs(player.cx / T - (x + 0.5)); if (d < bd) { bd = d; bld = id; } }
     const nearLift = hasEffect(economy, 'elevator') && stops(economy).some((s) => Math.abs(player.cx / T - (s.x + 0.5)) < 1.2 && Math.abs((player.feetY - 1) / T - s.y) < 2);
     const prompt = nearLift ? 'lift' : nearShop ? 'shop' : atStation ? 'station' : bld === 'launch_pad' ? 'pad' : bld ? `bld:${bld}` : atCamp ? 'camp' : '';
     if (prompt !== g.prompt) {
