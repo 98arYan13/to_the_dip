@@ -160,3 +160,4 @@ article { margin: 10px 0; }
 .log-done { list-style: none; padding: 0; }
 .tech-node.missing { color: var(--muted); border-color: #2a3640; }
 .modal.story { z-index: 12; }
+.swatch.icon { width: 16px; height: 16px; border: 0; vertical-align: middle; image-rendering: pixelated; }

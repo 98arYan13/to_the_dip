@@ -265,59 +265,59 @@ export const MATERIALS = Object.freeze([
   { id: 4, key: 'BASALT', name: 'Basalt', layer: 'Deep Crust', hp: 24, tier: 4, hard: 1.6, solid: true, band: [0.55, 0.78], sfx: 'basalt',
     tiles: ['stone-02_3'],
     colors: { base: '#34363f', dark: '#1f2027', light: '#4c4f5b', accent: '#262830', extra: '#5a5e6c' } },
-  { id: 5, key: 'MANTLE', name: 'Mantle Rock (Obsidian)', layer: 'Mantle', hp: 40, tier: 5, hard: 2.2, solid: true, band: [0.78, 0.92], sfx: 'mantle',
+  { id: 5, key: 'MANTLE', tiles: ['gen_tiles_a_0'], name: 'Mantle Rock (Obsidian)', layer: 'Mantle', hp: 40, tier: 5, hard: 2.2, solid: true, band: [0.78, 0.92], sfx: 'mantle',
     colors: { base: '#17131b', dark: '#0b090d', light: '#3f3550', accent: '#ff6a1f', extra: '#ffc14a' } },
-  { id: 6, key: 'BEDROCK', name: 'Bedrock', layer: 'Bedrock', hp: 65535, tier: 99, solid: true, sfx: 'clink',
+  { id: 6, key: 'BEDROCK', tiles: ['gen_tiles_a_1','gen_tiles_c_6'], name: 'Bedrock', layer: 'Bedrock', hp: 65535, tier: 99, solid: true, sfx: 'clink',
     colors: { base: '#2a2a31', dark: '#18181d', light: '#3d3d46', accent: '#4a4a55', extra: '#101014' } },
-  { id: 7, key: 'WATER', name: 'Water Seep', hp: 0, tier: 0, solid: false, sfx: 'none',
+  { id: 7, key: 'WATER', tiles: ['gen_tiles_a_4'], name: 'Water Seep', hp: 0, tier: 0, solid: false, sfx: 'none',
     colors: { base: '#2b6f8f', dark: '#1b4a63', light: '#5fb4d6', accent: '#9fe2ff', extra: '#173a4d' } },
   { id: 8, key: 'MAGMA', name: 'Magma Channel', hp: 0, tier: 0, solid: false, sfx: 'none',
     colors: { base: '#ff5a12', dark: '#7a1c08', light: '#ffb340', accent: '#ffe08a', extra: '#3a0d04' } },
   // Deepest band. Drawn on top of lighting from the animated strip tiles/magma_anim.png (Renderer).
-  { id: 9, key: 'CORE', name: 'Magma Rock', layer: 'Molten Core', hp: 60, tier: 6, hard: 2.8, solid: true, band: [0.92, 1], sfx: 'mantle',
+  { id: 9, key: 'CORE', tiles: ['gen_tiles_a_2'], name: 'Magma Rock', layer: 'Molten Core', hp: 60, tier: 6, hard: 2.8, solid: true, band: [0.92, 1], sfx: 'mantle',
     anim: { src: 'tiles/magma_anim.png', frames: 12, fps: 10 },
     colors: { base: '#3a2a2e', dark: '#1e1416', light: '#ff7a1a', accent: '#ff5a12', extra: '#ffc14a' } },
   // Loose sand pockets: no depth band; falls when unsupported (systems/Hazards/Collapse.js).
-  { id: 10, key: 'SAND', name: 'Loose Sand', layer: 'Sand', hp: 1, tier: 1, hard: 0.4, solid: true, loose: true, sfx: 'soil',
+  { id: 10, key: 'SAND', tiles: ['gen_tiles_a_3','gen_tiles_c_7'], name: 'Loose Sand', layer: 'Sand', hp: 1, tier: 1, hard: 0.4, solid: true, loose: true, sfx: 'soil',
     colors: { base: '#d6b66a', dark: '#a8863e', light: '#ecd596', accent: '#c19d52', extra: '#8a6a30' } },
   // Placed by the player (systems/Items.js); walkable, climbable.
   { id: 11, key: 'LADDER', name: 'Ladder', hp: 0, tier: 0, solid: false, sfx: 'none',
     colors: { base: '#8a5a2b', dark: '#4f3220', light: '#b98046', accent: '#6b4423', extra: '#3b2a1a' } },
   // Alien ruins (world/Ruins.js): the hull only yields to a Big Bomb; the relic is mined by hand, hard 9 keeps both out of quake rockfall.
-  { id: 12, key: 'ALIEN_HULL', name: 'Alien Hull', hp: 65535, tier: 99, hard: 9, solid: true, sfx: 'clink',
+  { id: 12, key: 'ALIEN_HULL', tiles: ['gen_tiles_a_5'], name: 'Alien Hull', hp: 65535, tier: 99, hard: 9, solid: true, sfx: 'clink',
     colors: { base: '#3a2a5c', dark: '#1e1433', light: '#6a4ea8', accent: '#b08cff', extra: '#120b20' } },
-  { id: 13, key: 'RELIC', name: 'Alien Relic', hp: 12, tier: 1, hard: 9, solid: true, sfx: 'clink',
+  { id: 13, key: 'RELIC', tiles: ['gen_tiles_a_6'], name: 'Alien Relic', hp: 12, tier: 1, hard: 9, solid: true, sfx: 'clink',
     colors: { base: '#2ac0d0', dark: '#156068', light: '#a0f8ff', accent: '#ffffff', extra: '#0b3034' } },
   // Off-world rock: procedural colours. loose = falls like sand (systems/Hazards/Collapse.js). hp is tuned so a pick of the tier that reaches it needs ~10-30 hits.
-  { id: 14, key: 'REGOLITH', name: 'Lunar Regolith', layer: 'Regolith', hp: 20, tier: 5, hard: 1.8, solid: true, loose: true, sfx: 'soil',
+  { id: 14, key: 'REGOLITH', tiles: ['gen_tiles_b_0'], name: 'Lunar Regolith', layer: 'Regolith', hp: 20, tier: 5, hard: 1.8, solid: true, loose: true, sfx: 'soil',
     colors: { base: '#9a9a9c', dark: '#6a6a6e', light: '#c4c4c6', accent: '#84848a', extra: '#4e4e54' } },
-  { id: 15, key: 'BRECCIA', name: 'Impact Breccia', layer: 'Megaregolith', hp: 50, tier: 6, hard: 2.4, solid: true, sfx: 'granite',
+  { id: 15, key: 'BRECCIA', tiles: ['gen_tiles_b_1'], name: 'Impact Breccia', layer: 'Megaregolith', hp: 50, tier: 6, hard: 2.4, solid: true, sfx: 'granite',
     colors: { base: '#7c7a78', dark: '#52504e', light: '#a8a5a2', accent: '#64605c', extra: '#c8b8a0' } },
-  { id: 16, key: 'MARE_BASALT', name: 'Mare Basalt', layer: 'Mare Basalt', hp: 60, tier: 6, hard: 2.6, solid: true, sfx: 'basalt',
+  { id: 16, key: 'MARE_BASALT', tiles: ['gen_tiles_b_2'], name: 'Mare Basalt', layer: 'Mare Basalt', hp: 60, tier: 6, hard: 2.6, solid: true, sfx: 'basalt',
     colors: { base: '#3c3e4a', dark: '#22242c', light: '#585b6a', accent: '#2c2e38', extra: '#6a6e80' } },
-  { id: 17, key: 'ANORTHOSITE', name: 'Anorthosite', layer: 'Anorthosite Crust', hp: 80, tier: 7, hard: 3.0, solid: true, sfx: 'granite',
+  { id: 17, key: 'ANORTHOSITE', tiles: ['gen_tiles_b_3'], name: 'Anorthosite', layer: 'Anorthosite Crust', hp: 80, tier: 7, hard: 3.0, solid: true, sfx: 'granite',
     colors: { base: '#c8ccd4', dark: '#8e929c', light: '#eef0f4', accent: '#a4a8b2', extra: '#7a7e88' } },
-  { id: 18, key: 'LUNAR_MANTLE', name: 'Lunar Mantle', layer: 'Lunar Mantle', hp: 100, tier: 7, hard: 3.4, solid: true, sfx: 'mantle',
+  { id: 18, key: 'LUNAR_MANTLE', tiles: ['gen_tiles_c_0'], name: 'Lunar Mantle', layer: 'Lunar Mantle', hp: 100, tier: 7, hard: 3.4, solid: true, sfx: 'mantle',
     colors: { base: '#2c3a34', dark: '#16201c', light: '#4a6056', accent: '#6a8a70', extra: '#8aa890' } },
-  { id: 19, key: 'RUST_REGOLITH', name: 'Rusty Regolith', layer: 'Rusty Regolith', hp: 30, tier: 6, hard: 2.0, solid: true, loose: true, sfx: 'soil',
+  { id: 19, key: 'RUST_REGOLITH', tiles: ['gen_tiles_b_4'], name: 'Rusty Regolith', layer: 'Rusty Regolith', hp: 30, tier: 6, hard: 2.0, solid: true, loose: true, sfx: 'soil',
     colors: { base: '#a8553a', dark: '#74351f', light: '#d07e5a', accent: '#8c4128', extra: '#e8a078' } },
-  { id: 20, key: 'ICE_GROUND', name: 'Ice-Cemented Ground', layer: 'Ice Ground', hp: 70, tier: 7, hard: 2.6, solid: true, sfx: 'limestone',
+  { id: 20, key: 'ICE_GROUND', tiles: ['gen_tiles_b_5'], name: 'Ice-Cemented Ground', layer: 'Ice Ground', hp: 70, tier: 7, hard: 2.6, solid: true, sfx: 'limestone',
     colors: { base: '#8a6e66', dark: '#5a443e', light: '#c8d8e4', accent: '#a8c4d8', extra: '#e8f4fc' } },
-  { id: 21, key: 'MARS_BASALT', name: 'Martian Basalt', layer: 'Martian Basalt', hp: 80, tier: 7, hard: 3.0, solid: true, sfx: 'basalt',
+  { id: 21, key: 'MARS_BASALT', tiles: ['gen_tiles_b_6'], name: 'Martian Basalt', layer: 'Martian Basalt', hp: 80, tier: 7, hard: 3.0, solid: true, sfx: 'basalt',
     colors: { base: '#4a3030', dark: '#2a1a1a', light: '#6e4a46', accent: '#382222', extra: '#8a6058' } },
-  { id: 22, key: 'SULFATE', name: 'Sulfate & Clay', layer: 'Sulfate Beds', hp: 90, tier: 8, hard: 3.2, solid: true, sfx: 'limestone',
+  { id: 22, key: 'SULFATE', tiles: ['gen_tiles_b_7'], name: 'Sulfate & Clay', layer: 'Sulfate Beds', hp: 90, tier: 8, hard: 3.2, solid: true, sfx: 'limestone',
     colors: { base: '#c8a458', dark: '#8c6e30', light: '#ecd08c', accent: '#a8863e', extra: '#f4ecc8' } },
-  { id: 23, key: 'MARS_CRUST', name: 'Deep Martian Crust', layer: 'Deep Crust', hp: 110, tier: 8, hard: 3.6, solid: true, sfx: 'mantle',
+  { id: 23, key: 'MARS_CRUST', tiles: ['gen_tiles_c_1'], name: 'Deep Martian Crust', layer: 'Deep Crust', hp: 110, tier: 8, hard: 3.6, solid: true, sfx: 'mantle',
     colors: { base: '#3a2024', dark: '#1c0e10', light: '#5e3a3a', accent: '#c8542a', extra: '#ff8a4a' } },
-  { id: 24, key: 'ASH', name: 'Ash Crust', layer: 'Ash Crust', hp: 50, tier: 7, hard: 2.4, solid: true, sfx: 'soil',
+  { id: 24, key: 'ASH', tiles: ['gen_tiles_c_2'], name: 'Ash Crust', layer: 'Ash Crust', hp: 50, tier: 7, hard: 2.4, solid: true, sfx: 'soil',
     colors: { base: '#5a5a5e', dark: '#38383c', light: '#84848a', accent: '#46464a', extra: '#a0a0a6' } },
-  { id: 25, key: 'HULL_PLATE', name: 'Hull Plating', layer: 'Hull Plating', hp: 70, tier: 8, hard: 3.4, solid: true, sfx: 'clink',
+  { id: 25, key: 'HULL_PLATE', tiles: ['gen_tiles_a_7'], name: 'Hull Plating', layer: 'Hull Plating', hp: 70, tier: 8, hard: 3.4, solid: true, sfx: 'clink',
     colors: { base: '#4a5666', dark: '#2a323e', light: '#7e8ea4', accent: '#36d0e0', extra: '#1c222c' } },
-  { id: 26, key: 'LATTICE', name: 'Lattice', layer: 'Lattice', hp: 70, tier: 8, hard: 3.4, solid: true, sfx: 'clink',
+  { id: 26, key: 'LATTICE', tiles: ['gen_tiles_c_3'], name: 'Lattice', layer: 'Lattice', hp: 70, tier: 8, hard: 3.4, solid: true, sfx: 'clink',
     colors: { base: '#3a4a60', dark: '#1e2836', light: '#6a86aa', accent: '#46e0ff', extra: '#10161e' } },
-  { id: 27, key: 'HEAT_SINK', name: 'Heat Sink', layer: 'Heat Sink', hp: 70, tier: 8, hard: 3.4, solid: true, sfx: 'clink',
+  { id: 27, key: 'HEAT_SINK', tiles: ['gen_tiles_c_4'], name: 'Heat Sink', layer: 'Heat Sink', hp: 70, tier: 8, hard: 3.4, solid: true, sfx: 'clink',
     colors: { base: '#5a3a38', dark: '#301c1c', light: '#9a5e52', accent: '#ff7a2a', extra: '#1c0e0e' } },
-  { id: 28, key: 'MIND', name: 'The Mind', layer: 'The Mind', hp: 70, tier: 8, hard: 3.4, solid: true, sfx: 'clink',
+  { id: 28, key: 'MIND', tiles: ['gen_tiles_c_5'], name: 'The Mind', layer: 'The Mind', hp: 70, tier: 8, hard: 3.4, solid: true, sfx: 'clink',
     colors: { base: '#2a2038', dark: '#140e1c', light: '#5a4a7c', accent: '#b08cff', extra: '#08040c' } },
 ]);
 
@@ -369,26 +369,26 @@ const ORE_LIST = [
     colors: { base: '#7fe8ff', light: '#e8fdff', spec: '#ffffff', dark: '#3f747f' }, glow: '#8ff4ff', tile: 'meteorit-rhodium-ruby-diamond_3', crystal: true },
   // Heaviest ore in the game (dense wolframite/scheelite): tier 4 like gold/platinum, priced between them, found in granite-to-basalt veins.
   // Mining it with the Titanium Drill is what pays for the Tungsten Carbide Drill. No hand-drawn tile yet: procedural art.
-  { id: 21, key: 'TUNGSTEN', name: 'Tungsten', kg: 5.0, hard: 7.0, perKg: 112.0, price: 560.0, tier: 4, hosts: [3, 4], weight: 2.5, vein: [2, 4], glint: 0.5, pitch: 1060,
+  { id: 21, key: 'TUNGSTEN', tile: 'gen_ores_0', name: 'Tungsten', kg: 5.0, hard: 7.0, perKg: 112.0, price: 560.0, tier: 4, hosts: [3, 4], weight: 2.5, vein: [2, 4], glint: 0.5, pitch: 1060,
     colors: { base: '#33313a', light: '#a68fc4', spec: '#ffffff', dark: '#18171c' }, glow: '#9a7aff', tile: null },
   // Tech-redesign ores (procedural art). Bauxite ~ iron, oil shale ~ lead, ilmenite ~ cobalt.
-  { id: 22, key: 'BAUXITE', name: 'Bauxite', kg: 6.0, hard: 1.5, perKg: 0.18, price: 1.08, tier: 1, hosts: [1, 2], weight: 6, vein: [3, 7], glint: 0.1, pitch: 500,
+  { id: 22, key: 'BAUXITE', tile: 'gen_ores_1', name: 'Bauxite', kg: 6.0, hard: 1.5, perKg: 0.18, price: 1.08, tier: 1, hosts: [1, 2], weight: 6, vein: [3, 7], glint: 0.1, pitch: 500,
     colors: { base: '#b0603a', light: '#e0a070', spec: '#ffffff', dark: '#58301d' }, glow: null, tile: null },
-  { id: 23, key: 'ILMENITE', name: 'Ilmenite', kg: 3.0, hard: 3.0, perKg: 9.0, price: 27.0, tier: 3, hosts: [3, 4], weight: 4, vein: [2, 5], glint: 0.4, pitch: 720,
+  { id: 23, key: 'ILMENITE', tile: 'gen_ores_2', name: 'Ilmenite', kg: 3.0, hard: 3.0, perKg: 9.0, price: 27.0, tier: 3, hosts: [3, 4], weight: 4, vein: [2, 5], glint: 0.4, pitch: 720,
     colors: { base: '#2e2a30', light: '#8a8494', spec: '#ffffff', dark: '#171518' }, glow: null, tile: null },
-  { id: 24, key: 'OIL_SHALE', name: 'Oil Shale', kg: 4.5, hard: 1.3, perKg: 0.9, price: 4.05, tier: 2, hosts: [2, 3], weight: 5, vein: [3, 6], glint: 0.1, pitch: 440,
+  { id: 24, key: 'OIL_SHALE', tile: 'gen_ores_3', name: 'Oil Shale', kg: 4.5, hard: 1.3, perKg: 0.9, price: 4.05, tier: 2, hosts: [2, 3], weight: 5, vein: [3, 6], glint: 0.1, pitch: 440,
     colors: { base: '#3a3226', light: '#6e5e44', spec: '#ffffff', dark: '#1d1913' }, glow: null, tile: null },
 ];
 
 /** Off-world ores (hosts are filled per planet; none on Earth). Prices sit between the neighbouring Earth tiers by perKg (rhodium 593 < ore < diamond 5000). */
 const SPACE_ORES = [
-  { id: 43, key: 'HELIUM3', name: 'Helium-3', kg: 0.6, hard: 4.0, perKg: 1800, price: 1080, tier: 5, hosts: [], weight: 1, vein: [1, 3], glint: 0.8, pitch: 1100,
+  { id: 43, key: 'HELIUM3', tile: 'gen_ores_4', name: 'Helium-3', kg: 0.6, hard: 4.0, perKg: 1800, price: 1080, tier: 5, hosts: [], weight: 1, vein: [1, 3], glint: 0.8, pitch: 1100,
     colors: { base: '#d8e8ff', light: '#ffffff', spec: '#ffffff', dark: '#6c7480' }, glow: '#bcd8ff', tile: null },
-  { id: 44, key: 'RARE_EARTHS', name: 'Rare Earths', kg: 1.2, hard: 5.0, perKg: 3400, price: 4080, tier: 6, hosts: [], weight: 1, vein: [1, 3], glint: 0.7, pitch: 1000,
+  { id: 44, key: 'RARE_EARTHS', tile: 'gen_ores_5', name: 'Rare Earths', kg: 1.2, hard: 5.0, perKg: 3400, price: 4080, tier: 6, hosts: [], weight: 1, vein: [1, 3], glint: 0.7, pitch: 1000,
     colors: { base: '#8a5a8a', light: '#e0a8e0', spec: '#ffffff', dark: '#452d45' }, glow: '#e090e0', tile: null },
-  { id: 45, key: 'WATER_ICE', name: 'Water Ice', kg: 2.0, hard: 1.5, perKg: 3000, price: 6000, tier: 6, hosts: [], weight: 1, vein: [3, 7], glint: 0.4, pitch: 900,
+  { id: 45, key: 'WATER_ICE', tile: 'gen_ores_6', name: 'Water Ice', kg: 2.0, hard: 1.5, perKg: 3000, price: 6000, tier: 6, hosts: [], weight: 1, vein: [3, 7], glint: 0.4, pitch: 900,
     colors: { base: '#a8d0e8', light: '#f0fbff', spec: '#ffffff', dark: '#54687a' }, glow: null, tile: null },
-  { id: 46, key: 'PERCHLORATE', name: 'Perchlorate', kg: 1.5, hard: 2.0, perKg: 2800, price: 4200, tier: 6, hosts: [], weight: 1, vein: [2, 5], glint: 0.3, pitch: 800,
+  { id: 46, key: 'PERCHLORATE', tile: 'gen_ores_7', name: 'Perchlorate', kg: 1.5, hard: 2.0, perKg: 2800, price: 4200, tier: 6, hosts: [], weight: 1, vein: [2, 5], glint: 0.3, pitch: 800,
     colors: { base: '#c8b070', light: '#f4e4a8', spec: '#ffffff', dark: '#645838' }, glow: null, tile: null },
 ];
 
@@ -1017,3 +1017,12 @@ export const UI = Object.freeze({
 export const LOOP = Object.freeze({ STEP: 1 / 60, MAX_STEPS: 5, MAX_FRAME_DT: 0.25 });
 
 export const DEBUG = Object.freeze({ LOG: false });
+
+/** Icon image for an ore/material id: crafted materials have icons/mat_N.png, world ores use their tile art. */
+const MAT_ICON_IDS = [25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 47, 48, 49];
+export function oreIcon(id) {
+  const k = MAT_ICON_IDS.indexOf(id);
+  if (k >= 0) return `icons/mat_${k}.png`;
+  const t = /** @type {any} */ (ORES[id])?.tile;
+  return t ? `tiles/${t}.png` : '';
+}

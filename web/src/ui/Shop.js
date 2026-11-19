@@ -5,7 +5,10 @@
  */
 import { EV } from '../core/EventBus.js';
 import { UI, CONSUMABLES, ORES, DYNAMITE, ERAS } from '../config.js';
-import { CAMP_BUILDINGS, ACHIEVEMENTS } from '../config.js';
+import { CAMP_BUILDINGS, ACHIEVEMENTS, oreIcon } from '../config.js';
+
+/** Item icon (or colour swatch when there is no art) before an ore/material name. */
+const swatch = (o) => { const src = oreIcon(o); return src ? `<img class="swatch icon" src="${src}" alt="">` : `<span class="swatch" style="background:${/** @type {any} */ (ORES[o]).colors.light}"></span>`; };
 import { renderTech, eraTechs } from './TechScreen.js';
 import { renderCraft } from './CraftScreen.js';
 import { renderLog, markLogRead, hasUnread } from './LogScreen.js';
@@ -197,7 +200,7 @@ export class Shop {
     this.body.innerHTML = `
       <table class="sell-table">
         <thead><tr><th>Ore</th><th>Qty</th><th>Price</th><th>Value</th></tr></thead>
-        <tbody>${lines.map((l) => `<tr><td><span class="swatch" style="background:${/** @type {any} */ (ORES[l.ore]).colors.light}"></span>${l.name}</td><td>${l.count}</td><td>$${l.price.toLocaleString('en-US')}</td><td>$${l.total.toLocaleString('en-US')}</td></tr>`).join('')}</tbody>
+        <tbody>${lines.map((l) => `<tr><td>${swatch(l.ore)}${l.name}</td><td>${l.count}</td><td>$${l.price.toLocaleString('en-US')}</td><td>$${l.total.toLocaleString('en-US')}</td></tr>`).join('')}</tbody>
         <tfoot><tr><td colspan="3">Total</td><td>$${total.toLocaleString('en-US')}</td></tr></tfoot>
       </table>
       <button class="btn primary" data-key="sell:all">Sell All Cargo · $${total.toLocaleString('en-US')}</button>`;
@@ -209,7 +212,7 @@ export class Shop {
     for (let o = 1; o < ORES.length; o++) {
       if (!ec.stash[o]) continue;
       const ore = /** @type {any} */ (ORES[o]);
-      rows.push(`<tr><td><span class="swatch" style="background:${ore.colors.light}"></span>${ore.name}</td><td>${ec.stash[o]}</td>
+      rows.push(`<tr><td>${swatch(o)}${ore.name}</td><td>${ec.stash[o]}</td>
         <td><button class="btn" data-key="wd:${o}">Take 1</button> <button class="btn" data-key="ss:${o}">Sell 1</button> <button class="btn" data-key="ssa:${o}">Sell all</button></td></tr>`);
     }
     this.body.innerHTML = `<button class="btn primary" data-key="dep:all" ${ec.cargoUnits ? '' : 'disabled'}>Deposit all cargo</button>`

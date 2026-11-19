@@ -12,6 +12,13 @@ export const P_SHRINK = 8;
 export const P_ROT = 16;
 export const P_NOGRAV = 32;
 
+/** Sprite kinds (rows of fx/particles.png, 6 cells of 16px each). 0 = plain square. */
+export const S_DUST = 1;   // animated puff, frame from life, tinted
+export const S_SPARK = 2;  // pre-coloured glint, random variant
+export const S_CHIP = 3;   // rock chip, random variant, tinted
+const FX_CELL = 16;
+const FX_DRAW = [0, 2.4, 4.5, 3.4]; // drawn size = particle size * this
+
 export class Particles {
   /** @param {number} [cap] */
   constructor(cap = PARTICLES.DEFAULT_CAP) {
@@ -25,6 +32,16 @@ export class Particles {
     this.grav = new Float32Array(n); this.drag = new Float32Array(n);
     this.flags = new Uint8Array(n);
     this.color = new Uint16Array(n);
+    this.spr = new Uint8Array(n); this.sv = new Uint8Array(n);
+    /** @type {HTMLImageElement|null} */
+    this.sheet = null;
+    /** @type {Map<number, HTMLCanvasElement>} tinted copies of the sheet per colour index */
+    this.tinted = new Map();
+    if (typeof Image !== 'undefined') {
+      const img = new Image();
+      img.onload = () => { this.sheet = img; };
+      img.src = 'fx/particles.png';
+    }
     this.count = 0;
     /** @type {string[]} */
     this.colors = [];
@@ -75,8 +92,25 @@ export class Particles {
     this.life[i] = life; this.maxLife[i] = life; this.size[i] = size;
     this.rot[i] = 0; this.vr[i] = (flags & P_ROT) ? (this.rng() - 0.5) * 14 : 0;
     this.grav[i] = (flags & P_NOGRAV) ? 0 : grav; this.drag[i] = drag;
-    this.flags[i] = flags; this.color[i] = color;
+    this.flags[i] = flags; this.color[i] = color; this.spr[i] = 0;
     return i;
+  }
+
+  /** Give particle i a sprite (no-op for -1). */
+  _s(i, kind) { if (i >= 0) { this.spr[i] = kind; this.sv[i] = (this.rng() * 6) | 0; } }
+
+  /** Sheet tinted by colour c (multiply), cached. */
+  _tint(c) {
+    let t = this.tinted.get(c);
+    if (t) return t;
+    const sh = /** @type {HTMLImageElement} */ (this.sheet);
+    t = document.createElement('canvas'); t.width = sh.width; t.height = sh.height;
+    const x = /** @type {CanvasRenderingContext2D} */ (t.getContext('2d'));
+    x.drawImage(sh, 0, 0);
+    x.globalCompositeOperation = 'multiply'; x.fillStyle = this.colors[c]; x.fillRect(0, 0, t.width, t.height);
+    x.globalCompositeOperation = 'destination-in'; x.drawImage(sh, 0, 0);
+    this.tinted.set(c, t);
+    return t;
   }
 
   /** @param {number} dt */
@@ -111,7 +145,7 @@ export class Particles {
     this.x[i] = this.x[j]; this.y[i] = this.y[j]; this.vx[i] = this.vx[j]; this.vy[i] = this.vy[j];
     this.life[i] = this.life[j]; this.maxLife[i] = this.maxLife[j]; this.size[i] = this.size[j];
     this.rot[i] = this.rot[j]; this.vr[i] = this.vr[j]; this.grav[i] = this.grav[j]; this.drag[i] = this.drag[j];
-    this.flags[i] = this.flags[j]; this.color[i] = this.color[j];
+    this.flags[i] = this.flags[j]; this.color[i] = this.color[j]; this.spr[i] = this.spr[j]; this.sv[i] = this.sv[j];
   }
 
   /**
@@ -137,6 +171,23 @@ export class Particles {
         if (s < 0.4) continue;
         ctx.globalAlpha = (f & P_FADE) ? t : 1;
         const c = this.color[i];
+        const k = this.spr[i];
+        if (k && this.sheet) {
+          const src = k === S_SPARK ? this.sheet : this._tint(c);
+          const col = k === S_DUST ? Math.min(5, ((1 - t) * 6) | 0) : this.sv[i];
+          const d = this.size[i] * FX_DRAW[k] * (k === S_DUST ? 1 : (f & P_SHRINK ? t : 1));
+          const sx = col * FX_CELL; const sy = (k - 1) * FX_CELL;
+          if (f & P_ROT) {
+            const r = this.rot[i]; const co = Math.cos(r) * scale; const si = Math.sin(r) * scale;
+            ctx.setTransform(co, si, -si, co, (x - camL) * scale, (y - camT) * scale);
+            ctx.drawImage(src, sx, sy, FX_CELL, FX_CELL, -d / 2, -d / 2, d, d);
+            ctx.setTransform(scale, 0, 0, scale, -camL * scale, -camT * scale);
+          } else {
+            ctx.drawImage(src, sx, sy, FX_CELL, FX_CELL, Math.round(x - d / 2), Math.round(y - d / 2), d, d);
+          }
+          calls++;
+          continue;
+        }
         if (c !== lastColor) { ctx.fillStyle = this.colors[c]; lastColor = c; }
         if (f & P_ROT) {
           const r = this.rot[i]; const co = Math.cos(r) * scale; const si = Math.sin(r) * scale;
@@ -166,13 +217,13 @@ export class Particles {
     const puffs = rock ? 4 : 12;
     for (let k = 0; k < puffs; k++) {
       const a = base + (r() - 0.5) * 2.2; const sp = 15 + r() * 45;
-      this.emit(x + (r() - 0.5) * 8, y + (r() - 0.5) * 8, Math.cos(a) * sp, Math.sin(a) * sp - 10, 0.6 + r() * 0.6, 3 + r() * 4, r() < 0.5 ? this.cDust : cols[2], P_FADE, -20, 3);
+      this._s(this.emit(x + (r() - 0.5) * 8, y + (r() - 0.5) * 8, Math.cos(a) * sp, Math.sin(a) * sp - 10, 0.6 + r() * 0.6, 3 + r() * 4, r() < 0.5 ? this.cDust : cols[2], P_FADE, -20, 3), S_DUST);
     }
     if (!rock) {
       // Clods flung out and falling.
       for (let k = 0; k < 6; k++) {
         const a = base + (r() - 0.5) * 1.4; const sp = 50 + r() * 90;
-        this.emit(x, y, Math.cos(a) * sp, Math.sin(a) * sp - 40, 0.4 + r() * 0.3, 2 + r() * 2, cols[(r() * 2) | 0], P_FADE, 600, 1);
+        this._s(this.emit(x, y, Math.cos(a) * sp, Math.sin(a) * sp - 40, 0.4 + r() * 0.3, 2 + r() * 2, cols[(r() * 2) | 0], P_FADE | P_ROT, 600, 1), S_CHIP);
       }
       return;
     }
@@ -180,12 +231,12 @@ export class Particles {
     const sparks = gated ? 14 : 10;
     for (let k = 0; k < sparks; k++) {
       const a = base + (r() - 0.5) * 1.8; const sp = 120 + r() * 220; const hot = r() < 0.4;
-      this.emit(x, y, Math.cos(a) * sp, Math.sin(a) * sp, 0.15 + r() * 0.25, hot ? 1.5 : 1, hot ? this.cSparkHot : this.cSpark, P_GLOW | P_FADE, 700);
+      this._s(this.emit(x, y, Math.cos(a) * sp, Math.sin(a) * sp, 0.15 + r() * 0.25, hot ? 1.5 : 1, hot ? this.cSparkHot : this.cSpark, P_GLOW | P_FADE, 700), S_SPARK);
     }
     // Rock chips.
     for (let k = 0; k < 3; k++) {
       const a = base + (r() - 0.5) * 1.2; const sp = 60 + r() * 80;
-      this.emit(x, y, Math.cos(a) * sp, Math.sin(a) * sp - 30, 0.5, 2, cols[(r() * 3) | 0], P_BOUNCE | P_ROT | P_FADE, 700);
+      this._s(this.emit(x, y, Math.cos(a) * sp, Math.sin(a) * sp - 30, 0.5, 2, cols[(r() * 3) | 0], P_BOUNCE | P_ROT | P_FADE, 700), S_CHIP);
     }
   }
 
@@ -199,7 +250,11 @@ export class Particles {
       const vx = (r() - 0.5) * (soft ? 120 : 260);
       const vy = -r() * (soft ? 140 : 260);
       if (soft) this.emit(x, y, vx, vy, 0.5 + r() * 0.5, 2 + r() * 3, cols[(r() * 3) | 0], P_FADE, 500, 1.5);
-      else this.emit(x, y, vx, vy, 1 + r() * 0.8, 2 + r() * 3, cols[(r() * 3) | 0], P_BOUNCE | P_ROT | P_FADE, PARTICLES.GRAVITY);
+      else this._s(this.emit(x, y, vx, vy, 1 + r() * 0.8, 2 + r() * 3, cols[(r() * 3) | 0], P_BOUNCE | P_ROT | P_FADE, PARTICLES.GRAVITY), S_CHIP);
+    }
+    // Dust cloud rolling out of the broken block (also what a collapse kicks up).
+    for (let k = 0; k < Math.min(6, 2 + (count >> 2)); k++) {
+      this._s(this.emit(cx + (r() - 0.5) * 20, cy + (r() - 0.5) * 20, (r() - 0.5) * 50, -10 - r() * 25, 0.7 + r() * 0.6, 4 + r() * 3, r() < 0.5 ? this.cDust : cols[2], P_FADE, -15, 2.5), S_DUST);
     }
     if (ore) {
       const oc = this.oreColor[ore];
@@ -227,7 +282,7 @@ export class Particles {
     }
     for (let k = 0; k < 30; k++) {
       const a = r() * Math.PI * 2; const sp = 40 + r() * 120;
-      this.emit(cx, cy, Math.cos(a) * sp, Math.sin(a) * sp - 40, 1 + r(), 5 + r() * 6, this.cSmoke, P_FADE, -30, 1.5);
+      this._s(this.emit(cx, cy, Math.cos(a) * sp, Math.sin(a) * sp - 40, 1 + r(), 5 + r() * 6, this.cSmoke, P_FADE, -30, 1.5), S_DUST);
     }
   }
 
