@@ -150,7 +150,7 @@ kbd { font: inherit; font-size: 11px; background: #1b2630; border: 1px solid #39
 .need.no span, .up-stats .no { color: var(--bad); }
 
 .pulse-banner { position: absolute; left: 50%; top: 56px; transform: translateX(-50%); background: var(--bg-solid); border: 1px solid var(--bad); color: var(--bad); padding: 6px 14px; border-radius: var(--radius); pointer-events: none; }
-.pulse-flash { position: fixed; inset: 0; background: #fff; opacity: 0; pointer-events: none; }
+#hud > .pulse-flash { position: fixed; inset: 0; background: #fff; opacity: 0; pointer-events: none; }
 .pulse-flash.go { animation: pulse-flash .5s ease-out; }
 body.reduced-flashing .pulse-flash.go { animation: none; }
 @keyframes pulse-flash { 0% { opacity: .8; } 100% { opacity: 0; } }
@@ -163,7 +163,7 @@ article { margin: 10px 0; }
 .swatch.icon { width: 16px; height: 16px; border: 0; vertical-align: middle; image-rendering: pixelated; }
 
 /* Backpack slot grid (Tab) */
-.backpack { position: absolute; left: 50%; top: 12px; transform: translateX(-50%); z-index: 5; padding: 6px 8px; background: rgba(12, 16, 24, 0.88); border: 1px solid #2c4a5a; font: 10px monospace; color: #cfe7f0; pointer-events: none; }
+#hud > .backpack { position: absolute; left: 50%; top: 12px; transform: translateX(-50%); z-index: 5; padding: 6px 8px; background: rgba(12, 16, 24, 0.88); border: 1px solid #2c4a5a; font: 10px monospace; color: #cfe7f0; pointer-events: none; }
 .backpack.hidden { display: none; }
 .backpack header { margin-bottom: 5px; letter-spacing: 1px; }
 .backpack header span { color: #8fb3c2; margin-left: 6px; }
