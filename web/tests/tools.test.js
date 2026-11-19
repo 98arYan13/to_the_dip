@@ -34,3 +34,23 @@ describe('backpack slots', () => {
     expect(ec.slots).toBe(6);
   });
 });
+
+import { Player } from '../src/entities/Player.js';
+
+describe('power tool on an empty battery', () => {
+  it('sets player.flat while mining with no energy, and never strikes', () => {
+    const ec = new Economy(new EventBus());
+    ec.levels.cone_drill = 1; ec.cycleTool();
+    const energy = { value: 0, drainBlock() {} };
+    const world = { T: 32, W: 8, H: 8, inBounds: () => false, tileType: new Uint8Array(64) };
+    let strikes = 0;
+    const p = new Player({ economy: ec, energy, bus: { emit() {} }, physics: { world, move() {} }, mining: { findTarget: () => 9, strike: () => { strikes++; return 'hit'; }, hit: {} } });
+    const input = { isDown: (k) => k === 'mine', wasPressed: () => false, padMoveX: 0 };
+    for (let i = 0; i < 120; i++) p.update(1 / 60, input, 100, 0);
+    expect(p.flat).toBe(true);
+    expect(strikes).toBe(0);
+    energy.value = 50;
+    p.update(1 / 60, input, 100, 0);
+    expect(p.flat).toBe(false);
+  });
+});

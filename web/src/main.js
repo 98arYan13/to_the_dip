@@ -256,6 +256,7 @@ function boot() {
       else if (a === 'quake') { quake.focus.x = tx; quake.focus.y = ty; quake.trigger(1); }
       else if (a === 'cash') { economy.credits += 100000; bus.emit(EV.CREDITS_CHANGED, economy.credits); }
       else if (a === 'mats') { for (let o = 1; o < economy.stash.length; o++) economy.stash[o] += 50; bus.emit(EV.CARGO_CHANGED); }
+      else if (a === 'tools') { economy.levels.jackhammer ||= 1; economy.levels.cone_drill ||= 1; toast.show('Jackhammer + Cone Drill unlocked — Q to switch'); }
       else if (a === 'ruin') { // next ruin whose relic isn't owned; carve a pocket left of it
         const r = planRuins(world.genSeed, world.W, world.H, PLANETS[world.planet]).find((q) => !economy.relics.includes(relicIdAt(world.planet, q.y + q.h - 2, world.H)));
         if (r) { const px = r.x - 3; const py = r.y + r.h - 2; for (let dy = -2; dy <= 0; dy++) for (let dx = -1; dx <= 1; dx++) world.clear(world.idx(px + dx, py + dy)); player.placeAt(px * T, (py + 1) * T - player.h); camera.snap(player.cx, player.cy); }

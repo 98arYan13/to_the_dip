@@ -60,7 +60,7 @@ export class RigRenderer {
     return c;
   }
 
-  /** @param {import('./Rig.js').WorldPose} world @param {any} outfit @param {{sprite:HTMLCanvasElement|null, angle:number, color:string}} pick @param {HTMLImageElement|null} [pack] backpack sprite drawn instead of the grey box */
+  /** @param {import('./Rig.js').WorldPose} world @param {any} outfit @param {{sprite:HTMLCanvasElement|HTMLImageElement|null, angle:number, color:string, dx?:number, dy?:number}} pick @param {HTMLImageElement|null} [pack] backpack sprite drawn instead of the grey box */
   render(world, outfit, pick, pack = null) {
     const rig = this.rig;
     if (!this.canvas) {
@@ -76,7 +76,7 @@ export class RigRenderer {
       if (d.kind === 'pick') {
         ctx.rotate(pick.angle);
         ctx.scale(PICK_SCALE, PICK_SCALE); // art was drawn too big next to the 84px body
-        if (pick.sprite) ctx.drawImage(pick.sprite, -3, -pick.sprite.height / 2); // grip at the left-middle
+        if (pick.sprite) ctx.drawImage(pick.sprite, -3 + (pick.dx || 0), -pick.sprite.height / 2 + (pick.dy || 0)); // grip at the left-middle; dx/dy = power-tool shake
         ctx.restore(); continue;
       }
       ctx.rotate(snapAngle(world.a[d.bone], rig.angleStep));

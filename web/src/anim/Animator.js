@@ -36,7 +36,7 @@ export class Animator {
   }
 
   /**
-   * @param {any} p Player @param {number} dt @param {{time:number, aimDown:boolean}} ctx
+   * @param {any} p Player @param {number} dt @param {{time:number, aimDown:boolean, power?:boolean}} ctx
    * @returns {import('./Rig.js').Pose} valid until the next update; callers may mutate it
    */
   update(p, dt, ctx) {
@@ -62,7 +62,7 @@ export class Animator {
     const c = this.clips[name];
     let t;
     if (name === 'walk' || name === 'walk_back') t = ((p.walkPhase / TAU) % 1) * c.duration;
-    else if (name.startsWith('mine_')) t = p.swingPhase * c.duration;
+    else if (name.startsWith('mine_')) t = (ctx.power ? 0.95 : p.swingPhase) * c.duration; // power tools: hold the braced strike pose
     else if (name === 'climb') { this.climbDist += Math.abs(p.vy) * dt; t = (this.climbDist / 24) * c.duration; }
     else if (name === 'idle' || name === 'jet') t = ctx.time;
     else t = this.t;

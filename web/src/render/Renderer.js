@@ -42,6 +42,7 @@ export class Renderer {
     this.camL = 0; this.camT = 0;
     this.drawCalls = 0;
     this.time = 0;
+    this.toolShake = { dx: 0, dy: 0 };
     this.shockX = new Float32Array(MAX_SHOCKWAVES); this.shockY = new Float32Array(MAX_SHOCKWAVES); this.shockT = new Float32Array(MAX_SHOCKWAVES);
     this.hoverTile = -1;
     this.hoverMineable = false;
@@ -387,20 +388,25 @@ export class Renderer {
     const rig = this.rigA.rig; const f = p.facing;
     const cx = Math.round(x + W / 2); const top = y + p.h - 31;
     const aimDown = st.aimY - (p.y + p.h / 2) > Math.abs(st.aimX - (p.x + p.w / 2));
-    const pose = this.animator.update(p, dt, { time: this.time, aimDown });
+    const pose = this.animator.update(p, dt, { time: this.time, aimDown, power: !!this.d.economy.toolDef });
     const [mx, my] = toRigSpace(st.aimX, st.aimY, cx - 16, top, f);
     const w0 = solveWorld(rig, pose);
     const sh = rig.index.get('armF_upper');
     const mining = p.mineState === 1;
     const tool = this.d.economy.toolDef;
-    const swing = mining ? swingOffset(p.swingPhase) * (tool ? 0.12 : 1) : 0; // power tools shake, they don't swing
+    const swing = mining && !tool ? swingOffset(p.swingPhase) : 0; // power tools don't swing: they animate in _toolSprite
     const angle = mining ? Math.atan2(my - w0.y[sh], mx - w0.x[sh]) + swing : idleGripAngle(rig, w0);
-    const world = applyOverlays(rig, pose, { look: [mx, my], mining, pickAngle: angle, landVY: this.animator.landVY, squashT: this.animator.squashT });
+    // Dead battery: the tool sags toward the floor and every ~1.2 s gets a frustrated double shake.
+    const dead = mining && p.flat; const dt2 = this.time % 1.2;
+    const shake = dt2 < 0.3 ? 0.15 * Math.sin(dt2 * 42) : 0;
+    const sag = dead ? Math.max(0, Math.min(angle + 0.75, Math.PI / 2 - 0.2) - angle) + shake : 0; // never past straight down
+    const world = applyOverlays(rig, pose, { look: [mx, my], mining, pickAngle: angle + sag, landVY: this.animator.landVY, squashT: this.animator.squashT });
     const color = this.d.economy.pickaxe.color;
     const rl = this.d.economy.levels.rig; const pack = this.packImgs[rl >= 3 ? 2 : rl >= 1 ? 1 : 0];
-    const canvas = this.rigR.render(world, p.outfit, { sprite: this._playerArt().pickReady() && !(p.onLadder && Math.abs(p.vy) > 1 && !mining) ? this._toolSprite(color) : null, angle, color }, pack.complete && pack.naturalWidth ? pack : null);  // pick is stowed while climbing
+    const canvas = this.rigR.render(world, p.outfit, { sprite: this._playerArt().pickReady() && !(p.onLadder && Math.abs(p.vy) > 1 && !mining) ? this._toolSprite(color, mining && !dead ? p : null) : null, angle: angle + sag, color, ...this.toolShake }, pack.complete && pack.naturalWidth ? pack : null);  // pick is stowed while climbing
+    const buzz = mining && tool && !dead ? this.toolShake : null; // power tools shake the whole body a little (1 art px = 1/3 world px)
     ctx.save();
-    ctx.translate(cx, top);
+    ctx.translate(cx + (buzz ? buzz.dx / 3 : 0), top + (buzz ? buzz.dy / 3 : 0));
     if (f < 0) ctx.scale(-1, 1);
     ctx.drawImage(canvas, -16 - RIG_PAD / 3, -RIG_PAD / 3, 32 + RIG_PAD * 2 / 3, 32 + RIG_PAD * 2 / 3);
     ctx.restore();
@@ -425,13 +431,52 @@ export class Renderer {
     return a;
   }
 
-  /** Held sprite of the active tool: the tinted pickaxe, or the jackhammer / cone drill art. */
-  _toolSprite(color) {
+  /**
+   * Held sprite of the active tool: the tinted pickaxe, or an animated jackhammer / cone drill frame.
+   * Also sets this.toolShake ({dx, dy} in sprite px) for the whole tool.
+   * @param {string} color @param {any} p the player while mining, else null (tool at rest)
+   */
+  _toolSprite(color, p = null) {
+    this.toolShake = { dx: 0, dy: 0 };
     const t = this.d.economy.tool;
     if (!t || t === 'pick') return this._pickSprite(color);
     const a = this._playerArt();
     if (!a[t]) { a[t] = new Image(); a[t].src = `player/${t}.png`; }
-    return a[t].complete && a[t].naturalWidth ? a[t] : this._pickSprite(color);
+    const img = a[t];
+    if (!(img.complete && img.naturalWidth)) return this._pickSprite(color);
+    if (!p) return img;
+    const key = `${t}Frame`;
+    if (!a[key]) { a[key] = document.createElement('canvas'); a[key].width = img.naturalWidth + 3; a[key].height = img.naturalHeight; }
+    const c = a[key]; const g = /** @type {CanvasRenderingContext2D} */ (c.getContext('2d'));
+    g.imageSmoothingEnabled = false; g.clearRect(0, 0, c.width, c.height);
+    const W = img.naturalWidth; const H = img.naturalHeight;
+    if (t === 'jackhammer') {
+      // Piston hammer: three blows per mining swing (the last one lands with the hit). The chisel
+      // snaps forward then eases back, the body kicks back against the grip and the whole tool buzzes.
+      const k = (p.swingPhase * 3) % 1;
+      const blow = k < 0.2 ? k / 0.2 : Math.max(0, 1 - (k - 0.2) / 0.5);
+      const CHISEL = 34;
+      const out = Math.round(blow * 3);
+      g.drawImage(img, CHISEL, 0, W - CHISEL, H, CHISEL + out, 0, W - CHISEL, H);
+      if (out) g.drawImage(img, CHISEL, 0, 1, H, CHISEL, 0, out, H); // stretch the shank root so the chisel stays seated
+      g.drawImage(img, 0, 0, CHISEL, H, 0, 0, CHISEL, H);
+      this.toolShake = { dx: Math.round(-blow * 1.5), dy: ((this.time * 47) | 0) % 2 ? 1 : -1 };
+    } else {
+      // Heavy power drill: the grip stays still, the motor spins the cone fast so its spiral ridges
+      // race toward the tip, and the whole tool hums with a fine vibration.
+      const turn = this.time * 9 * Math.PI * 2; // ~9 turns/s
+      // ridges: slide the cone's pixels toward the tip by one ridge period, wrapped, clipped to the cone's outline
+      const CONE = 24; const PER = 6; const cw = W - CONE;
+      const off = Math.floor((turn / (Math.PI * 2)) * PER) % PER;
+      g.drawImage(img, CONE, 0, cw - off, H, CONE + off, 0, cw - off, H);
+      if (off) g.drawImage(img, CONE + PER - off, 0, off, H, CONE, 0, off, H); // refill the base from one period up
+      g.globalCompositeOperation = 'destination-in'; // clears the whole canvas outside the cone: housing goes on after
+      g.drawImage(img, CONE, 0, cw, H, CONE, 0, cw, H);
+      g.globalCompositeOperation = 'source-over';
+      g.drawImage(img, 0, 0, CONE, H, 0, 0, CONE, H);
+      const buzz = (this.time * 31) | 0; this.toolShake = { dx: buzz % 3 === 0 ? 1 : 0, dy: buzz % 2 ? 1 : 0 };
+    }
+    return c;
   }
 
   /** Pickaxe sprite with its metal head multiplied by the material colour (cached per colour). */

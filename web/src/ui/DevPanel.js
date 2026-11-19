@@ -25,7 +25,7 @@ export class DevPanel {
       <label class="srow check"><input type="checkbox" data-k="lockHp"><span>Lock health full</span></label>
       <label class="srow check"><input type="checkbox" data-k="lockEnergy"><span>Lock energy full</span></label>
       <label class="srow check"><input type="checkbox" data-k="reveal"><span>Reveal all tiles</span></label>
-      <div class="srow"><button class="btn" data-do="gas">Spawn gas</button><button class="btn" data-do="quake">Quake</button><button class="btn" data-do="ruin">To ruin</button><button class="btn" data-do="core">To core</button><button class="btn" data-do="cash">+$100k</button><button class="btn" data-do="mats">+50 items</button></div>`;
+      <div class="srow"><button class="btn" data-do="gas">Spawn gas</button><button class="btn" data-do="quake">Quake</button><button class="btn" data-do="ruin">To ruin</button><button class="btn" data-do="core">To core</button><button class="btn" data-do="cash">+$100k</button><button class="btn" data-do="mats">+50 items</button><button class="btn" data-do="tools">Power tools</button></div>`;
     this.outfitEl = document.createElement('div');
     this.el.appendChild(this.outfitEl);
     root.appendChild(this.el);

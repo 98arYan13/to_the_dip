@@ -42,7 +42,7 @@ export class SFX {
     bus.on(EV.LOW_ENERGY, () => this.lowEnergy());
     bus.on(EV.FOOTSTEP, (m) => this.footstep(m));
     bus.on(EV.LADDER_STEP, () => this.ladderStep());
-    bus.on(EV.SWING, () => this.swing());
+    bus.on(EV.SWING, (s) => (s?.tool === 'jackhammer' ? this.jackhammer(s.dur) : s?.tool === 'cone_drill' ? this.drill(s.dur) : this.swing()));
     bus.on(EV.HARD_LANDING, (h) => this.impact(h.damage));
     bus.on(EV.SOLD, () => this.shopChime());
     bus.on(EV.PURCHASE_FAILED, () => this.shopError());
@@ -103,6 +103,43 @@ export class SFX {
     const f = /** @type {BiquadFilterNode} */ (v.nodes[v.nodes.length - 2]).frequency;
     f.linearRampToValueAtTime(420 * p, t + 0.05);
     f.exponentialRampToValueAtTime(110 * p, t + 0.125);
+    e.commit(v);
+  }
+
+  /** Jackhammer: three pneumatic blows per swing (timed with the chisel in Renderer), each a
+   *  chest-thump, a steel-on-steel clack and a puff of exhaust air. @param {number} dur swing seconds */
+  jackhammer(dur) {
+    const e = this.e; if (!e.ready) return;
+    const v = e.voice('sfx'); if (!v) return;
+    const p = e.jp(); const g = e.jg();
+    for (let k = 0; k < 3; k++) {
+      const t = e.now + (k + 0.2) * dur / 3;
+      e.noiseBurst(v, 'brown', 'lowpass', 260 * p, 90, 0.8, t, 0.05, 0.55 * g);
+      e.osc(v, 'square', 1900 * p, 700 * p, t, 0.025, 0.05 * g);
+      e.noiseBurst(v, 'pink', 'highpass', 2600 * p, 1800, 0.7, t + 0.01, 0.04, 0.12 * g);
+    }
+    e.commit(v);
+  }
+
+  /** Power drill: motor whine with a fast buzz plus bit grind, held flat for one swing so
+   *  back-to-back swings join into one continuous drone. @param {number} dur swing seconds */
+  drill(dur) {
+    const e = this.e; if (!e.ready) return;
+    const v = e.voice('sfx'); if (!v) return;
+    const ctx = this.ctx; const t = e.now; const p = e.jp(); const end = t + dur + 0.04;
+    const out = ctx.createGain(); out.connect(v.out); v.nodes.push(out);
+    out.gain.setValueAtTime(0.0001, t); out.gain.linearRampToValueAtTime(0.22 * e.jg(), t + 0.02);
+    out.gain.setValueAtTime(0.22 * e.jg(), end - 0.03); out.gain.linearRampToValueAtTime(0.0001, end);
+    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 1400; lp.connect(out); v.nodes.push(lp);
+    const lfo = ctx.createOscillator(); lfo.frequency.value = 23; const depth = ctx.createGain(); depth.gain.value = 6;
+    lfo.connect(depth); v.nodes.push(lfo, depth); v.sources.push(lfo);
+    for (const [type, f, amp] of [['sawtooth', 92 * p, 0.5], ['square', 184 * p, 0.18]]) {
+      const o = ctx.createOscillator(); o.type = type; o.frequency.value = f; depth.connect(o.frequency);
+      const og = ctx.createGain(); og.gain.value = amp; o.connect(og); og.connect(lp);
+      o.start(t); o.stop(end + 0.02); v.nodes.push(o, og); v.sources.push(o);
+    }
+    lfo.start(t); lfo.stop(end + 0.02);
+    e.noiseBurst(v, 'pink', 'bandpass', 2300 * p, 2300 * p, 1.5, t, dur + 0.04, 0.35, out, 0.02); // grind
     e.commit(v);
   }
 

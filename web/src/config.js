@@ -569,7 +569,7 @@ export const UPGRADES = Object.freeze({
     { name: 'None' },
     { name: 'Jackhammer', recipe: { [ITEM.STEEL]: 6, [ITEM.COPPER_WIRE]: 2 }, tech: 'machining', workshop: 2 },
   ] },
-  cone_drill: { name: 'Cone Drill', tool: { swingMul: 1.6, bore: 3 }, levels: [
+  cone_drill: { name: 'Cone Drill', tool: { swingMul: 1.6, bore: 3, hitEnergy: 0.4 }, levels: [
     { name: 'None' },
     { name: 'Cone Drill', recipe: { [ITEM.WROUGHT_IRON]: 6, [ITEM.BRONZE]: 2 }, tech: 'ironworking', workshop: 1 },
   ] },
